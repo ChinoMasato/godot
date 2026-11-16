@@ -8,3 +8,4 @@
 | 項目 | 担当 | ブランチ | 触るパス | 状態 | 開始日 |
 |---|---|---|---|---|---|
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
+| B-101 | Codex | agent/b-101-codex | tests/, main/（doctest 出力）、ai_loop/iterations/2026-11-16-B-101-codex.md（運用ファイルは担当宣言・自分の状況行のみ） | 作業中 | 2026-11-16 |

@@ -34,7 +34,7 @@
 |---|---|---|---|---|---|
 | Muse（リード） | B-001 検証ビルド（VM）／統合 | ai-native | VMでベースラインビルド実行中（ローカル結果のクロスチェック用） | Claude 側ベースラインの LEDGER 記録を取り込み ai-native へ反映 | 2026-11-17 |
 | Claude Code | B-002 → B-003（提案） | claude/uzu-engine-briefing-rrno7b | ローカルでベースライン取得済み（15分54秒、1430/1431 pass、fail 1件は環境起因と報告）。push は 403 で未実施 | オーナー判断（下記）を待って着手 | 2026-11-17 |
-| Codex | B-101（提案） | （未作成） | clone・必読確認済み。未着手 | オーナー判断（下記）を待って agent_start.sh で開始 | 2026-11-17 |
+| Codex | B-101（オーナー指示） | agent/b-101-codex | JSON 実行・変換スクリプトを実装、実 doctest による検証10件 pass。agent_finish は SCons 不在で終了127、実エンジン全件未検証のドラフト | リードのビルド環境で全件検証と JSON 出力を確認後に採用判断。ai_loop/iterations/2026-11-16-B-101-codex.md 参照。旧 B-002 は別 worktree に保持 | 2026-11-16 UTC |
 
 ## 質問・相談
 
