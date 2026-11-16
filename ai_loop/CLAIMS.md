@@ -8,3 +8,4 @@
 | 項目 | 担当 | ブランチ | 触るパス | 状態 | 開始日 |
 |---|---|---|---|---|---|
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
+| B-002 | Claude Code (cloud) | agent/b-002-claude | ai_loop/measure.sh（新規）, ai_loop/iterations/ | 作業中 | 2026-11-17 |
