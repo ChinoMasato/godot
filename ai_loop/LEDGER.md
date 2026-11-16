@@ -44,3 +44,8 @@
 - 所要時間: フルビルド 15分54秒（2,665 ファイル、exit 0）、単体テスト約31秒。
 - テスト: 総数 1431／pass 1430／fail 1／skip 3（assertion 423591 中 1000 が fail）。
 - fail: `[IP] resolve_hostname`（tests/core/io/test_ip.cpp:44）、localhost の IPv6 解決が空になる。環境起因と判断した根拠: コンテナの /etc/hosts に `::1 localhost` が無く、getent でも Python の getaddrinfo でも AF_INET6 の localhost を引けない。`::1 localhost` を一時的に足すと全 1431 件 pass、fail 0 になる（そのあと元に戻した）。コード起因の失敗は 0 件。
+
+## 2026-11-17 — リード統合: Claude ブランチを ai-native へマージ
+- claude/uzu-engine-briefing-rrno7b（3bb7ea0）を ai-native へ fast-forward マージ。内容: B-001 詳細記録（LEDGER 本編＋iterations）、B-002 measure.sh（リードがレビュー: flock 直列化・失敗時も記録・doctest 集計のパースを確認、bash -n pass）、B-003 事前調査（コード変更なし）。
+- Q1 の条件（ベースライン詳細記録）はこれで充足。B-001 は正式に完了。
+- B-003 の実装は Q3（COORDINATION.md）のオーナー決定待ち: short_name の扱い（案A: name のみ変更／案B: 両方変更）、判定条件の差し替え、measure.sh の TZ 既定。
