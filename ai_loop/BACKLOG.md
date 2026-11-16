@@ -7,6 +7,7 @@
 
 - [ ] B-001 ベースライン確立: フルビルド（tests=yes）を通し、単体テスト全件を実行して結果を記録する。判定: テスト総数と pass/fail の内訳が LEDGER に残ること。失敗があれば、それ自体が最初の修正課題になる。
 - [ ] B-002 ビルド／テスト所要時間の計測をスクリプト化する（ai_loop/measure.sh）。判定: 実行すると所要時間が LEDGER 形式で1行追記されること。
+- [x] B-004 マルチエージェント開発基盤（2026-11-17 完了）: 主ツールを Claude Code とし（千野の決定）、複数 AI エージェントが並行開発できる構成にした — CLAUDE.md（AGENTS.md を取り込み）、ai_loop/MULTI_AGENT.md（1エージェント=1項目=1 worktree、CLAIMS 宣言、ビルドのロック直列化、マージ規律）、CLAIMS.md、iterations/（記録の分離）、agent_start.sh／build_locked.sh／agent_finish.sh。判定: agent_start.sh で worktree＋ブランチが実際に作れること（B-999 で実証済み）、スクリプトの構文チェック pass。
 - [ ] B-003 エンジン名を U.ZU Engine に変更する（version.py の name / short_name、関連する表示箇所）。ベースライン完了後に実施。判定: 変更後のバイナリが起動し、全テスト pass、--version の表示が U.ZU Engine になること。プロジェクト形式の互換に影響する変更（設定パスの扱い等）があれば先に千野へ確認する。
 
 ## Phase 1（観測可能性と実証）

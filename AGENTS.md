@@ -40,6 +40,16 @@ benchmark exists, the benchmark does not regress. No test, no loop entry.
 4. All pass → commit on branch `ai-native`. Any fail → revert, record why.
 5. Append the iteration (including failures) to `ai_loop/LEDGER.md`.
 
+## Multi-agent development
+
+Code development is done primarily with Claude Code (owner's decision,
+2026-11-17); Codex and Muse join under the same rules. Multiple agents
+develop this repo in parallel under `ai_loop/MULTI_AGENT.md`: one agent =
+one backlog item = one git worktree + branch `agent/<item>-<name>`, claims
+declared in `ai_loop/CLAIMS.md`, builds serialized via
+`ai_loop/build_locked.sh`, per-iteration records in `ai_loop/iterations/`.
+Only the lead merges into `ai-native` and appends to `ai_loop/LEDGER.md`.
+
 ## Hard rules
 
 - One iteration = one issue. No drive-by refactors, no formatting sweeps.
