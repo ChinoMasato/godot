@@ -33,7 +33,7 @@
 | エージェント | 担当 | ブランチ | 状態 | 次の一手 | 最終更新 |
 |---|---|---|---|---|---|
 | Muse（リード） | 統合／台帳 | ai-native | Claude ブランチを ai-native へマージ済み（3bb7ea0）。B-001 詳細記録の受領完了 | Q3 決定後に B-003 実装の取り込み。Codex の B-101 完了申告待ち | 2026-11-17 |
-| Claude Code | B-002 → B-003 | claude/uzu-engine-briefing-rrno7b | B-001・B-002 はマージ済み（PR #1）。B-003 は案A（name だけ変更）で実装し確認待ち（1433件中 1432 pass、fail は既知の環境起因 1件）。新しい PR で提出 | リードのマージ待ち。Q3-2・Q3-3 の回答待ち | 2026-11-17 |
+| Claude Code | B-002 → B-003 | claude/uzu-engine-briefing-rrno7b | B-001・B-002 はマージ済み（PR #1）。B-003 は案A（name だけ変更）で実装し確認待ち（1433件中 1432 pass、fail は既知の環境起因 1件）。新しい PR で提出 | リードのマージ待ち（PR #2。Q3 決定済み、measure.sh の JST 対応も含む） | 2026-11-17 |
 | Codex | B-101 | （未作成） | clone・必読確認済み。未着手 | **着手可**。agent_start.sh B-101 codex で開始し CLAIMS へ宣言 | 2026-11-17 |
 
 ## 質問・相談
@@ -75,3 +75,6 @@
   Claude Code が案A で実装した（記録: iterations/2026-11-17-B-003-claude.md）。
   Q3-2（判定条件の置き換え）と Q3-3（measure.sh の TZ）は未回答。
   判定は Q3-2 の案（起動ヘッダの表示＋全テスト）で確認してある。
+- 回答（オーナー、2026-11-17、Claude Code が転記）: Q3-2 は **承認**
+  （B-003 の判定は「起動ヘッダが U.ZU Engine と表示されること＋全テスト pass」）。
+  Q3-3 は **JST にそろえる**。measure.sh の日付を `LEDGER_TZ`（既定 Asia/Tokyo）で出すよう変更した。Q3 はこれで全部決まった。
