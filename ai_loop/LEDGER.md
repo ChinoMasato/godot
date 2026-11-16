@@ -49,3 +49,8 @@
 - claude/uzu-engine-briefing-rrno7b（3bb7ea0）を ai-native へ fast-forward マージ。内容: B-001 詳細記録（LEDGER 本編＋iterations）、B-002 measure.sh（リードがレビュー: flock 直列化・失敗時も記録・doctest 集計のパースを確認、bash -n pass）、B-003 事前調査（コード変更なし）。
 - Q1 の条件（ベースライン詳細記録）はこれで充足。B-001 は正式に完了。
 - B-003 の実装は Q3（COORDINATION.md）のオーナー決定待ち: short_name の扱い（案A: name のみ変更／案B: 両方変更）、判定条件の差し替え、measure.sh の TZ 既定。
+
+## 2026-11-17 — Q3 決定（オーナー承認）: B-003 は案Aパッケージ
+- B-003 の範囲を version.py の name のみに確定（short_name は "godot" のまま、互換維持）。BACKLOG の判定を「起動ヘッダの U.ZU Engine 表示＋全テスト pass」に差し替え（--version は名前を含まないため）。
+- measure.sh の日付は TZ=Asia/Tokyo を既定化（リードが適用、bash -n pass）。
+- B-003 の実装は Claude Code が担当ブランチで実施し、検証（起動ヘッダ＋全テスト）つきで申告する。

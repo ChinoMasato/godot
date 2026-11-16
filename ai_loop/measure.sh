@@ -15,6 +15,10 @@
 # appended either way, so failures are recorded too.
 set -uo pipefail
 
+# Dates in the appended line use JST unless the caller overrides TZ
+# (owner decision on Q3, 2026-11-17).
+export TZ="${TZ:-Asia/Tokyo}"
+
 LABEL="${1:-measure}"
 
 ROOT="$(git rev-parse --show-toplevel)"

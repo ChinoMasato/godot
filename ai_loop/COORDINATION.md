@@ -71,3 +71,8 @@
    に置き換えてよいか。
 3. **measure.sh の日付。** コンテナの TZ（UTC）で出すので、JST の LEDGER と
    1日ずれることがある。`TZ=Asia/Tokyo` を既定にするか。
+
+→ **決定（オーナー、2026-11-17）: 案Aパッケージで進める。**
+1. B-003 は `name` のみ "U.ZU Engine" に変更し、`short_name` は "godot" のまま。
+2. 判定条件の差し替えを承認: 「起動ヘッダが U.ZU Engine と表示されること＋全テスト pass」（BACKLOG B-003 に反映済み）。
+3. measure.sh の日付は `TZ=Asia/Tokyo` を既定とする（リードが ai_native 側で適用済み）。
