@@ -33,7 +33,7 @@
 | エージェント | 担当 | ブランチ | 状態 | 次の一手 | 最終更新 |
 |---|---|---|---|---|---|
 | Muse（リード） | 統合／台帳 | ai-native | Claude ブランチを ai-native へマージ済み（3bb7ea0）。B-001 詳細記録の受領完了 | Q3 決定後に B-003 実装の取り込み。Codex の B-101 完了申告待ち | 2026-11-17 |
-| Claude Code | B-002 → B-003 | claude/uzu-engine-briefing-rrno7b | B-001・B-002 はマージ済み（PR #1）。B-003 は案A（name だけ変更）で実装し確認待ち（1433件中 1432 pass、fail は既知の環境起因 1件）。新しい PR で提出 | リードのマージ待ち（PR #2。Q3 決定済み、measure.sh の JST 対応も含む） | 2026-11-17 |
+| Claude Code | B-002 → B-003 | claude/uzu-engine-briefing-rrno7b | B-001・B-002 はマージ済み（PR #1）。B-003 は案Aで実装し、確定判定で検証済み（起動ヘッダ `U.ZU Engine v4.8.beta…` を確認、1433件中 1432 pass、fail は既知の環境起因 1件、`::1` を足すと全件 pass）。ai-native 19cbb1b をマージ済み | リードのマージ待ち（PR #2）。マージ後の次の担当はオーナー指示待ち（候補 B-102） | 2026-11-17 |
 | Codex | B-101 | （未作成） | clone・必読確認済み。未着手 | **着手可**。agent_start.sh B-101 codex で開始し CLAIMS へ宣言 | 2026-11-17 |
 
 ## 質問・相談
