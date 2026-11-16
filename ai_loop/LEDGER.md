@@ -26,6 +26,17 @@
 - .codex/config.toml を追加（プロジェクト既定値: sandbox_mode=workspace-write、approval_policy=on-request。規則ではなく既定値）。
 - BRIEFING.md にツール別入口の注記を追加。規則自体は従来どおり全ツール共通。
 
+## 2026-11-17 — 三者連携基盤（千野の指示）
+- 連携窓口を ai_loop/COORDINATION.md に一本化（状況ボード＋質問節＋役割定義）。開始時に読み、終了時に自分の行を更新する運用。正式決定はオーナー承認→リードがLEDGERへ反映した時点で確定、と明記。
+- MULTI_AGENT.md に連携節を追加、AGENTS.md と BRIEFING.md の必読リストに COORDINATION.md を追加。
+- 背景: Claude Code セッションと Codex が稼働開始し、質問（B-001採用可否・作業ブランチ・分担案）と push 403 の報告がオーナー経由で届いたため、中継を不要にする仕組みとして整備。未決事項は COORDINATION.md の Q1/Q2 に集約。
+
+## 2026-11-17 — Q1 決定（オーナー承認）と B-001 ベースライン採用
+- 決定1（B-001）: Claude Code（ローカル）が取得したベースラインを正式採用する。報告値: フルビルド 15分54秒、単体テスト 1431件中 1430 pass、fail 1件は環境起因（Claude Code の報告）。エンジン側コミット ff5246b は運用ファイルのみでコード差分がないため、この結果は現行ツリーに適用できる。詳細記録（ビルド設定・マシン環境・fail 1件のテスト名と根拠）は Claude Code が追って記録し、リードが ai-native へ取り込む。Muse の VM ビルドは本決定により停止した（オブジェクト 2,111 個は保持、増分再開可能。VM 側のテスト結果は得られていない）。
+- 決定2（作業ブランチ）: Claude セッション専用ブランチ claude/uzu-engine-briefing-rrno7b を許可。ai-native へのマージはリード経由。
+- 決定3（分担）: Claude Code = B-002 → B-003、Codex = B-101 を承認。B-002/B-003 に限り ai_loop/ と version.py へのリード権限を Claude Code へ委譲。B-003 は互換影響の事前調査・報告が条件。
+- 連携: 以後の push・マージは保持したデバイス認証トークンでリード（Muse）が随時実施する（オーナー承認済み）。
+
 ## 2026-11-17 — B-001 ベースライン確立（Claude Code、クラウド）
 - オーナー判断で本結果を正式なベースラインとして採用（Muse 側のビルドは停止）。詳細: ai_loop/iterations/2026-11-17-B-001-claude.md
 - ビルド設定: AGENTS.md の規定どおり `scons platform=linuxbsd target=template_release tests=yes accesskit=no arch=x86_64`（並列数だけ -j4。4コアのため）。対象 ai-native @ 3d70ab368。
