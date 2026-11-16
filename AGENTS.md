@@ -8,9 +8,10 @@ owns design decisions. The full design document lives outside the repo:
 ## Start here (all agents)
 
 Read `ai_loop/BRIEFING.md` first for the project's purpose, the product
-split (U.ZU Engine × Gogashare) and strategy, then `ai_loop/MULTI_AGENT.md`
-for the parallel-development protocol, and `ai_loop/BACKLOG.md` for the
-task list. Entry points per tool: Claude Code reads `CLAUDE.md` (which
+split (U.ZU Engine × Gogashare) and strategy, then `ai_loop/COORDINATION.md`
+(the shared status/question board — read it at every session start and
+update your own row before you finish), `ai_loop/MULTI_AGENT.md` for the
+parallel-development protocol, and `ai_loop/BACKLOG.md` for the task list. Entry points per tool: Claude Code reads `CLAUDE.md` (which
 imports this file); **Codex reads this `AGENTS.md` directly** (project
 session defaults live in `.codex/config.toml`). The rules in this file and
 in `ai_loop/` are identical for every agent, whatever the tool.

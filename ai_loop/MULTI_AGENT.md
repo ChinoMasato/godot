@@ -32,6 +32,21 @@ ai_loop/agent_finish.sh
 # 5. iterations/ に記録を残し、ブランチをコミットしてリードに渡す
 ```
 
+## 連携（COORDINATION）
+
+三者（リード＝Muse、Claude Code、Codex）の連携窓口は
+`ai_loop/COORDINATION.md` に一本化する。
+
+- セッション開始時: 最新の `ai-native` を fetch し、COORDINATION.md と
+  CLAIMS.md を読んでから着手する。
+- セッション終了時: COORDINATION.md の状況ボードで自分の行を更新し、
+  自分のブランチへ push する。push できない環境では更新内容を記録
+  ファイルとしてリードへ渡す。
+- 質問・相談は COORDINATION.md の質問節に宛先つきで書く。正式な決定は
+  オーナー承認 → リードが LEDGER.md へ反映した時点で確定する。
+- リードは各ブランチの更新を取り込み、質問を集約してオーナーへ提示し、
+  承認された決定を LEDGER と COORDINATION の両方へ反映する。
+
 ## ツール別の注意
 
 - **Claude Code**: ルートの `CLAUDE.md` が `AGENTS.md` を取り込み、本書への参照を含む。サブエージェントは探索専用に使い、編集は親が自分の worktree で行う。
