@@ -25,3 +25,11 @@
 - Codex でもそのまま作業できるよう入口を明示: AGENTS.md 冒頭に「Start here」節を追加（BRIEFING → MULTI_AGENT → BACKLOG の必読順と、ツール別入口: Claude Code=CLAUDE.md／Codex=AGENTS.md）。
 - .codex/config.toml を追加（プロジェクト既定値: sandbox_mode=workspace-write、approval_policy=on-request。規則ではなく既定値）。
 - BRIEFING.md にツール別入口の注記を追加。規則自体は従来どおり全ツール共通。
+
+## 2026-11-17 — B-001 ベースライン確立（Claude Code、クラウド）
+- オーナー判断で本結果を正式なベースラインとして採用（Muse 側のビルドは停止）。詳細: ai_loop/iterations/2026-11-17-B-001-claude.md
+- ビルド設定: AGENTS.md の規定どおり `scons platform=linuxbsd target=template_release tests=yes accesskit=no arch=x86_64`（並列数だけ -j4。4コアのため）。対象 ai-native @ 3d70ab368。
+- マシン: Claude Code クラウドコンテナ（gVisor）、Xeon 2.10GHz × 4コア、RAM 15GB、Ubuntu 24.04.5、gcc 13.3.0、Python 3.13.18、SCons 4.11.1、zstandard 0.25.0。
+- 所要時間: フルビルド 15分54秒（2,665 ファイル、exit 0）、単体テスト約31秒。
+- テスト: 総数 1431／pass 1430／fail 1／skip 3（assertion 423591 中 1000 が fail）。
+- fail: `[IP] resolve_hostname`（tests/core/io/test_ip.cpp:44）、localhost の IPv6 解決が空になる。環境起因と判断した根拠: コンテナの /etc/hosts に `::1 localhost` が無く、getent でも Python の getaddrinfo でも AF_INET6 の localhost を引けない。`::1 localhost` を一時的に足すと全 1431 件 pass、fail 0 になる（そのあと元に戻した）。コード起因の失敗は 0 件。
