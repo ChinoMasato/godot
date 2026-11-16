@@ -12,14 +12,19 @@
 
 - **U.ZU Engine** は、ゲームエンジン Godot のフォークとして開発する AI ネイティブな新エンジン。
 - ベース: 本家 godotengine/godot の master、**フォーク点コミット `203bf0a23fd7d90a860917e66de08e20d2596244`**（Godot 4.8.0 beta）。ライセンスは MIT。
-- 開発ブランチ: **`ai-native`**。フォーク点の上に運用コミットが7件積まれている（プロジェクト開始／命名／Phase 3・5・6 バックログ／橋 API／マルチエージェント基盤。最新 HEAD は `cd60767`）。
+- 開発ブランチ: **`ai-native`**。フォーク点の上に運用コミットが積まれている（プロジェクト開始／命名／Phase 3・5・6 バックログ／橋 API／マルチエージェント基盤／本ブリーフィング。履歴は `git log` で確認）。
 
-### リポジトリの入手（重要）
+### リポジトリの入手
 
-フォークのリポジトリは現在、Muse（Meta の AI）の作業環境内にのみ存在します。ローカル PC で開発を始めるには、次のどちらかが必要です。
+リポジトリは GitHub に展開済みです： **https://github.com/ChinoMasato/godot**（godotengine/godot のフォーク、オーナーのアカウント ChinoMasato）。
 
-1. **（推奨）オーナーが Muse からリポジトリ一式（.git ごと）を受け取り、ローカルに展開する。** そのまま `ai-native` ブランチで作業を開始できます。
-2. 再現する場合: `git clone https://github.com/godotengine/godot` → `git checkout 203bf0a23fd7d90a860917e66de08e20d2596244` → ブランチ `ai-native` を作り、運用ファイル（`AGENTS.md`、`CLAUDE.md`、`ai_loop/` 一式）を移植する。ただし7コミットの履歴は再現できないため、方法1が確実です。
+```sh
+git clone https://github.com/ChinoMasato/godot.git
+cd godot
+git checkout ai-native
+```
+
+フォークの `master` はフォーク点 `203bf0a` で固定されています。**master には触らない**（上流追随の方針は Phase 1 で判断する）。作業はすべて `ai-native` か、そこから切る `agent/*` ブランチで行います。
 
 リポジトリを受け取ったら、最初に次のファイルを必ず読んでください： `AGENTS.md`、`CLAUDE.md`、`ai_loop/MULTI_AGENT.md`、`ai_loop/BACKLOG.md`、`ai_loop/LEDGER.md`。設計書全文（設計書_v0.md）はリポジトリ外にあります。要点は本書の 3〜5 に要約してありますが、設計に触れる作業の前にはオーナーから全文を受け取ってください。
 
