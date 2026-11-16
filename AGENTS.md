@@ -1,6 +1,6 @@
-# AGENTS.md — AI-Native Godot Fork
+# AGENTS.md — U.ZU Engine (AI-Native Godot Fork)
 
-This repository is a fork of Godot Engine 4.8 beta (master @ 203bf0a), developed
+This repository builds **U.ZU Engine**, a fork of Godot Engine 4.8 beta (master @ 203bf0a), developed
 AI-first: AI agents are the primary developers, a human (the project owner)
 owns design decisions. The full design document lives outside the repo:
 `~/workspace/goals/ai-godot/files/設計書_v0.md`. Read it before changing design.
