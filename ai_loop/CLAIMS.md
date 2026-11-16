@@ -10,4 +10,4 @@
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
 | B-001 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/LEDGER.md, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-002 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/measure.sh（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
-| B-003 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | 調査のみ（実装時: version.py ほか。互換に影響があればオーナー確認） | 作業中 | 2026-11-17 |
+| B-003 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | 調査のみ（実装時: version.py ほか。互換に影響があればオーナー確認） | オーナー確認待ち（short_name は互換に影響あり） | 2026-11-17 |
