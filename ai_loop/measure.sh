@@ -10,12 +10,14 @@
 #   JOBS   parallel build jobs (default: 3)
 #   LEDGER file to append to (default: ai_loop/LEDGER.md). Non-lead agents
 #          should point this at their own ai_loop/iterations/ record instead.
-#   LEDGER_TZ  time zone of the recorded date (default: Asia/Tokyo, to match
-#          the LEDGER's JST dates whatever the machine's own time zone is).
 #
 # Exit status: non-zero if the build or the test run failed. The line is
 # appended either way, so failures are recorded too.
 set -uo pipefail
+
+# Dates in the appended line use JST unless the caller overrides TZ
+# (owner decision on Q3, 2026-11-17).
+export TZ="${TZ:-Asia/Tokyo}"
 
 LABEL="${1:-measure}"
 
@@ -31,7 +33,6 @@ if [ -z "${SCONS:-}" ]; then
 fi
 JOBS="${JOBS:-3}"
 LEDGER="${LEDGER:-ai_loop/LEDGER.md}"
-LEDGER_TZ="${LEDGER_TZ:-Asia/Tokyo}"
 BIN="bin/godot.linuxbsd.template_release.x86_64"
 TEST_LOG="$(mktemp)"
 trap 'rm -f "$TEST_LOG"' EXIT
@@ -59,7 +60,7 @@ if [ "$build_rc" -eq 0 ]; then
 fi
 t2=$(date +%s)
 
-line="- $(TZ="$LEDGER_TZ" date +%F) measure (${LABEL}) @ $(git rev-parse --short HEAD): build $((t1 - t0))s (exit ${build_rc}, -j${JOBS}) / test $((t2 - t1))s (exit ${test_rc}; ${summary}) on $(hostname), $(nproc) cores"
+line="- $(date +%F) measure (${LABEL}) @ $(git rev-parse --short HEAD): build $((t1 - t0))s (exit ${build_rc}, -j${JOBS}) / test $((t2 - t1))s (exit ${test_rc}; ${summary}) on $(hostname), $(nproc) cores"
 printf '%s\n' "$line" >>"$LEDGER"
 echo "appended to ${LEDGER}:"
 echo "$line"

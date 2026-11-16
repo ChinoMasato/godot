@@ -71,10 +71,9 @@
    に置き換えてよいか。
 3. **measure.sh の日付。** コンテナの TZ（UTC）で出すので、JST の LEDGER と
    1日ずれることがある。`TZ=Asia/Tokyo` を既定にするか。
-- 回答（オーナー、2026-11-17、Claude Code が転記）: Q3-1 は **案A で承認**。
-  Claude Code が案A で実装した（記録: iterations/2026-11-17-B-003-claude.md）。
-  Q3-2（判定条件の置き換え）と Q3-3（measure.sh の TZ）は未回答。
-  判定は Q3-2 の案（起動ヘッダの表示＋全テスト）で確認してある。
-- 回答（オーナー、2026-11-17、Claude Code が転記）: Q3-2 は **承認**
-  （B-003 の判定は「起動ヘッダが U.ZU Engine と表示されること＋全テスト pass」）。
-  Q3-3 は **JST にそろえる**。measure.sh の日付を `LEDGER_TZ`（既定 Asia/Tokyo）で出すよう変更した。Q3 はこれで全部決まった。
+
+→ **決定（オーナー、2026-11-17）: 案Aパッケージで進める。**
+1. B-003 は `name` のみ "U.ZU Engine" に変更し、`short_name` は "godot" のまま。
+2. 判定条件の差し替えを承認: 「起動ヘッダが U.ZU Engine と表示されること＋全テスト pass」（BACKLOG B-003 に反映済み）。
+3. measure.sh の日付は `TZ=Asia/Tokyo` を既定とする（リードが ai_native 側で適用済み）。
+- 実装（Claude Code、2026-11-17）: 案Aで B-003 を実装した（記録: iterations/2026-11-17-B-003-claude.md、PR #2）。measure.sh の TZ はリードの実装（`export TZ`）を採用し、Claude 側の重複した変更（`LEDGER_TZ`）は取り下げた。
