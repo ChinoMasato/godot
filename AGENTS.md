@@ -5,6 +5,16 @@ AI-first: AI agents are the primary developers, a human (the project owner)
 owns design decisions. The full design document lives outside the repo:
 `~/workspace/goals/ai-godot/files/設計書_v0.md`. Read it before changing design.
 
+## Start here (all agents)
+
+Read `ai_loop/BRIEFING.md` first for the project's purpose, the product
+split (U.ZU Engine × Gogashare) and strategy, then `ai_loop/MULTI_AGENT.md`
+for the parallel-development protocol, and `ai_loop/BACKLOG.md` for the
+task list. Entry points per tool: Claude Code reads `CLAUDE.md` (which
+imports this file); **Codex reads this `AGENTS.md` directly** (project
+session defaults live in `.codex/config.toml`). The rules in this file and
+in `ai_loop/` are identical for every agent, whatever the tool.
+
 ## Build (this machine)
 
 Toolchain is a venv at `~/workspace/.venv-build` (SCons + zstandard).

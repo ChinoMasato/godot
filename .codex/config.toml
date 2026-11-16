@@ -1,0 +1,7 @@
+# U.ZU Engine — Codex project settings.
+# Instructions for Codex live in AGENTS.md (repo root) and ai_loop/.
+# This file only sets session defaults for work in this repository.
+# The owner can adjust or delete it; it is a default, not a rule.
+
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
