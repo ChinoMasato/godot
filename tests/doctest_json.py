@@ -2,7 +2,7 @@
 """Run a tests=yes engine binary and convert doctest's XML report to JSON.
 
 Run from the repository root:
-    python3 tests/doctest_json.py bin/godot.linuxbsd.template_release.x86_64 > results.json
+    python3 tests/doctest_json.py bin/godot.linuxbsd.editor.x86_64 > results.json
 
 Additional doctest test filters may follow the executable path. Engine output
 goes to stderr; stdout contains only the completed JSON report. The engine's

@@ -3,7 +3,7 @@
 Run from the repository root using an existing `tests=yes` engine build:
 
 ```sh
-python3 tests/doctest_json.py bin/godot.linuxbsd.template_release.x86_64 > results.json
+python3 tests/doctest_json.py bin/godot.linuxbsd.editor.x86_64 > results.json
 ```
 
 The command runs the engine with its existing doctest XML reporter, reads the
@@ -14,7 +14,7 @@ and the standard library suffice.
 Doctest test filters can follow the executable:
 
 ```sh
-python3 tests/doctest_json.py bin/godot.linuxbsd.template_release.x86_64 --test-case='[String]*' > string-results.json
+python3 tests/doctest_json.py bin/godot.linuxbsd.editor.x86_64 --test-case='[String]*' > string-results.json
 ```
 
 Use this command for test execution, not doctest query commands such as
