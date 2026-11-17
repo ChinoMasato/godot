@@ -19,3 +19,4 @@
 | B-704（Q6、仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | scene/3d/look_preset_3d.{h,cpp}, tests/scene/test_look_preset_3d.cpp, ai_loop/iterations/ | 関数まで完了。UI の置き場所はオーナー確認待ち | 2026-11-17 |
 | B-705（Q6、仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | scene/3d/look_preset_3d.{h,cpp}, tests/scene/test_look_preset_3d.cpp, editor/scene/3d/node_3d_editor_plugin.cpp, ai_loop/iterations/ | 確認待ち（見た目はオーナー判断。補助光・街灯の UI は B-704 と一緒に確認） | 2026-11-17 |
 | B-706（Q6、仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | scene/3d/look_preset_3d.{h,cpp}, tests/scene/test_look_preset_3d.cpp, editor/scene/3d/node_3d_editor_plugin.cpp, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
+| B-711（Q6、仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/palette_check.py（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
