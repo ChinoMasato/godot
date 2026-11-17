@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U.ZU Engine — 動く公式ロゴ</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0a1423; color: #ecf7ff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  main { max-width: 1040px; margin: auto; padding: 48px 32px; }
+  header { display: flex; gap: 16px; justify-content: space-between; align-items: baseline; }
+  header p { margin: 0; font-size: 11px; letter-spacing: .16em; color: #a3b5c5; }
+  .logo-stage { display: grid; place-items: center; min-height: 400px; padding: 60px 36px; background: #0a1423; }
+  .logo-stage svg { display: block; width: 100%; max-width: 760px; height: auto; overflow: visible; }
+  .controls { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  button { appearance: none; font: inherit; font-size: 13px; min-height: 44px; padding: 10px 22px; border-radius: 100px; border: 1px solid #425264; background: transparent; color: #ecf7ff; cursor: pointer; }
+  button:hover { border-color: #e8cea0; }
+  button:focus-visible { outline: 2px solid #a3d4e5; outline-offset: 4px; }
+  #play { background: #e8cea0; border-color: #e8cea0; color: #0a1423; }
+  footer { margin-top: 42px; text-align: center; font-size: 12px; line-height: 1.8; color: #a3b5c5; }
+  #status { min-height: 1.8em; }
+  a { color: #b4d9ed; text-underline-offset: 3px; }
+  @media (max-width: 520px) {
+    main { padding: 24px 16px; }
+    header { flex-direction: column; gap: 8px; }
+    .logo-stage { padding: 30px 0; min-height: 260px; }
+    footer { margin-top: 28px; }
+  }
+</style>
+<main>
+  <header><p>U.ZU ENGINE</p><p>OFFICIAL IDENTITY / MOTION</p></header>
+  <div class="logo-stage"><!-- UZU_IDENTITY --></div>
+  <div class="controls">
+    <button id="play" type="button">もう一度再生</button>
+    <button id="stop" type="button">静止</button>
+  </div>
+  <footer>
+    <div id="status" aria-live="polite"></div>
+    公式ロゴの輪郭を、そのままに。マークが一周して、静かに定位置へ。<br>
+    <a href="https://u-zu.co.jp/" target="_blank" rel="noopener">ユーズ株式会社</a>
+  </footer>
+</main>
+<script>
+  const mark = document.getElementById('uzu-orbit');
+  const status = document.getElementById('status');
+  let frame = 0;
+  let started = 0;
+  function setProgress(value) {
+    const t = Math.min(1, Math.max(0, value));
+    const angle = 360 * t * t * (3 - 2 * t);
+    mark.setAttribute('transform', `rotate(${t === 1 ? 0 : angle} 85 90)`);
+  }
+  function stop() {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    setProgress(1);
+    status.textContent = '静止';
+  }
+  function tick(now) {
+    if (!started) started = now;
+    const t = (now - started) / 2400;
+    setProgress(t);
+    if (t < 1) frame = requestAnimationFrame(tick);
+    else { frame = 0; status.textContent = '再生完了'; }
+  }
+  function play() {
+    stop();
+    started = 0;
+    status.textContent = '再生中';
+    frame = requestAnimationFrame(tick);
+  }
+  document.getElementById('play').addEventListener('click', play);
+  document.getElementById('stop').addEventListener('click', stop);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  reducedMotion.addEventListener('change', () => { if (reducedMotion.matches) stop(); });
+  window.uzuLogoPreview = { setProgress, stop, play };
+  if (reducedMotion.matches) stop(); else play();
+</script>
+</html>

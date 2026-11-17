@@ -65,6 +65,8 @@ private:
 	RichTextLabel *license_text_label = nullptr;
 	RichTextLabel *_tpl_text = nullptr;
 	TextureRect *_logo = nullptr;
+	TextureRect *_logo_mark = nullptr;
+	double logo_animation_time = 0.0;
 	Vector<ItemList *> name_lists;
 	CreditsRoll *credits_roll = nullptr;
 

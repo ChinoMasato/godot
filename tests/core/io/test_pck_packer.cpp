@@ -100,8 +100,9 @@ TEST_CASE("[PCKPacker] Pack a PCK file with some files and directories") {
 	CHECK_MESSAGE(
 			pck_packer.add_file("some/directories with spaces/to/create/icon.png", base_dir.path_join("../misc/logo/logo.png")) == OK,
 			"Overriding a non-flushed file to an existing subdirectory in the PCK should return an OK error code.");
+	const Vector<uint8_t> buffer = String("Hello world!").to_utf8_buffer();
 	CHECK_MESSAGE(
-			pck_packer.add_file_from_buffer("buffer/new.txt", String("Hello world!").to_utf8_buffer()) == OK,
+			pck_packer.add_file_from_buffer("buffer/new.txt", buffer) == OK,
 			"Adding a file from a buffer to the PCK in a new subdirectory should return an OK error code.");
 	CHECK_MESSAGE(
 			pck_packer.flush() == OK,
@@ -112,12 +113,19 @@ TEST_CASE("[PCKPacker] Pack a PCK file with some files and directories") {
 	CHECK_MESSAGE(
 			err == OK,
 			"The generated non-empty PCK file should be opened successfully.");
+	// Artwork sizes can change independently of the packer. Bound overhead
+	// relative to the input payloads rather than a particular logo revision.
+	const uint64_t payload_size = uint64_t(FileAccess::get_file_as_bytes(base_dir.path_join("../version.py")).size()) +
+			FileAccess::get_file_as_bytes(base_dir.path_join("../misc/logo/icon.svg")).size() +
+			FileAccess::get_file_as_bytes(base_dir.path_join("../misc/logo/logo.png")).size() + buffer.size();
+	// Overriding a path may leave the previously added payload in the file.
+	const uint64_t superseded_size = FileAccess::get_file_as_bytes(base_dir.path_join("../misc/logo/icon.png")).size();
 	CHECK_MESSAGE(
-			f->get_length() >= 18000,
-			"The generated non-empty PCK file should be large enough to actually hold the contents specified above.");
+			f->get_length() >= payload_size,
+			"The generated PCK file should be large enough to hold all current payloads.");
 	CHECK_MESSAGE(
-			f->get_length() <= 27000,
-			"The generated non-empty PCK file shouldn't be too large.");
+			f->get_length() <= payload_size + superseded_size + 2048,
+			"Metadata and padding should remain small relative to the payloads.");
 }
 
 } // namespace TestPCKPacker

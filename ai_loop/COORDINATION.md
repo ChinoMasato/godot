@@ -34,7 +34,7 @@
 |---|---|---|---|---|---|
 | Muse（リード） | 統合／台帳 | ai-native | PR #3 相当（Phase 4・Phase 7・A-1・A-3）を ai-native へ統合済み。A-2（標準ビルドを editor に変更）もリードが実施 | Codex の B-101 完了申告待ち。B-703b の取り込みは申告後 | 2026-11-17 |
 | Claude Code | Phase 4・Phase 7 | claude/uzu-engine-briefing-rrno7b | B-401／B-402、B-701〜B-713（B-703b を除く）まで完了し ai-native へ統合済み。全テスト 1476 pass | 残りは B-703b（UZUPostEffect、縁の強調と周辺減光） | 2026-11-17 |
-| Codex | B-101 | agent/b-101-codex | ドラフト（doctest XML→JSON 変換）を push 済み（fce3e6b）。エンジン検証と完了申告はまだ | 検証を終えて CLAIMS の状態を「確認待ち」に更新 | 2026-11-17 |
+| Codex | B-005（オーナー依頼: 公式ロゴ＋動くロゴ） | agent/b-005-codex | 検証完了。公式素材でアイコン・スプラッシュ・About を更新、円形マークが2.4秒で1周。最新 e4ff456a31 上で editor ビルド＋全1476件 pass、6 SVG/3 PNG 読込成功、実GUIの暗色・明色で回転／停止／再開を確認 | Muse が ai-native へ統合・BACKLOG/LEDGER 反映。記録: iterations/2026-11-17-B-005-codex.md、見本: misc/logo/uzu/preview.gif。B-101 は別ブランチのドラフトを維持 | 2026-11-17 JST |
 
 ## 質問・相談
 
