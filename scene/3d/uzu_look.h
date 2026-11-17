@@ -35,6 +35,11 @@
 #include "scene/3d/look_preset_3d.h"
 
 class Camera3D;
+class Decal;
+class Node3D;
+class ShaderMaterial;
+class Sprite3D;
+class Texture2D;
 class CameraAttributesPractical;
 class DirectionalLight3D;
 class Environment;
@@ -97,6 +102,9 @@ public:
 	static float get_lens_fov(Lens p_lens);
 	static float get_eye_height(EyeLevel p_eye_level);
 	static int get_shadow_filter_quality(Quality p_quality);
+	static Ref<ShaderMaterial> create_lit_sprite_material(const Ref<Texture2D> &p_texture, const Ref<Texture2D> &p_normal_map, float p_outline_width, const Color &p_outline_color);
+	static void configure_lit_sprite(Sprite3D *p_sprite, const Ref<Texture2D> &p_normal_map, float p_outline_width);
+	static Decal *add_blob_shadow(Node3D *p_node, float p_radius);
 
 	// Scene helpers. New nodes are owned by p_root, so they are saved with it.
 	// Adds (or updates) a WorldEnvironment, and configures the sun (the first

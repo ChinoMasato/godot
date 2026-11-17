@@ -125,6 +125,33 @@
 				Returns the quality that suits [param rendering_method] ([code]"forward_plus"[/code], [code]"mobile"[/code] or [code]"gl_compatibility"[/code]).
 			</description>
 		</method>
+		<method name="add_blob_shadow" qualifiers="static">
+			<return type="Decal" />
+			<param index="0" name="node" type="Node3D" />
+			<param index="1" name="radius" type="float" default="0.4" />
+			<description>
+				Adds a soft round shadow (a [Decal] named [code]BlobShadow[/code]) under [param node], at the bottom of its visual bounds (the feet of a centered sprite), and returns it. The grounding trick of pixel-art games: it anchors a sprite even where real shadows are faint.
+			</description>
+		</method>
+		<method name="configure_lit_sprite" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="sprite" type="Sprite3D" />
+			<param index="1" name="normal_map" type="Texture2D" default="null" />
+			<param index="2" name="outline_width" type="float" default="0.0" />
+			<description>
+				Makes [param sprite] a lit pixel-art sprite: the material of [method create_lit_sprite_material] as its [member GeometryInstance3D.material_override], shadow casting on, nearest filtering, alpha cut, and the sprite's own billboard off (the material faces the camera).
+			</description>
+		</method>
+		<method name="create_lit_sprite_material" qualifiers="static">
+			<return type="ShaderMaterial" />
+			<param index="0" name="texture" type="Texture2D" />
+			<param index="1" name="normal_map" type="Texture2D" default="null" />
+			<param index="2" name="outline_width" type="float" default="0.0" />
+			<param index="3" name="outline_color" type="Color" default="Color(0.06, 0.05, 0.08, 1)" />
+			<description>
+				Returns a material for pixel-art sprites that stand in the 3D world: a spatial shader that takes the scene's light, shadows and fog, faces the camera around the Y axis (also in shadow passes, so the shadow has the sprite's shape), cuts the alpha sharply, keeps texels crisp, optionally uses [param normal_map], and draws an outline [param outline_width] texels wide (up to 4) in [param outline_color].
+			</description>
+		</method>
 		<method name="get_shadow_filter_quality" qualifiers="static">
 			<return type="int" />
 			<param index="0" name="quality" type="int" enum="UZULook.Quality" default="0" />

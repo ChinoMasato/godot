@@ -32,8 +32,10 @@
 
 #include "core/object/class_db.h"
 #include "scene/3d/camera_3d.h"
+#include "scene/3d/decal.h"
 #include "scene/3d/light_3d.h"
 #include "scene/3d/mesh_instance_3d.h"
+#include "scene/3d/sprite_3d.h"
 #include "scene/3d/world_environment.h"
 #include "scene/resources/3d/primitive_meshes.h"
 #include "scene/resources/camera_attributes.h"
@@ -82,6 +84,29 @@ float UZULook::get_lens_fov(Lens p_lens) {
 
 int UZULook::get_shadow_filter_quality(Quality p_quality) {
 	return LookPreset3D::get_shadow_filter_quality(LookPreset3D::Quality(p_quality));
+}
+
+Ref<ShaderMaterial> UZULook::create_lit_sprite_material(const Ref<Texture2D> &p_texture, const Ref<Texture2D> &p_normal_map, float p_outline_width, const Color &p_outline_color) {
+	return LookPreset3D::create_lit_sprite_material(p_texture, p_normal_map, p_outline_width, p_outline_color);
+}
+
+void UZULook::configure_lit_sprite(Sprite3D *p_sprite, const Ref<Texture2D> &p_normal_map, float p_outline_width) {
+	LookPreset3D::configure_lit_sprite(p_sprite, p_normal_map, p_outline_width);
+}
+
+Decal *UZULook::add_blob_shadow(Node3D *p_node, float p_radius) {
+	ERR_FAIL_NULL_V(p_node, nullptr);
+	Decal *decal = LookPreset3D::create_blob_shadow(p_radius);
+	// At the feet: the bottom of the node's visual bounds (a centered sprite's lower edge).
+	VisualInstance3D *visual = Object::cast_to<VisualInstance3D>(p_node);
+	const float bottom = visual ? visual->get_aabb().position.y : 0.0f;
+	decal->set_position(Vector3(0.0, bottom, 0.0));
+	p_node->add_child(decal, true);
+	Node *owner = p_node->get_owner() ? p_node->get_owner() : p_node;
+	if (owner != decal) {
+		decal->set_owner(owner);
+	}
+	return decal;
 }
 
 float UZULook::get_eye_height(EyeLevel p_eye_level) {
@@ -186,6 +211,9 @@ Dictionary UZULook::add_lamp(Node *p_root, const Vector3 &p_position, Quality p_
 void UZULook::_bind_methods() {
 	ClassDB::bind_static_method("UZULook", D_METHOD("get_default_quality", "rendering_method"), &UZULook::get_default_quality);
 	ClassDB::bind_static_method("UZULook", D_METHOD("get_shadow_filter_quality", "quality"), &UZULook::get_shadow_filter_quality, DEFVAL(QUALITY_HIGH));
+	ClassDB::bind_static_method("UZULook", D_METHOD("create_lit_sprite_material", "texture", "normal_map", "outline_width", "outline_color"), &UZULook::create_lit_sprite_material, DEFVAL(Variant()), DEFVAL(0.0), DEFVAL(Color(0.06, 0.05, 0.08)));
+	ClassDB::bind_static_method("UZULook", D_METHOD("configure_lit_sprite", "sprite", "normal_map", "outline_width"), &UZULook::configure_lit_sprite, DEFVAL(Variant()), DEFVAL(0.0));
+	ClassDB::bind_static_method("UZULook", D_METHOD("add_blob_shadow", "node", "radius"), &UZULook::add_blob_shadow, DEFVAL(0.4));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_environment", "quality", "atmosphere", "clouds"), &UZULook::create_environment, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR), DEFVAL(false));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_camera_attributes", "quality"), &UZULook::create_camera_attributes, DEFVAL(QUALITY_HIGH));
 	ClassDB::bind_static_method("UZULook", D_METHOD("configure_sun", "sun", "quality", "atmosphere"), &UZULook::configure_sun, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR));

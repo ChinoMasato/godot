@@ -8,6 +8,8 @@ extends SceneTree
 ##   camera   --scene res://main.tscn [--node Path/To/Camera3D] [--lens wide|standard|telephoto] [--shift 0.2] [--eye standing|low]
 ##   material --kind skin|foliage|glass|water|lamp --out res://materials/water.tres
 ##   material --kind water --scene res://main.tscn --node Path/To/MeshInstance3D   assigns it as the material override
+##   sprite   --scene res://main.tscn [--node Path/To/Sprite3D] [--normal res://n.png] [--outline 1] [--blob 0.4]
+##            makes Sprite3D nodes lit pixel-art sprites (all of them without --node), with an optional blob shadow (B-716)
 ##   info     lists the options
 ## Prints one line "UZU_RESULT {json}" with {"ok": bool, ...}; exits 0 on success, 1 on error.
 
@@ -58,7 +60,7 @@ func _save_scene(root: Node, path: String) -> Error:
 
 func _run(args: PackedStringArray) -> Dictionary:
 	if args.is_empty() or args[0] == "info":
-		return {"ok": true, "commands": ["apply", "rig", "lamp", "camera", "material", "shot", "check", "panorama", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
+		return {"ok": true, "commands": ["apply", "rig", "lamp", "camera", "material", "sprite", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
 	var command := args[0]
 
 	if command == "material" and _option(args, "scene").is_empty():
@@ -118,6 +120,31 @@ func _run(args: PackedStringArray) -> Dictionary:
 				return _error("material needs --kind and --node pointing to a GeometryInstance3D")
 			target.material_override = UZULook.create_material(kind)
 			done = {"node": str(root.get_path_to(target)), "material": _option(args, "kind")}
+		"sprite":
+			var sprites := []
+			var node_path := _option(args, "node")
+			if not node_path.is_empty():
+				var one := root.get_node_or_null(node_path) as Sprite3D
+				if one:
+					sprites.append(one)
+			else:
+				sprites = root.find_children("*", "Sprite3D", true, false)
+			if sprites.is_empty():
+				root.free()
+				return _error("sprite needs Sprite3D nodes in the scene (or --node pointing to one)")
+			var normal_path := _option(args, "normal")
+			var normal: Texture2D = load(normal_path) as Texture2D if not normal_path.is_empty() else null
+			if not normal_path.is_empty() and normal == null:
+				root.free()
+				return _error("could not load --normal '%s'" % normal_path)
+			var blob := _option(args, "blob").to_float()
+			var names := []
+			for s in sprites:
+				UZULook.configure_lit_sprite(s, normal, _option(args, "outline", "0").to_float())
+				if blob > 0.0 and s.get_node_or_null("BlobShadow") == null:
+					UZULook.add_blob_shadow(s, blob)
+				names.append(str(root.get_path_to(s)))
+			done = {"sprites": names, "outline": _option(args, "outline", "0").to_float(), "blob": blob, "normal": normal_path}
 		_:
 			root.free()
 			return _error("unknown command '%s'" % command)

@@ -30,11 +30,15 @@
 
 #pragma once
 
+#include "core/math/color.h"
 #include "core/math/rect2.h"
 #include "core/object/ref_counted.h"
 #include "core/templates/vector.h"
 
 class Camera3D;
+class Decal;
+class Sprite3D;
+class Texture2D;
 class Compositor;
 class CameraAttributesPractical;
 class DirectionalLight3D;
@@ -141,6 +145,19 @@ int get_shadow_filter_quality(Quality p_quality);
 // Sets that filter quality in the project settings (in memory; saving them is
 // up to the caller) and, when a renderer runs, for the current run.
 void apply_shadow_filter_quality(Quality p_quality);
+
+// Lit sprites (B-716): pixel-art sprites that stand in the 3D world. The material
+// is a spatial shader, so sprites take the scene's light, shadows and fog; it faces
+// the camera around Y (also in shadow passes), cuts the alpha sharply (so the shadow
+// has the sprite's shape), keeps texels crisp (nearest filter), optionally uses a
+// normal map and draws an outline of p_outline_width texels around opaque pixels.
+Ref<ShaderMaterial> create_lit_sprite_material(const Ref<Texture2D> &p_texture, const Ref<Texture2D> &p_normal_map = Ref<Texture2D>(), float p_outline_width = 0.0, const Color &p_outline_color = Color(0.06, 0.05, 0.08));
+// Makes a Sprite3D lit: the material above as its override, shadow casting on,
+// nearest filtering, and the sprite's own billboard off (the material does it).
+void configure_lit_sprite(Sprite3D *p_sprite, const Ref<Texture2D> &p_normal_map = Ref<Texture2D>(), float p_outline_width = 0.0);
+// A soft round "blob" shadow projected on the ground (a Decal), the grounding
+// trick of pixel-art games: it anchors a sprite even where real shadows are faint.
+Decal *create_blob_shadow(float p_radius = 0.4);
 
 // Post effects for the WorldEnvironment: edge contrast and vignette
 // (UZUPostEffect) at high and standard quality; none at low quality, where the

@@ -32,11 +32,14 @@
 
 #include "core/config/project_settings.h"
 #include "scene/3d/camera_3d.h"
+#include "scene/3d/decal.h"
 #include "scene/3d/light_3d.h"
+#include "scene/3d/sprite_3d.h"
 #include "scene/resources/3d/sky_material.h"
 #include "scene/resources/camera_attributes.h"
 #include "scene/resources/compositor.h"
 #include "scene/resources/environment.h"
+#include "scene/resources/gradient_texture.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
 #include "scene/resources/shader.h"
@@ -551,6 +554,110 @@ void configure_camera(Camera3D *p_camera, Lens p_lens, float p_shift) {
 	// at the near plane.
 	const float size = 2.0 * z_near * Math::tan(Math::deg_to_rad(fov) * 0.5f);
 	p_camera->set_frustum(size, Vector2(0.0, p_shift * size), z_near, z_far);
+}
+
+static const char *LIT_SPRITE_SHADER = R"(
+shader_type spatial;
+render_mode cull_disabled, depth_draw_opaque;
+
+uniform sampler2D sprite_texture : source_color, filter_nearest;
+uniform sampler2D normal_texture : hint_normal, filter_nearest;
+uniform bool use_normal_map = false;
+uniform float alpha_scissor : hint_range(0.0, 1.0) = 0.5;
+uniform float outline_width : hint_range(0.0, 4.0) = 0.0;
+uniform vec4 outline_color : source_color = vec4(0.06, 0.05, 0.08, 1.0);
+// A sprite is a flat card: light from behind passes through part of it, so a
+// backlit sprite stays readable instead of turning into a silhouette.
+uniform float backlight : hint_range(0.0, 1.0) = 0.5;
+
+void vertex() {
+	// Y-billboard that keeps the node's scale, facing the main camera also in shadow passes.
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(
+			vec4(normalize(cross(vec3(0.0, 1.0, 0.0), MAIN_CAM_INV_VIEW_MATRIX[2].xyz)), 0.0),
+			vec4(0.0, 1.0, 0.0, 0.0),
+			vec4(normalize(cross(MAIN_CAM_INV_VIEW_MATRIX[0].xyz, vec3(0.0, 1.0, 0.0))), 0.0),
+			MODEL_MATRIX[3]);
+	MODELVIEW_MATRIX = MODELVIEW_MATRIX * mat4(
+			vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0),
+			vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0),
+			vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0),
+			vec4(0.0, 0.0, 0.0, 1.0));
+	MODELVIEW_NORMAL_MATRIX = mat3(MODELVIEW_MATRIX);
+}
+
+void fragment() {
+	vec4 color = texture(sprite_texture, UV) * COLOR;
+	if (outline_width > 0.0 && color.a < alpha_scissor) {
+		// A transparent texel next to an opaque one becomes the outline.
+		vec2 step = outline_width / vec2(textureSize(sprite_texture, 0));
+		float around = max(max(texture(sprite_texture, UV + vec2(step.x, 0.0)).a, texture(sprite_texture, UV - vec2(step.x, 0.0)).a),
+				max(texture(sprite_texture, UV + vec2(0.0, step.y)).a, texture(sprite_texture, UV - vec2(0.0, step.y)).a));
+		if (around >= alpha_scissor) {
+			color = vec4(outline_color.rgb, 1.0);
+		}
+	}
+	ALBEDO = color.rgb;
+	ALPHA = color.a;
+	ALPHA_SCISSOR_THRESHOLD = alpha_scissor;
+	if (use_normal_map) {
+		NORMAL_MAP = texture(normal_texture, UV).rgb;
+	}
+	ROUGHNESS = 1.0;
+	SPECULAR = 0.2;
+	BACKLIGHT = color.rgb * backlight;
+}
+)";
+
+Ref<ShaderMaterial> create_lit_sprite_material(const Ref<Texture2D> &p_texture, const Ref<Texture2D> &p_normal_map, float p_outline_width, const Color &p_outline_color) {
+	Ref<Shader> shader;
+	shader.instantiate();
+	shader->set_code(LIT_SPRITE_SHADER);
+	Ref<ShaderMaterial> material;
+	material.instantiate();
+	material->set_shader(shader);
+	material->set_shader_parameter("sprite_texture", p_texture);
+	material->set_shader_parameter("normal_texture", p_normal_map);
+	material->set_shader_parameter("use_normal_map", p_normal_map.is_valid());
+	material->set_shader_parameter("alpha_scissor", 0.5);
+	material->set_shader_parameter("outline_width", CLAMP(p_outline_width, 0.0f, 4.0f));
+	material->set_shader_parameter("outline_color", p_outline_color);
+	material->set_shader_parameter("backlight", 0.5);
+	return material;
+}
+
+void configure_lit_sprite(Sprite3D *p_sprite, const Ref<Texture2D> &p_normal_map, float p_outline_width) {
+	ERR_FAIL_NULL(p_sprite);
+	p_sprite->set_billboard_mode(StandardMaterial3D::BILLBOARD_DISABLED); // The material faces the camera.
+	p_sprite->set_texture_filter(StandardMaterial3D::TEXTURE_FILTER_NEAREST);
+	p_sprite->set_alpha_cut_mode(SpriteBase3D::ALPHA_CUT_DISCARD);
+	p_sprite->set_draw_flag(SpriteBase3D::FLAG_SHADED, true);
+	p_sprite->set_draw_flag(SpriteBase3D::FLAG_DOUBLE_SIDED, true);
+	p_sprite->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_ON);
+	p_sprite->set_material_override(create_lit_sprite_material(p_sprite->get_texture(), p_normal_map, p_outline_width));
+}
+
+Decal *create_blob_shadow(float p_radius) {
+	const float radius = MAX(p_radius, 0.01f);
+	Ref<Gradient> gradient;
+	gradient.instantiate();
+	gradient->set_color(0, Color(0.0, 0.0, 0.0, 0.55)); // Darkest under the feet...
+	gradient->set_color(1, Color(0.0, 0.0, 0.0, 0.0)); // ...fading out at the rim.
+	Ref<GradientTexture2D> texture;
+	texture.instantiate();
+	texture->set_gradient(gradient);
+	texture->set_fill(GradientTexture2D::FILL_RADIAL);
+	texture->set_fill_from(Vector2(0.5, 0.5));
+	texture->set_fill_to(Vector2(0.5, 0.0));
+	texture->set_width(64);
+	texture->set_height(64);
+
+	Decal *decal = memnew(Decal);
+	decal->set_name("BlobShadow");
+	decal->set_texture(Decal::TEXTURE_ALBEDO, texture);
+	decal->set_size(Vector3(radius * 2.0, 1.0, radius * 2.0)); // Projects down onto the ground below.
+	decal->set_lower_fade(0.5);
+	decal->set_upper_fade(0.5);
+	return decal;
 }
 
 Ref<Compositor> create_compositor(Quality p_quality) {

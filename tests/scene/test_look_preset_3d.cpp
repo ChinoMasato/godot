@@ -37,11 +37,14 @@ TEST_FORCE_LINK(test_look_preset_3d)
 #ifndef _3D_DISABLED
 
 #include "scene/3d/camera_3d.h"
+#include "scene/3d/decal.h"
 #include "scene/3d/light_3d.h"
 #include "scene/3d/look_preset_3d.h"
+#include "scene/3d/sprite_3d.h"
 #include "scene/resources/3d/sky_material.h"
 #include "scene/resources/camera_attributes.h"
 #include "scene/resources/environment.h"
+#include "scene/resources/gradient_texture.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
 #include "scene/resources/shader.h"
@@ -168,6 +171,58 @@ TEST_CASE("[SceneTree][LookPreset3D] Sun casts split shadows") {
 	CHECK(sun->get_param(Light3D::PARAM_SHADOW_MAX_DISTANCE) == doctest::Approx(60.0));
 
 	memdelete(sun);
+}
+
+TEST_CASE("[SceneTree][LookPreset3D] Lit sprites take the scene's light, shadows and fog") {
+	Ref<Image> image = Image::create_empty(8, 8, false, Image::FORMAT_RGBA8);
+	image->fill(Color(0, 0, 0, 0));
+	image->fill_rect(Rect2i(2, 2, 4, 4), Color(1, 0.5, 0.2, 1));
+	Ref<ImageTexture> texture = ImageTexture::create_from_image(image);
+	Ref<ImageTexture> normal = ImageTexture::create_from_image(image);
+
+	Ref<ShaderMaterial> plain = LookPreset3D::create_lit_sprite_material(texture);
+	REQUIRE(plain.is_valid());
+	const String code = plain->get_shader()->get_code();
+	CHECK(code.contains("shader_type spatial;"));
+	CHECK_FALSE(code.contains("unshaded")); // Lit: light, shadows and fog apply.
+	CHECK(code.contains("MAIN_CAM_INV_VIEW_MATRIX")); // Faces the camera also in shadow passes.
+	CHECK(code.contains("filter_nearest")); // Crisp texels.
+	CHECK(Ref<Texture2D>(plain->get_shader_parameter("sprite_texture")) == texture);
+	CHECK_FALSE(bool(plain->get_shader_parameter("use_normal_map")));
+	CHECK(float(plain->get_shader_parameter("alpha_scissor")) == doctest::Approx(0.5));
+	CHECK(float(plain->get_shader_parameter("outline_width")) == doctest::Approx(0.0));
+	CHECK(float(plain->get_shader_parameter("backlight")) == doctest::Approx(0.5)); // Backlit sprites stay readable.
+	CHECK(code.contains("BACKLIGHT"));
+
+	Ref<ShaderMaterial> full = LookPreset3D::create_lit_sprite_material(texture, normal, 9.0, Color(1, 0, 0));
+	CHECK(bool(full->get_shader_parameter("use_normal_map")));
+	CHECK(Ref<Texture2D>(full->get_shader_parameter("normal_texture")) == normal);
+	CHECK(float(full->get_shader_parameter("outline_width")) == doctest::Approx(4.0)); // Clamped.
+	CHECK(Color(full->get_shader_parameter("outline_color")).is_equal_approx(Color(1, 0, 0)));
+
+	Sprite3D *sprite = memnew(Sprite3D);
+	sprite->set_texture(texture);
+	sprite->set_billboard_mode(StandardMaterial3D::BILLBOARD_ENABLED);
+	LookPreset3D::configure_lit_sprite(sprite, normal, 1.0);
+	CHECK(sprite->get_billboard_mode() == StandardMaterial3D::BILLBOARD_DISABLED); // The material does it.
+	CHECK(sprite->get_texture_filter() == StandardMaterial3D::TEXTURE_FILTER_NEAREST);
+	CHECK(sprite->get_alpha_cut_mode() == SpriteBase3D::ALPHA_CUT_DISCARD);
+	CHECK(sprite->get_draw_flag(SpriteBase3D::FLAG_SHADED));
+	CHECK(sprite->get_cast_shadows_setting() == GeometryInstance3D::SHADOW_CASTING_SETTING_ON);
+	Ref<ShaderMaterial> override = sprite->get_material_override();
+	REQUIRE(override.is_valid());
+	CHECK(Ref<Texture2D>(override->get_shader_parameter("sprite_texture")) == texture);
+	CHECK(float(override->get_shader_parameter("outline_width")) == doctest::Approx(1.0));
+	memdelete(sprite);
+
+	Decal *blob = LookPreset3D::create_blob_shadow(0.5);
+	CHECK(blob->get_size().is_equal_approx(Vector3(1.0, 1.0, 1.0)));
+	Ref<GradientTexture2D> blob_texture = blob->get_texture(Decal::TEXTURE_ALBEDO);
+	REQUIRE(blob_texture.is_valid());
+	CHECK(blob_texture->get_fill() == GradientTexture2D::FILL_RADIAL);
+	CHECK(blob_texture->get_gradient()->get_color(0).a > 0.3); // Dark in the middle...
+	CHECK(blob_texture->get_gradient()->get_color(1).a == doctest::Approx(0.0)); // ...gone at the rim.
+	memdelete(blob);
 }
 
 TEST_CASE("[SceneTree][LookPreset3D] High quality uses the high soft shadow filter") {

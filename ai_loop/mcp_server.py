@@ -73,6 +73,7 @@ TOOLS = {
     "look_lamp": ("look", "lamp", "Add a warm lamp with a glowing bulb.", {"scene": SCENE, "position": _str("x,y,z"), "quality": _str("high | standard | low")}, ["scene", "position"]),
     "look_camera": ("look", "camera", "Set a camera's lens, eye height and vertical shift.", {"scene": SCENE, "node": NODE, "lens": _str("wide | standard | telephoto"), "eye": _str("standing | low"), "shift": _str("Fraction of view height, positive is up")}, ["scene"]),
     "lightmap_bake": ("look", "bake", "Bake the scene's LightmapGI (runs the editor with a renderer; can take minutes). 'prepare' turns on UV2 for primitive meshes.", {"scene": SCENE, "node": NODE, "prepare": {"type": "boolean", "description": "Turn on UV2 for primitive meshes"}}, ["scene"]),
+    "look_sprite": ("look", "sprite", "Make Sprite3D nodes lit pixel-art sprites (light, shadows, fog; crisp texels), with optional normal map, outline and blob shadow.", {"scene": SCENE, "node": NODE, "normal": _str("Normal map, res://..."), "outline": _str("Outline width in texels (0-4)"), "blob": _str("Blob shadow radius (0 = none)")}, ["scene"]),
     "look_material": ("look", "material", "Create a preset material (save to 'out', or assign to 'node' in 'scene').", {"kind": _str("skin | foliage | glass | water | lamp"), "out": _str("res://path.tres"), "scene": SCENE, "node": NODE}, ["kind"]),
 }
 
