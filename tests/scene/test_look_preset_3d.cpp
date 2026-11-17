@@ -37,6 +37,7 @@ TEST_FORCE_LINK(test_look_preset_3d)
 #include "scene/3d/light_3d.h"
 #include "scene/3d/look_preset_3d.h"
 #include "scene/resources/3d/sky_material.h"
+#include "scene/resources/camera_attributes.h"
 #include "scene/resources/environment.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
@@ -286,6 +287,22 @@ TEST_CASE("[SceneTree][LookPreset3D] Night, three-point lighting and lamps") {
 	Ref<StandardMaterial3D> bulb = LookPreset3D::create_material(LookPreset3D::MATERIAL_LAMP);
 	CHECK(bulb->get_feature(BaseMaterial3D::FEATURE_EMISSION));
 	CHECK(bulb->get_emission().r > bulb->get_emission().b);
+}
+
+TEST_CASE("[SceneTree][LookPreset3D] Far distance blur at high quality only") {
+	Ref<CameraAttributesPractical> high = LookPreset3D::create_camera_attributes(LookPreset3D::QUALITY_HIGH);
+	REQUIRE(high.is_valid());
+	CHECK(high->is_dof_blur_far_enabled());
+	CHECK_FALSE(high->is_dof_blur_near_enabled());
+	// The play area (well within 100 m) stays sharp.
+	CHECK(high->get_dof_blur_far_distance() >= 100.0);
+	CHECK(high->get_dof_blur_amount() < 0.1);
+	CHECK_FALSE(high->is_auto_exposure_enabled());
+
+	Ref<CameraAttributesPractical> standard = LookPreset3D::create_camera_attributes(LookPreset3D::QUALITY_STANDARD);
+	CHECK_FALSE(standard->is_dof_blur_far_enabled());
+	Ref<CameraAttributesPractical> low = LookPreset3D::create_camera_attributes(LookPreset3D::QUALITY_LOW);
+	CHECK_FALSE(low->is_dof_blur_far_enabled());
 }
 
 TEST_CASE("[SceneTree][LookPreset3D] Class defaults stay unchanged") {

@@ -32,6 +32,7 @@
 
 #include "scene/3d/light_3d.h"
 #include "scene/resources/3d/sky_material.h"
+#include "scene/resources/camera_attributes.h"
 #include "scene/resources/environment.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
@@ -367,6 +368,20 @@ void configure_lamp(OmniLight3D *p_lamp, Quality p_quality) {
 	p_lamp->set_param(Light3D::PARAM_RANGE, 8.0);
 	p_lamp->set_param(Light3D::PARAM_ATTENUATION, 2.0);
 	p_lamp->set_shadow(p_quality != QUALITY_LOW);
+}
+
+Ref<CameraAttributesPractical> create_camera_attributes(Quality p_quality) {
+	Ref<CameraAttributesPractical> attributes;
+	attributes.instantiate();
+	if (p_quality == QUALITY_HIGH) {
+		// Soften only the far distance, like a painter leaving distant scenery
+		// less detailed; the play area stays sharp.
+		attributes->set_dof_blur_far_enabled(true);
+		attributes->set_dof_blur_far_distance(120.0);
+		attributes->set_dof_blur_far_transition(200.0);
+		attributes->set_dof_blur_amount(0.06);
+	}
+	return attributes;
 }
 
 } // namespace LookPreset3D

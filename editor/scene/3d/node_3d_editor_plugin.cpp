@@ -2553,6 +2553,7 @@ void Node3DEditor::_add_look_to_scene() {
 
 	WorldEnvironment *new_env = memnew(WorldEnvironment);
 	new_env->set_environment(LookPreset3D::create_environment(quality, atmosphere));
+	new_env->set_camera_attributes(LookPreset3D::create_camera_attributes(quality));
 
 	DirectionalLight3D *new_sun = nullptr;
 	if (directional_light_count == 0) {

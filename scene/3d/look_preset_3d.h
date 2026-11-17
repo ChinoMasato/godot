@@ -32,6 +32,7 @@
 
 #include "core/object/ref_counted.h"
 
+class CameraAttributesPractical;
 class DirectionalLight3D;
 class OmniLight3D;
 class Environment;
@@ -97,5 +98,9 @@ void configure_fill_light(DirectionalLight3D *p_light, Atmosphere p_atmosphere =
 void configure_rim_light(DirectionalLight3D *p_light, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
 // A warm lamp whose light only reaches nearby.
 void configure_lamp(OmniLight3D *p_lamp, Quality p_quality);
+
+// Camera attributes for the WorldEnvironment: a slight blur of the far
+// distance at high quality (none otherwise). Exposure stays in the Environment.
+Ref<CameraAttributesPractical> create_camera_attributes(Quality p_quality);
 
 } // namespace LookPreset3D
