@@ -59,6 +59,7 @@
 #include "scene/3d/audio_stream_player_3d.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/decal.h"
+#include "scene/3d/look_preset_3d.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/physics/collision_object_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
@@ -4048,6 +4049,8 @@ static void draw_indicator_bar(Control &p_surface, real_t p_fill, const Ref<Text
 }
 
 void Node3DEditorViewport::_draw() {
+	// Composition guides cover the camera's frame when previewing, else the whole view.
+	Rect2 guide_frame = Rect2(Vector2(), surface->get_size());
 	EditorNode::get_singleton()->get_editor_plugins_over()->forward_3d_draw_over_viewport(surface);
 	EditorNode::get_singleton()->get_editor_plugins_force_over()->forward_3d_force_draw_over_viewport(surface);
 
@@ -4267,6 +4270,7 @@ void Node3DEditorViewport::_draw() {
 		draw_rect = Rect2(Vector2(), s).intersection(draw_rect);
 
 		surface->draw_rect(draw_rect, Color(0.6, 0.6, 0.1, 0.5), false, Math::round(2 * EDSCALE));
+		guide_frame = draw_rect;
 
 	} else {
 		if (zoom_indicator_delay > 0.0) {
@@ -4316,6 +4320,12 @@ void Node3DEditorViewport::_draw() {
 				}
 			}
 		}
+	}
+
+	if (view_display_menu->get_popup()->is_item_checked(view_display_menu->get_popup()->get_item_index(VIEW_COMPOSITION_GUIDES))) {
+		// Rule of thirds, diagonals and a center mark, as a light overlay.
+		const Vector<Vector2> lines = LookPreset3D::get_composition_guide_lines(guide_frame);
+		surface->draw_multiline(lines, Color(1.0, 1.0, 1.0, 0.35), Math::round(EDSCALE));
 	}
 }
 
@@ -4556,6 +4566,11 @@ void Node3DEditorViewport::_menu_option(int p_option) {
 			camera->set_doppler_tracking(current ? Camera3D::DOPPLER_TRACKING_IDLE_STEP : Camera3D::DOPPLER_TRACKING_DISABLED);
 			view_display_menu->get_popup()->set_item_checked(idx, current);
 
+		} break;
+		case VIEW_COMPOSITION_GUIDES: {
+			int idx = view_display_menu->get_popup()->get_item_index(VIEW_COMPOSITION_GUIDES);
+			view_display_menu->get_popup()->set_item_checked(idx, !view_display_menu->get_popup()->is_item_checked(idx));
+			surface->queue_redraw();
 		} break;
 		case VIEW_CINEMATIC_PREVIEW: {
 			int idx = view_display_menu->get_popup()->get_item_index(VIEW_CINEMATIC_PREVIEW);
@@ -5287,6 +5302,10 @@ void Node3DEditorViewport::set_state(const Dictionary &p_state) {
 		view_display_menu->get_popup()->set_item_checked(idx, half_res);
 		_update_shrink();
 	}
+	if (p_state.has("composition_guides")) {
+		view_display_menu->get_popup()->set_item_checked(view_display_menu->get_popup()->get_item_index(VIEW_COMPOSITION_GUIDES), p_state["composition_guides"]);
+		surface->queue_redraw();
+	}
 	if (p_state.has("cinematic_preview")) {
 		previewing_cinema = p_state["cinematic_preview"];
 
@@ -5363,6 +5382,7 @@ Dictionary Node3DEditorViewport::get_state() const {
 	d["frame_time"] = view_display_menu->get_popup()->is_item_checked(view_display_menu->get_popup()->get_item_index(VIEW_FRAME_TIME));
 	d["half_res"] = view_display_menu->get_popup()->is_item_checked(view_display_menu->get_popup()->get_item_index(VIEW_HALF_RESOLUTION));
 	d["cinematic_preview"] = view_display_menu->get_popup()->is_item_checked(view_display_menu->get_popup()->get_item_index(VIEW_CINEMATIC_PREVIEW));
+	d["composition_guides"] = view_display_menu->get_popup()->is_item_checked(view_display_menu->get_popup()->get_item_index(VIEW_COMPOSITION_GUIDES));
 	if (previewing) {
 		d["previewing"] = EditorNode::get_singleton()->get_edited_scene()->get_path_to(previewing);
 	}
@@ -7088,6 +7108,7 @@ Node3DEditorViewport::Node3DEditorViewport(Node3DEditor *p_spatial_editor, int p
 
 	view_display_menu->get_popup()->add_separator();
 	view_display_menu->get_popup()->add_check_shortcut(ED_SHORTCUT("spatial_editor/view_cinematic_preview", TTRC("Cinematic Preview")), VIEW_CINEMATIC_PREVIEW);
+	view_display_menu->get_popup()->add_check_item(TTRC("Composition Guides"), VIEW_COMPOSITION_GUIDES);
 
 	view_display_menu->get_popup()->add_separator();
 	view_display_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("spatial_editor/focus_origin"), VIEW_CENTER_TO_ORIGIN);

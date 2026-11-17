@@ -368,6 +368,31 @@ TEST_CASE("[SceneTree][LookPreset3D] Sky with clouds") {
 	CHECK(humid_zenith.get_s() < clear_zenith.get_s());
 }
 
+TEST_CASE("[SceneTree][LookPreset3D] Composition guide lines") {
+	const Rect2 frame(Vector2(10, 20), Vector2(300, 150));
+	const Vector<Vector2> lines = LookPreset3D::get_composition_guide_lines(frame);
+	// 4 thirds lines + 2 diagonals + 2 center cross lines, two points each.
+	REQUIRE(lines.size() == 16);
+	// First vertical third.
+	CHECK(lines[0].is_equal_approx(Vector2(110, 20)));
+	CHECK(lines[1].is_equal_approx(Vector2(110, 170)));
+	// First horizontal third.
+	CHECK(lines[2].is_equal_approx(Vector2(10, 70)));
+	CHECK(lines[3].is_equal_approx(Vector2(310, 70)));
+	// Second thirds.
+	CHECK(lines[4].x == doctest::Approx(210));
+	CHECK(lines[6].y == doctest::Approx(120));
+	// Diagonals from corner to corner.
+	CHECK(lines[8].is_equal_approx(frame.position));
+	CHECK(lines[9].is_equal_approx(frame.position + frame.size));
+	// The center cross is centered.
+	CHECK(((lines[12] + lines[13]) * 0.5).is_equal_approx(frame.get_center()));
+	// All points stay inside the frame.
+	for (const Vector2 &p : lines) {
+		CHECK(frame.grow(0.001).has_point(p));
+	}
+}
+
 TEST_CASE("[SceneTree][LookPreset3D] Class defaults stay unchanged") {
 	// Existing scenes do not store default values, so changing them would change how those scenes look.
 	Ref<Environment> environment;

@@ -533,4 +533,29 @@ void configure_camera(Camera3D *p_camera, Lens p_lens, float p_shift) {
 	p_camera->set_frustum(size, Vector2(0.0, p_shift * size), z_near, z_far);
 }
 
+Vector<Vector2> get_composition_guide_lines(const Rect2 &p_frame) {
+	Vector<Vector2> lines;
+	const Vector2 p = p_frame.position;
+	const Vector2 s = p_frame.size;
+	for (int i = 1; i <= 2; i++) {
+		const real_t x = p.x + s.x * i / 3.0;
+		const real_t y = p.y + s.y * i / 3.0;
+		lines.push_back(Vector2(x, p.y));
+		lines.push_back(Vector2(x, p.y + s.y));
+		lines.push_back(Vector2(p.x, y));
+		lines.push_back(Vector2(p.x + s.x, y));
+	}
+	lines.push_back(p);
+	lines.push_back(p + s);
+	lines.push_back(Vector2(p.x + s.x, p.y));
+	lines.push_back(Vector2(p.x, p.y + s.y));
+	const Vector2 center = p + s * 0.5;
+	const real_t arm = MIN(s.x, s.y) * 0.03;
+	lines.push_back(center - Vector2(arm, 0));
+	lines.push_back(center + Vector2(arm, 0));
+	lines.push_back(center - Vector2(0, arm));
+	lines.push_back(center + Vector2(0, arm));
+	return lines;
+}
+
 } // namespace LookPreset3D

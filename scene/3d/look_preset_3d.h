@@ -30,7 +30,9 @@
 
 #pragma once
 
+#include "core/math/rect2.h"
 #include "core/object/ref_counted.h"
+#include "core/templates/vector.h"
 
 class Camera3D;
 class CameraAttributesPractical;
@@ -130,5 +132,9 @@ float get_eye_height(EyeLevel p_eye_level);
 // Sets the lens. A non-zero shift (fraction of the view height, positive is up)
 // moves the framing without tilting the camera, so vertical lines stay parallel.
 void configure_camera(Camera3D *p_camera, Lens p_lens, float p_shift = 0.0);
+
+// Composition guides for a frame, as line segments (pairs of points): the two
+// rule-of-thirds lines each way, the two diagonals and a small center cross.
+Vector<Vector2> get_composition_guide_lines(const Rect2 &p_frame);
 
 } // namespace LookPreset3D
