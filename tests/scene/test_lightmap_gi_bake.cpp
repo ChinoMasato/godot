@@ -35,6 +35,7 @@ TEST_FORCE_LINK(test_lightmap_gi_bake)
 #ifndef _3D_DISABLED
 
 #include "core/io/resource_loader.h"
+#include "core/object/class_db.h"
 #include "scene/3d/lightmap_gi.h"
 #include "scene/main/scene_tree.h"
 #include "scene/main/window.h"
@@ -48,7 +49,7 @@ static Error fake_import(const String &p_path) {
 // U.ZU Engine (B-805): LightmapGI.bake() is callable from scripts. The bake itself needs a
 // RenderingDevice and the editor, so these tests pin how the call is routed and guarded.
 TEST_CASE("[SceneTree][LightmapGI] bake is bound and fails safely outside the editor") {
-	CHECK(ClassDB::class_has_method("LightmapGI", "bake"));
+	CHECK(ClassDB::has_method("LightmapGI", "bake"));
 
 	LightmapGI *lightmap = memnew(LightmapGI);
 	ResourceLoaderImport saved_import = ResourceLoader::import;

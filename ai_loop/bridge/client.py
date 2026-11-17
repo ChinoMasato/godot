@@ -2,7 +2,7 @@
 """Engine-side client of the bridge API (BACKLOG B-505..B-507), ai_loop/bridge_api.md v1.
 
 Usage (through ai_loop/publish.sh, or directly):
-  client.py publish <build-dir | project-dir> [--preset Web] [--version 0.1] [--notes text] [--title T] [--game g_id] [--room r]
+  client.py publish <build-dir | project-dir> [--preset Web] [--add-notices yes] [--version 0.1] [--notes text] [--title T] [--game g_id] [--room r]
   client.py feedback  [--game g_id | --project dir] [--since c_0] [--backlog out.md] [--gifts gifts.md]
   client.py telemetry [--game g_id | --project dir] [--build b_id]
   client.py sessions  [--game g_id | --project dir]
@@ -113,6 +113,8 @@ def publish(bridge, target, args):
                 raise BridgeError("bad_request", "publishing a project needs --preset (or give the exported build directory)")
             build_dir = os.path.join(work, "build")
             _export(target, args["preset"], build_dir)
+            if args.get("add-notices"):
+                prepublish.add_notices(build_dir)  # The engine's license and third-party notices (B-502).
         check = prepublish.check(build_dir)
         if not check["ok"]:
             return {"ok": False, "command": "publish", "stage": "prepublish", "prepublish": check, "error": "the pre-publish check failed; nothing was uploaded"}
