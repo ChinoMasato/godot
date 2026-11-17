@@ -21,3 +21,4 @@
 | B-706（Q6、仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | scene/3d/look_preset_3d.{h,cpp}, tests/scene/test_look_preset_3d.cpp, editor/scene/3d/node_3d_editor_plugin.cpp, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-711（Q6、仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/palette_check.py（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-712（Q6、仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | scene/3d/look_preset_3d.{h,cpp}, tests/scene/test_look_preset_3d.cpp, ai_loop/iterations/ | 関数まで完了。UI はオーナー確認待ち | 2026-11-17 |
+| U.ZU ルックの AI 向け API（オーナー指示） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | scene/3d/uzu_look.{h,cpp}（新規）, scene/register_scene_types.cpp, servers/rendering/dummy/storage/texture_storage.h, doc/classes/UZULook.xml（新規）, tests/scene/test_uzu_look.cpp（新規）, ai_loop/look.sh・look_tool.gd（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |

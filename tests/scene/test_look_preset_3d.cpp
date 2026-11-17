@@ -199,7 +199,16 @@ TEST_CASE("[SceneTree][LookPreset3D] Environment uses the color grade LUT") {
 	CHECK(lut->get_width() == 16);
 	CHECK(lut->get_height() == 16);
 	CHECK(lut->get_depth() == 16);
-	// The texels themselves live in the rendering server, which the test runner does not keep.
+
+	// Texel (r, g, b) holds the grade of the color at its center. This also checks
+	// that the texels can be read back without a GPU, so headless saves keep them.
+	const Vector<Ref<Image>> slices = lut->get_data();
+	REQUIRE(slices.size() == 16);
+	const Color expected = LookPreset3D::grade_color(Color(10.5 / 16, 6.5 / 16, 3.5 / 16));
+	const Color stored = slices[3]->get_pixel(10, 6);
+	CHECK(stored.r == doctest::Approx(expected.r).epsilon(0.01));
+	CHECK(stored.g == doctest::Approx(expected.g).epsilon(0.01));
+	CHECK(stored.b == doctest::Approx(expected.b).epsilon(0.01));
 
 	Ref<Environment> environment = LookPreset3D::create_environment(LookPreset3D::QUALITY_HIGH);
 	CHECK(environment->is_adjustment_enabled());

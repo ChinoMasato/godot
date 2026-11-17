@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZULook" inherits="Object" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Ready-made 3D look presets (sky, light, atmosphere, color grade, materials, camera lenses) for scripts and agents.
+	</brief_description>
+	<description>
+		[UZULook] builds the U.ZU Engine look presets: a tuned [Environment] (filmic tonemapping, sky lighting, aerial perspective fog, ambient occlusion, glow and a color grade), a sun with soft split shadows, three-point and lamp lighting, materials for skin, foliage, glass, water and lamps, and camera lenses. All methods are static, so tool scripts and AI agents can apply the look without the editor:
+		[codeblocks]
+		[gdscript]
+		var root = load("res://main.tscn").instantiate()
+		UZULook.apply_to_scene(root, UZULook.QUALITY_HIGH, UZULook.ATMOSPHERE_HUMID)
+		var scene = PackedScene.new()
+		scene.pack(root)
+		ResourceSaver.save(scene, "res://main.tscn")
+		[/gdscript]
+		[csharp]
+		Node root = GD.Load&lt;PackedScene&gt;("res://main.tscn").Instantiate();
+		UZULook.ApplyToScene(root, UZULook.Quality.High, UZULook.Atmosphere.Humid);
+		var scene = new PackedScene();
+		scene.Pack(root);
+		ResourceSaver.Save(scene, "res://main.tscn");
+		[/csharp]
+		[/codeblocks]
+		Class defaults such as those of [Environment] are not changed, so existing scenes keep their look until a preset is applied.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="add_lamp" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="root" type="Node" />
+			<param index="1" name="position" type="Vector3" />
+			<param index="2" name="quality" type="int" enum="UZULook.Quality" default="0" />
+			<description>
+				Adds a warm lamp at [param position] under [param root]: an [OmniLight3D] with a steep falloff, so only what it reaches is bright, and a small glowing bulb. New nodes are owned by [param root]. Returns [code]{"lamp": path}[/code].
+			</description>
+		</method>
+		<method name="add_lighting_rig" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="root" type="Node" />
+			<param index="1" name="atmosphere" type="int" enum="UZULook.Atmosphere" default="0" />
+			<description>
+				Adds a fill light (from the side, in the color of the sky) and a rim light (from behind) under [param root], for three-point lighting with the sun as the key light. Neither casts shadows nor affects the sky. Returns the paths as [code]{"fill_light": path, "rim_light": path}[/code].
+			</description>
+		</method>
+		<method name="apply_to_scene" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="root" type="Node" />
+			<param index="1" name="quality" type="int" enum="UZULook.Quality" default="0" />
+			<param index="2" name="atmosphere" type="int" enum="UZULook.Atmosphere" default="0" />
+			<description>
+				Applies the look to the scene rooted at [param root]: adds a [WorldEnvironment] (or updates the existing one) with [method create_environment] and [method create_camera_attributes], and adds a sun configured with [method configure_sun] if the scene has no [DirectionalLight3D] that drives the sky. New nodes are owned by [param root], so they are saved with the scene. Returns what was done, for example [code]{"world_environment": "added", "sun": "kept"}[/code].
+			</description>
+		</method>
+		<method name="configure_camera" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="camera" type="Camera3D" />
+			<param index="1" name="lens" type="int" enum="UZULook.Lens" default="1" />
+			<param index="2" name="shift" type="float" default="0.0" />
+			<description>
+				Sets the field of view of [param camera] to [param lens]. A non-zero [param shift] (a fraction of the view height, positive is up) moves the framing up or down without tilting the camera, so vertical lines stay parallel.
+			</description>
+		</method>
+		<method name="configure_fill_light" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="light" type="DirectionalLight3D" />
+			<param index="1" name="atmosphere" type="int" enum="UZULook.Atmosphere" default="0" />
+			<description>
+				Configures [param light] as a weak fill light from the side, in the color of the sky, without shadows and without affecting the sky.
+			</description>
+		</method>
+		<method name="configure_lamp" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="lamp" type="OmniLight3D" />
+			<param index="1" name="quality" type="int" enum="UZULook.Quality" default="0" />
+			<description>
+				Configures [param lamp] as a warm lamp whose light falls off quickly. Shadows are enabled except at [constant QUALITY_LOW].
+			</description>
+		</method>
+		<method name="configure_rim_light" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="light" type="DirectionalLight3D" />
+			<param index="1" name="atmosphere" type="int" enum="UZULook.Atmosphere" default="0" />
+			<description>
+				Configures [param light] as a rim light from behind, opposite the sun, without shadows and without affecting the sky.
+			</description>
+		</method>
+		<method name="configure_sun" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="sun" type="DirectionalLight3D" />
+			<param index="1" name="quality" type="int" enum="UZULook.Quality" default="0" />
+			<param index="2" name="atmosphere" type="int" enum="UZULook.Atmosphere" default="0" />
+			<description>
+				Configures [param sun] for [param atmosphere]: direction, color and energy, and split soft shadows that follow [param quality].
+			</description>
+		</method>
+		<method name="create_camera_attributes" qualifiers="static">
+			<return type="CameraAttributesPractical" />
+			<param index="0" name="quality" type="int" enum="UZULook.Quality" default="0" />
+			<description>
+				Returns camera attributes for the look: a slight blur of the far distance at [constant QUALITY_HIGH], none otherwise.
+			</description>
+		</method>
+		<method name="create_environment" qualifiers="static">
+			<return type="Environment" />
+			<param index="0" name="quality" type="int" enum="UZULook.Quality" default="0" />
+			<param index="1" name="atmosphere" type="int" enum="UZULook.Atmosphere" default="0" />
+			<description>
+				Returns a new [Environment] with the look for [param quality] and [param atmosphere].
+			</description>
+		</method>
+		<method name="create_material" qualifiers="static">
+			<return type="StandardMaterial3D" />
+			<param index="0" name="kind" type="int" enum="UZULook.MaterialKind" />
+			<description>
+				Returns a new [StandardMaterial3D] preset of [param kind].
+			</description>
+		</method>
+		<method name="get_default_quality" qualifiers="static">
+			<return type="int" enum="UZULook.Quality" />
+			<param index="0" name="rendering_method" type="String" />
+			<description>
+				Returns the quality that suits [param rendering_method] ([code]"forward_plus"[/code], [code]"mobile"[/code] or [code]"gl_compatibility"[/code]).
+			</description>
+		</method>
+		<method name="get_eye_height" qualifiers="static">
+			<return type="float" />
+			<param index="0" name="eye_level" type="int" enum="UZULook.EyeLevel" />
+			<description>
+				Returns the camera height in meters for [param eye_level].
+			</description>
+		</method>
+		<method name="get_lens_fov" qualifiers="static">
+			<return type="float" />
+			<param index="0" name="lens" type="int" enum="UZULook.Lens" />
+			<description>
+				Returns the vertical field of view in degrees for [param lens].
+			</description>
+		</method>
+	</methods>
+	<constants>
+		<constant name="QUALITY_HIGH" value="0" enum="Quality">
+			Forward+ on a dedicated GPU: ambient occlusion, indirect light, screen-space reflections, soft shadows and far blur.
+		</constant>
+		<constant name="QUALITY_STANDARD" value="1" enum="Quality">
+			Forward+ on an integrated GPU, or Mobile: ambient occlusion and split shadows.
+		</constant>
+		<constant name="QUALITY_LOW" value="2" enum="Quality">
+			Compatibility renderer (Web): only features it supports.
+		</constant>
+		<constant name="ATMOSPHERE_CLEAR" value="0" enum="Atmosphere">
+			Dry, clear air: the distance turns blue.
+		</constant>
+		<constant name="ATMOSPHERE_HUMID" value="1" enum="Atmosphere">
+			Humid air: the distance fades into a white haze, densest near the ground.
+		</constant>
+		<constant name="ATMOSPHERE_GOLDEN_HOUR" value="2" enum="Atmosphere">
+			A low, warm sun near sunrise or sunset.
+		</constant>
+		<constant name="ATMOSPHERE_NIGHT" value="3" enum="Atmosphere">
+			Weak, cool moonlight and a dark sky; add lamps with [method add_lamp].
+		</constant>
+		<constant name="MATERIAL_SKIN" value="0" enum="MaterialKind">
+			Subsurface scattering in skin mode: soft, warm shadow edges.
+		</constant>
+		<constant name="MATERIAL_FOLIAGE" value="1" enum="MaterialKind">
+			Backlight through thin leaves, double-sided.
+		</constant>
+		<constant name="MATERIAL_GLASS" value="2" enum="MaterialKind">
+			Transparent and glossy.
+		</constant>
+		<constant name="MATERIAL_WATER" value="3" enum="MaterialKind">
+			Transparent water color with glossy reflections.
+		</constant>
+		<constant name="MATERIAL_LAMP" value="4" enum="MaterialKind">
+			Emissive, warm-colored light source.
+		</constant>
+		<constant name="LENS_WIDE" value="0" enum="Lens">
+			70 degrees: strong depth.
+		</constant>
+		<constant name="LENS_STANDARD" value="1" enum="Lens">
+			45 degrees: natural and calm.
+		</constant>
+		<constant name="LENS_TELEPHOTO" value="2" enum="Lens">
+			25 degrees: strong sense of scale.
+		</constant>
+		<constant name="EYE_LEVEL_STANDING" value="0" enum="EyeLevel">
+			1.6 meters.
+		</constant>
+		<constant name="EYE_LEVEL_LOW" value="1" enum="EyeLevel">
+			0.8 meters, a seated or child's view.
+		</constant>
+	</constants>
+</class>

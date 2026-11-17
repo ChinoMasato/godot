@@ -41,6 +41,9 @@ private:
 
 	struct DummyTexture {
 		Ref<Image> image;
+		// Kept so 3D textures created without a GPU (headless) can be read back,
+		// for example when saving a scene that embeds an ImageTexture3D.
+		Vector<Ref<Image>> slices;
 	};
 	mutable RID_PtrOwner<DummyTexture, true> texture_owner;
 
@@ -86,7 +89,14 @@ public:
 		t->image = p_image->duplicate();
 	}
 	virtual void texture_2d_layered_initialize(RID p_texture, const Vector<Ref<Image>> &p_layers, RSE::TextureLayeredType p_layered_type) override {}
-	virtual void texture_3d_initialize(RID p_texture, Image::Format, int p_width, int p_height, int p_depth, bool p_mipmaps, const Vector<Ref<Image>> &p_data) override {}
+	virtual void texture_3d_initialize(RID p_texture, Image::Format, int p_width, int p_height, int p_depth, bool p_mipmaps, const Vector<Ref<Image>> &p_data) override {
+		DummyTexture *t = texture_owner.get_or_null(p_texture);
+		ERR_FAIL_NULL(t);
+		t->slices.clear();
+		for (const Ref<Image> &slice : p_data) {
+			t->slices.push_back(slice.is_valid() ? Ref<Image>(slice->duplicate()) : Ref<Image>());
+		}
+	}
 	virtual void texture_external_initialize(RID p_texture, int p_width, int p_height, uint64_t p_external_buffer) override {}
 	virtual void texture_proxy_initialize(RID p_texture, RID p_base) override {} //all slices, then all the mipmaps, must be coherent
 	virtual void texture_drawable_initialize(RID p_texture, int p_width, int p_height, RSE::TextureDrawableFormat p_format, const Color &p_color, bool p_with_mipmaps) override {}
@@ -94,7 +104,14 @@ public:
 	virtual RID texture_create_from_native_handle(RSE::TextureType p_type, Image::Format p_format, uint64_t p_native_handle, int p_width, int p_height, int p_depth, int p_layers = 1, RSE::TextureLayeredType p_layered_type = RSE::TEXTURE_LAYERED_2D_ARRAY) override { return RID(); }
 
 	virtual void texture_2d_update(RID p_texture, const Ref<Image> &p_image, int p_layer = 0) override {}
-	virtual void texture_3d_update(RID p_texture, const Vector<Ref<Image>> &p_data) override {}
+	virtual void texture_3d_update(RID p_texture, const Vector<Ref<Image>> &p_data) override {
+		DummyTexture *t = texture_owner.get_or_null(p_texture);
+		ERR_FAIL_NULL(t);
+		t->slices.clear();
+		for (const Ref<Image> &slice : p_data) {
+			t->slices.push_back(slice.is_valid() ? Ref<Image>(slice->duplicate()) : Ref<Image>());
+		}
+	}
 	virtual void texture_external_update(RID p_texture, int p_width, int p_height, uint64_t p_external_buffer) override {}
 	virtual void texture_proxy_update(RID p_proxy, RID p_base) override {}
 
@@ -111,7 +128,11 @@ public:
 		return t->image;
 	}
 	virtual Ref<Image> texture_2d_layer_get(RID p_texture, int p_layer) const override { return Ref<Image>(); }
-	virtual Vector<Ref<Image>> texture_3d_get(RID p_texture) const override { return Vector<Ref<Image>>(); }
+	virtual Vector<Ref<Image>> texture_3d_get(RID p_texture) const override {
+		DummyTexture *t = texture_owner.get_or_null(p_texture);
+		ERR_FAIL_NULL_V(t, Vector<Ref<Image>>());
+		return t->slices;
+	}
 
 	virtual void texture_drawable_generate_mipmaps(RID p_texture) override {}
 	virtual RID texture_drawable_get_default_material() const override { return RID(); }
