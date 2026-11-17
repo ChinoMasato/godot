@@ -22,6 +22,7 @@ when anything regressed. Standard library only.
 import argparse
 import json
 import os
+import shutil
 import statistics
 import subprocess
 import sys
@@ -33,37 +34,72 @@ sys.path.insert(0, HERE)
 import uzu  # noqa: E402  Finds the editor binary for this OS (B-801).
 
 
-def run(project, repeat=3, frames=60):
+FRAME_AUTOLOAD = 'UZUFrameTime="*res://addons/uzu_selfplay/frametime.gd"\n'
+
+
+def run(project, repeat=3, frames=60, render=False):
+    """Median of each startup mark (--benchmark-file) and of the frame times (B-803)
+    over several runs. The frame times come from a recorder autoload installed in a
+    copy of the project. Headless by default (CPU work only); render=True draws too."""
     samples = {}
     with tempfile.TemporaryDirectory() as tmp:
-        for i in range(repeat):
-            out = os.path.join(tmp, f"bench_{i}.json")
-            subprocess.run([uzu.find_godot(), "--headless", "--path", project, "--benchmark", "--benchmark-file", out, "--quit-after", str(frames)], capture_output=True, timeout=600)
+        game = os.path.join(tmp, "game")
+        shutil.copytree(project, game, ignore=shutil.ignore_patterns(".godot"))
+        uzu.install_addons(game, ["selfplay/frametime.gd"], FRAME_AUTOLOAD)
+        # One discarded warm-up run: the fresh copy has no .godot cache yet, and building
+        # it makes the first run's startup and shutdown slower than the rest.
+        for i in range(-1, repeat):
+            out, frame_out = os.path.join(tmp, f"bench_{i}.json"), os.path.join(tmp, f"frames_{i}.json")
+            cmd = [uzu.find_godot(), "--path", game, "--benchmark", "--benchmark-file", out, "--quit-after", str(frames)]
+            env = None
+            if render:
+                cmd, env = uzu.render_command(cmd + uzu.driver())
+            else:
+                cmd.insert(1, "--headless")
+            subprocess.run(cmd + ["--", "--uzu-frametime", frame_out], capture_output=True, timeout=600, env=env)
             if not os.path.exists(out):
                 raise RuntimeError(f"the engine wrote no benchmark file (run {i + 1}); does {project} have a main scene?")
+            if i < 0:
+                continue
             with open(out, encoding="utf-8") as f:
                 for key, seconds in json.load(f).items():
                     samples.setdefault(key, []).append(float(seconds))
-    return {"marks": {k: statistics.median(v) for k, v in samples.items()}, "repeat": repeat, "frames": frames}
+            if os.path.exists(frame_out):
+                with open(frame_out, encoding="utf-8") as f:
+                    ft = json.load(f)
+                for name in ("average", "p95", "worst"):
+                    samples.setdefault(f"[Frame] work {name}", []).append(ft["work"][f"{name}_ms"] / 1000.0)
+                    if render:  # Headless frames are padded with a sleep: wall time says nothing there.
+                        samples.setdefault(f"[Frame] wall {name}", []).append(ft["wall"][f"{name}_ms"] / 1000.0)
+    return {"marks": {k: statistics.median(v) for k, v in samples.items()}, "repeat": repeat, "frames": frames, "render": render}
 
 
-def compare(baseline, current, threshold=0.25, min_ms=5.0):
+# Engine shutdown time jumps between two levels (about 20 ms and 90 ms here) from run
+# to run, whatever the game does, so by default it is reported but does not fail.
+IGNORED_BY_DEFAULT = ("[Shutdown]",)
+
+
+def compare(baseline, current, threshold=0.25, min_ms=5.0, min_frame_ms=1.0, ignore=IGNORED_BY_DEFAULT):
     base, cur = baseline["marks"], current["marks"]
-    regressions, improvements = [], []
+    regressions, improvements, ignored = [], [], []
     for key, before in base.items():
         if key not in cur:
+            continue
+        if key.startswith(tuple(ignore)):
+            ignored.append(key)
             continue
         after = cur[key]
         diff_ms = (after - before) * 1000.0
         entry = {"mark": key, "baseline_ms": round(before * 1000.0, 3), "current_ms": round(after * 1000.0, 3), "change": round(after / before - 1.0, 3) if before > 0 else None}
-        if abs(diff_ms) <= min_ms:
+        # Frame times are a few milliseconds, so they get their own (smaller) noise floor.
+        if abs(diff_ms) <= (min_frame_ms if key.startswith("[Frame]") else min_ms):
             continue
         if after > before * (1.0 + threshold):
             regressions.append(entry)
         elif after < before * (1.0 - threshold):
             improvements.append(entry)
     missing = sorted(k for k in base if k not in cur)
-    return {"ok": not regressions, "threshold": threshold, "min_ms": min_ms, "regressions": regressions, "improvements": improvements, "missing": missing, "new": sorted(k for k in cur if k not in base)}
+    return {"ok": not regressions, "threshold": threshold, "min_ms": min_ms, "min_frame_ms": min_frame_ms, "regressions": regressions, "improvements": improvements, "missing": missing, "new": sorted(k for k in cur if k not in base), "ignored": ignored}
 
 
 def _load(path):
@@ -90,10 +126,22 @@ def self_test():
         slow = compare(base, run(project, repeat=3, frames=5))
         assert not slow["ok"], slow
         assert any(r["mark"] == "[Startup] Load Autoloads" for r in slow["regressions"]), slow
+        # A slow frame (5 ms of work in every _process) is a frame-time regression (B-803).
+        base = run(project, repeat=3, frames=40)
+        assert "[Frame] work average" in base["marks"] and "[Frame] work worst" in base["marks"], base
+        with open(os.path.join(project, "main.gd"), "w") as f:
+            f.write("extends Node\n\nfunc _process(_delta: float) -> void:\n\tOS.delay_msec(5)\n")
+        with open(os.path.join(project, "main.tscn"), "w") as f:
+            f.write('[gd_scene load_steps=2 format=3]\n\n[ext_resource type="Script" path="res://main.gd" id="1"]\n\n[node name="Main" type="Node"]\nscript = ExtResource("1")\n')
+        heavy = compare(base, run(project, repeat=3, frames=40))
+        assert any(r["mark"] == "[Frame] work average" for r in heavy["regressions"]), heavy
         # compare() on its own: noise below min_ms passes, a real slowdown fails.
         assert compare({"marks": {"a": 0.0001}}, {"marks": {"a": 0.0004}})["ok"]
         assert not compare({"marks": {"a": 0.1}}, {"marks": {"a": 0.2}})["ok"]
         assert compare({"marks": {"a": 0.1, "b": 0.1}}, {"marks": {"a": 0.1}})["missing"] == ["b"]
+        shutdown = {"marks": {"[Shutdown] Main::Cleanup": 0.02}}, {"marks": {"[Shutdown] Main::Cleanup": 0.09}}
+        assert compare(*shutdown)["ok"] and compare(*shutdown)["ignored"] == ["[Shutdown] Main::Cleanup"]
+        assert not compare(*shutdown, ignore=())["ok"]
     print("bench selftest: ok")
     return 0
 
@@ -111,6 +159,9 @@ def main():
     parser.add_argument("--frames", type=int, default=60)
     parser.add_argument("--threshold", type=float, default=0.25)
     parser.add_argument("--min-ms", type=float, default=5.0)
+    parser.add_argument("--min-frame-ms", type=float, default=1.0)
+    parser.add_argument("--include-shutdown", action="store_true", help="also judge the shutdown marks (noisy)")
+    parser.add_argument("--render", action="store_true", help="draw frames too (GPU, or software rendering without a display)")
     a = parser.parse_args()
     if a.command in ("run", "check") and not a.project:
         parser.error(f"{a.command} needs --project")
@@ -120,14 +171,14 @@ def main():
         parser.error("compare needs --current")
 
     if a.command == "run":
-        result = run(os.path.abspath(a.project), a.repeat, a.frames)
+        result = run(os.path.abspath(a.project), a.repeat, a.frames, a.render)
         if a.out:
             with open(a.out, "w", encoding="utf-8") as f:
                 json.dump(result, f, indent=1, sort_keys=True)
         print(json.dumps({"ok": True, "command": "run", "out": a.out, **result}))
         return 0
-    current = run(os.path.abspath(a.project), a.repeat, a.frames) if a.command == "check" else _load(a.current)
-    result = compare(_load(a.baseline), current, a.threshold, a.min_ms)
+    current = run(os.path.abspath(a.project), a.repeat, a.frames, a.render) if a.command == "check" else _load(a.current)
+    result = compare(_load(a.baseline), current, a.threshold, a.min_ms, a.min_frame_ms, () if a.include_shutdown else IGNORED_BY_DEFAULT)
     print(json.dumps({"command": a.command, **result}))
     return 0 if result["ok"] else 1
 

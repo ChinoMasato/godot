@@ -169,6 +169,13 @@ def engine(project, args):
         for issue in result.get("issues", []):
             if issue["kind"] == "script_error":
                 issue["errors"] = engine(project, ["check", "--path", issue["file"]])["errors"]
+        # Shaders are checked by the engine's shader compiler, without a renderer (B-803).
+        for path in project_files(project, (".gdshader", ".gdshaderinc")):
+            result["checked"] = result.get("checked", 0) + 1
+            check = engine(project, ["check", "--path", path])
+            if not check["ok"]:
+                result["issues"].append({"kind": "shader_error", "file": path, "message": f"{path} has errors", "errors": check["errors"]})
+        result["ok"] = not result["issues"]
         return result
     if command == "shot":
         return look(project, args)
@@ -182,12 +189,32 @@ def engine(project, args):
     return result
 
 
+def project_files(project, extensions):
+    """res:// paths of the project's files with these extensions (hidden directories skipped)."""
+    found = []
+    for dirpath, dirs, files in os.walk(project):
+        dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+        for f in sorted(files):
+            if f.endswith(tuple(extensions)):
+                found.append("res://" + os.path.relpath(os.path.join(dirpath, f), project).replace(os.sep, "/"))
+    return found
+
+
 def import_assets(project):
     """Imports (or reimports) the project's assets: textures, sounds, models... (B-802)."""
-    with tempfile.TemporaryDirectory() as tmp:
-        jsonl = os.path.join(tmp, "errors.jsonl")
-        rc, out = run([find_godot(), "--headless", "--path", project, "--import", "--log-json", jsonl], timeout=1800)
-        errors = [e for e in read_jsonl(jsonl) if e.get("level") != "warning"]
+    retried = False
+    for attempt in range(2):
+        with tempfile.TemporaryDirectory() as tmp:
+            jsonl = os.path.join(tmp, "errors.jsonl")
+            rc, out = run([find_godot(), "--headless", "--path", project, "--import", "--log-json", jsonl], timeout=1800)
+            errors = [e for e in read_jsonl(jsonl) if e.get("level") != "warning"]
+        # Known engine race (upstream): the editor's file system can run a deferred update after
+        # the editor has gone at exit ("Parameter singleton is null" in is_cmdline_mode) and
+        # abort. The import itself has finished by then, so a crash on exit is retried once.
+        crashed_on_exit = rc < 0 and all("is_cmdline_mode" in e.get("function", "") or "singleton" in e.get("message", "") for e in errors)
+        if not crashed_on_exit or attempt == 1:
+            break
+        retried = True
     imported = []
     for dirpath, dirs, files in os.walk(project):
         dirs[:] = [d for d in dirs if not d.startswith(".")]
@@ -195,7 +222,7 @@ def import_assets(project):
             if f.endswith(".import"):
                 rel = os.path.relpath(os.path.join(dirpath, f[: -len(".import")]), project).replace(os.sep, "/")
                 imported.append("res://" + rel)
-    return {"ok": rc == 0 and not errors, "command": "import", "exit_code": rc, "imported": sorted(imported), "errors": errors, "log_tail": tail(out, 10) if rc != 0 else ""}
+    return {"ok": rc == 0 and not errors, "command": "import", "exit_code": rc, "retried": retried, "imported": sorted(imported), "errors": errors, "log_tail": tail(out, 10) if rc != 0 else ""}
 
 
 # ---------------------------------------------------------------- look
@@ -436,6 +463,17 @@ def selftest_engine():
         r = e("import-set", "--path", "res://tex.png", "--param", "compress/mode", "--value", "2")
         c.expect("import-set", r["ok"] and e("import-get", "--path", "res://tex.png")["params"]["compress/mode"] == 2, r)
         c.expect("import-set bad", not e("import-set", "--path", "res://tex.png", "--param", "nope", "--value", "1")["ok"])
+        # B-803: shaders are checked like scripts, and validate finds broken ones.
+        with open(os.path.join(p, "ok.gdshader"), "w", encoding="utf-8") as f:
+            f.write("shader_type spatial;\nvoid fragment() {\n\tALBEDO = vec3(1.0);\n}\n")
+        c.expect("shader good", e("check", "--path", "res://ok.gdshader")["ok"])
+        with open(os.path.join(p, "bad.gdshader"), "w", encoding="utf-8") as f:
+            f.write("shader_type spatial;\n\nvoid fragment() {\n\tALBEDO = vec3(nope);\n}\n")
+        r = e("check", "--path", "res://bad.gdshader")
+        c.expect("shader bad", not r["ok"] and r["errors"][0]["line"] == 4 and r["errors"][0]["code"].startswith("SH"), r)
+        r = e("validate")
+        c.expect("validate shader", not r["ok"] and [(i["kind"], i["file"]) for i in r["issues"]] == [("shader_error", "res://bad.gdshader")] and r["issues"][0]["errors"][0]["line"] == 4, r)
+        os.remove(os.path.join(p, "bad.gdshader"))
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))

@@ -47,3 +47,4 @@
 | B-505〜B-507 | Claude Code (cloud) | ai-native（直接） | ai_loop/bridge/client.py（新規）, ai_loop/publish.sh（新規）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-801 | Claude Code (cloud) | ai-native（直接） | ai_loop/uzu.py（新規）, ai_loop/*.sh（包みに）, ai_loop/mcp_server.py, ai_loop/aiplayer.py, ai_loop/bench.py, ai_loop/bridge/client.py, ai_loop/windows/（uzu.bat 新規, README.md）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-802 | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-17 |
+| B-803 | Claude Code (cloud) | ai-native（直接） | servers/rendering/shader_check_json.{h,cpp}（新規）, servers/rendering/SCsub, main/main.cpp, tests/servers/rendering/test_shader_check_json.cpp（新規）, ai_loop/uzu.py, ai_loop/bench.py, ai_loop/selfplay/frametime.gd（新規）, ai_loop/iterations/ | 反映済み | 2026-11-17 |

@@ -82,6 +82,7 @@
 #include "servers/rendering/rendering_device.h"
 #include "servers/rendering/rendering_server.h"
 #include "servers/rendering/rendering_server_default.h"
+#include "servers/rendering/shader_check_json.h"
 #include "servers/text/text_server.h"
 #include "servers/text/text_server_dummy.h"
 
@@ -648,7 +649,7 @@ void Main::print_help(const char *p_binary) {
 	print_help_option("-s, --script <script>", "Run a script.\n", CLI_OPTION_AVAILABILITY_TEMPLATE_UNSAFE);
 	print_help_option("--main-loop <main_loop_name>", "Run a MainLoop specified by its global class name.\n", CLI_OPTION_AVAILABILITY_TEMPLATE_UNSAFE);
 	print_help_option("--check-only", "Only parse for errors and quit (use with --script).\n", CLI_OPTION_AVAILABILITY_TEMPLATE_UNSAFE);
-	print_help_option("--json", "With --check-only, print errors and warnings as one line of JSON (file, line, column, code, message).\n", CLI_OPTION_AVAILABILITY_EDITOR);
+	print_help_option("--json", "With --check-only, print errors and warnings as one line of JSON (file, line, column, code, message). Shaders (.gdshader) are always checked this way.\n", CLI_OPTION_AVAILABILITY_EDITOR);
 #endif // defined(OVERRIDE_PATH_ENABLED)
 #ifdef TOOLS_ENABLED
 	print_help_option("--import", "Starts the editor, waits for any resources to be imported, and then quits.\n", CLI_OPTION_AVAILABILITY_EDITOR);
@@ -4434,6 +4435,18 @@ int Main::start() {
 	if (main_loop_type.is_empty()) {
 		main_loop_type = GLOBAL_GET("application/run/main_loop_type");
 	}
+
+#ifdef TOOLS_ENABLED
+	if (check_only && (script.get_extension() == "gdshader" || script.get_extension() == "gdshaderinc")) {
+		// Shaders are checked without a renderer, as the editor does (B-803).
+		Error read_err = OK;
+		const String code = FileAccess::get_file_as_string(script, &read_err);
+		ERR_FAIL_COND_V_MSG(read_err != OK, EXIT_FAILURE, "Can't read shader: " + script);
+		const String result = ShaderCheckJSON::check(code, script);
+		print_line(result);
+		return result.begins_with("{\"ok\":true") ? EXIT_SUCCESS : EXIT_FAILURE;
+	}
+#endif
 
 	if (!script.is_empty()) {
 		Ref<Script> script_res = ResourceLoader::load(script);
