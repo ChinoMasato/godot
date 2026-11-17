@@ -2,7 +2,7 @@
 """MCP server for U.ZU Engine (BACKLOG B-402): engine and look operations as tools.
 
 Speaks the Model Context Protocol over stdio (JSON-RPC 2.0, one message per
-line) and runs ai_loop/engine.sh and ai_loop/look.sh for each tool call, so an
+line) and runs ai_loop/uzu.py (engine and look) for each tool call, so an
 MCP client (for example Claude Code) can operate a project directly.
 
 Usage: ai_loop/mcp_server.py --project <project-dir>
@@ -63,7 +63,7 @@ TOOLS = {
 
 def call_tool(project, name, arguments):
     script, command, _, _, _ = TOOLS[name]
-    argv = [os.path.join(HERE, f"{script}.sh"), project, command]
+    argv = [sys.executable, os.path.join(HERE, "uzu.py"), script, project, command]  # Cross-platform entry (B-801).
     for key, value in (arguments or {}).items():
         if value is None or value == "" or value is False:
             continue

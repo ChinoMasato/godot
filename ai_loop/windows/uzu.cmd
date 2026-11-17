@@ -1,0 +1,3 @@
+@echo off
+rem U.ZU Engine agent tools on Windows (B-801): uzu engine^|look^|selfplay^|publish^|selftest ...
+py -3 "%~dp0..\uzu.py" %*

@@ -92,7 +92,9 @@ def _game_id(args):
 
 
 def _export(project, preset, out_dir):
-    godot = os.environ.get("GODOT", os.path.join(ROOT, "bin", "godot.linuxbsd.editor.x86_64"))
+    import uzu  # Finds the editor binary for this OS (B-801).
+
+    godot = uzu.find_godot()
     os.makedirs(out_dir, exist_ok=True)
     proc = subprocess.run([godot, "--headless", "--path", project, "--export-release", preset, os.path.join(out_dir, "index.html")], capture_output=True, text=True, timeout=1800)
     if proc.returncode != 0 or not os.listdir(out_dir):
@@ -246,8 +248,8 @@ def self_test():
     return 0
 
 
-def main():
-    argv = sys.argv[1:]
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else list(argv)
     if "--self-test" in argv:
         return self_test()
     if not argv:

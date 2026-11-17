@@ -25,7 +25,8 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-GODOT = os.environ.get("GODOT", os.path.join(ROOT, "bin", "godot.linuxbsd.editor.x86_64"))
+sys.path.insert(0, HERE)
+import uzu  # noqa: E402  Finds the editor binary for this OS and sets up rendering (B-801).
 PREFIX = "UZU_STEP "
 AUTOLOADS = 'UZUControl="*res://addons/uzu_selfplay/control.gd"\nUZUTelemetry="*res://addons/uzu_selfplay/telemetry.gd"\n'
 
@@ -48,14 +49,13 @@ class Game:
         user_args = ["--uzu-telemetry", telemetry_log or os.path.join(self.work, "events.jsonl")]
         if seed is not None:
             user_args += ["--uzu-seed", str(seed)]  # control.gd fixes the global random seed (B-305).
-        cmd = [GODOT, "--path", game, "--fixed-fps", "60"]
-        env = dict(os.environ)
+        cmd = [uzu.find_godot(), "--path", game, "--fixed-fps", "60"]
+        env = None
         if render:
-            env["VK_ICD_FILENAMES"] = "/usr/share/vulkan/icd.d/lvp_icd.json"
-            cmd = ["xvfb-run", "-a", "-s", "-screen 0 640x360x24"] + cmd + ["--rendering-driver", "vulkan", "--resolution", "640x360"]
+            cmd, env = uzu.render_command(cmd + uzu.driver() + ["--resolution", "640x360"], "640x360")
         else:
             cmd.insert(1, "--headless")
-        self.proc = subprocess.Popen(cmd + ["--"] + user_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, bufsize=1, env=env)
+        self.proc = subprocess.Popen(cmd + ["--"] + user_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, encoding="utf-8", bufsize=1, env=env)
         self.seed = seed
         self.last = self._read()
 

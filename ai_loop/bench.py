@@ -29,7 +29,8 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-GODOT = os.environ.get("GODOT", os.path.join(ROOT, "bin", "godot.linuxbsd.editor.x86_64"))
+sys.path.insert(0, HERE)
+import uzu  # noqa: E402  Finds the editor binary for this OS (B-801).
 
 
 def run(project, repeat=3, frames=60):
@@ -37,7 +38,7 @@ def run(project, repeat=3, frames=60):
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(repeat):
             out = os.path.join(tmp, f"bench_{i}.json")
-            subprocess.run([GODOT, "--headless", "--path", project, "--benchmark", "--benchmark-file", out, "--quit-after", str(frames)], capture_output=True, timeout=600)
+            subprocess.run([uzu.find_godot(), "--headless", "--path", project, "--benchmark", "--benchmark-file", out, "--quit-after", str(frames)], capture_output=True, timeout=600)
             if not os.path.exists(out):
                 raise RuntimeError(f"the engine wrote no benchmark file (run {i + 1}); does {project} have a main scene?")
             with open(out, encoding="utf-8") as f:

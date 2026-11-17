@@ -12,5 +12,23 @@ powershell -ExecutionPolicy Bypass -File setup.ps1 -Path "D:\engine work\uzu開�
 
 - Direct3D 12 と AccessKit（スクリーンリーダー対応）は既定で切ってある。どちらも追加の SDK のダウンロードが要るため（2026-11-17、オーナーの PC での最初のビルドがここで止まった）。必要なら `misc\scripts\install_d3d12_sdk_windows.py` と `misc\scripts\install_accesskit.py` を実行してから、`-WithD3D12`／`-WithAccessKit` をつける。エディタは Vulkan で描画する。
 - `-Path` を省くと、`ユーザーフォルダ\engine work\uzu開発` に作る。
-- AI 用のスクリプト（`ai_loop/*.sh`）は Linux の bash 向け。Windows では WSL2（Ubuntu）から使うか、クラウドのセッションを使う。Windows のエディタは、GPU で実際の見た目を確かめるのに使う。
 - このスクリプトはクラウド（Linux）で作ったので、Windows での実行はまだ確かめていない。うまくいかない所があれば、出たメッセージを教えてほしい。
+
+## AI 用のツールを Windows で使う（B-801）
+
+AI 用のツールは `ai_loop/uzu.py`（Python だけで書いたもの）にまとまっていて、Windows でもそのまま動く。`.sh` は Linux 用の薄い包みなので、Windows では `uzu.py` を直接か、`ai_loop\windows\uzu.cmd` 経由で呼ぶ。
+
+```bat
+cd "D:\engine work\uzu開発\godot"
+ai_loop\windows\uzu.cmd selftest
+ai_loop\windows\uzu.cmd engine my_game tree --scene res://main.tscn
+ai_loop\windows\uzu.cmd look my_game shot --out shot.png
+ai_loop\windows\uzu.cmd selfplay ai_loop\selfplay\sample_game --input ai_loop\selfplay\sample_replay.json
+```
+
+- **エンジンのバイナリ:** `bin\` から自動で探す。`godot.windows.editor.x86_64.console.exe` を優先する。こちらは標準入出力を保つので、AI プレイヤー（B-306）にはこれが要る。別のバイナリを使うときは、環境変数 `GODOT` で指定する。
+- **描画:** スクリーンショット、パノラマ、録画は PC の GPU で描画する。Linux のような仮想ディスプレイは要らない。
+- **MCP サーバー:** `py -3 ai_loop\mcp_server.py --project <ゲーム>` で使える。Claude Code への登録例: `claude mcp add uzu-engine -- py -3 D:\...\ai_loop\mcp_server.py --project D:\...\my_game`
+- **まだ Linux 専用のもの:** ビルドのロックと計測（`build_locked.sh`・`measure.sh`・`agent_*.sh`）。Windows のビルドは `setup.ps1` が受け持つ。
+- **確認の状況:** これらのツールはクラウド（Linux）で作って確かめた。Windows での確認はまだなので、`uzu.cmd selftest` の結果（最後の数行）を教えてほしい。
+
