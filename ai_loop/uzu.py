@@ -5,7 +5,7 @@ Runs on Linux, Windows and macOS with Python 3.8+ and the standard library.
 The shell scripts (engine.sh, look.sh, selfplay.sh, screenshot.sh, publish.sh)
 are thin wrappers around this file; on Windows call it directly:
     py ai_loop\\uzu.py engine my_game tree --scene res://main.tscn
-or through ai_loop\\windows\\uzu.cmd.
+or through ai_loop\\windows\\uzu.bat.
 
   uzu.py engine   <project> <command> [options]   scene, class and project operations (B-401, B-201..B-203, B-304)
   uzu.py look     <project> <command> [options]   the U.ZU look (B-7xx), shot / check / panorama
