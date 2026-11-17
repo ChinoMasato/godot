@@ -80,6 +80,10 @@ float UZULook::get_lens_fov(Lens p_lens) {
 	return LookPreset3D::get_lens_fov(LookPreset3D::Lens(p_lens));
 }
 
+int UZULook::get_shadow_filter_quality(Quality p_quality) {
+	return LookPreset3D::get_shadow_filter_quality(LookPreset3D::Quality(p_quality));
+}
+
 float UZULook::get_eye_height(EyeLevel p_eye_level) {
 	return LookPreset3D::get_eye_height(LookPreset3D::EyeLevel(p_eye_level));
 }
@@ -133,6 +137,10 @@ Dictionary UZULook::apply_to_scene(Node *p_root, Quality p_quality, Atmosphere p
 		p_root->move_child(sun, 1);
 		result["sun"] = "added";
 	}
+	// The sun's filter quality is a project setting (B-714); callers that save the
+	// scene should save the project settings too (ai_loop/look_tool.gd does).
+	LookPreset3D::apply_shadow_filter_quality(LookPreset3D::Quality(p_quality));
+	result["shadow_filter_quality"] = LookPreset3D::get_shadow_filter_quality(LookPreset3D::Quality(p_quality));
 	return result;
 }
 
@@ -177,6 +185,7 @@ Dictionary UZULook::add_lamp(Node *p_root, const Vector3 &p_position, Quality p_
 
 void UZULook::_bind_methods() {
 	ClassDB::bind_static_method("UZULook", D_METHOD("get_default_quality", "rendering_method"), &UZULook::get_default_quality);
+	ClassDB::bind_static_method("UZULook", D_METHOD("get_shadow_filter_quality", "quality"), &UZULook::get_shadow_filter_quality, DEFVAL(QUALITY_HIGH));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_environment", "quality", "atmosphere", "clouds"), &UZULook::create_environment, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR), DEFVAL(false));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_camera_attributes", "quality"), &UZULook::create_camera_attributes, DEFVAL(QUALITY_HIGH));
 	ClassDB::bind_static_method("UZULook", D_METHOD("configure_sun", "sun", "quality", "atmosphere"), &UZULook::configure_sun, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR));

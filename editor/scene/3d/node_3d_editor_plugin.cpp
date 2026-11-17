@@ -2560,6 +2560,9 @@ void Node3DEditor::_add_look_to_scene() {
 		new_sun = memnew(DirectionalLight3D);
 		LookPreset3D::configure_sun(new_sun, quality, atmosphere);
 	}
+	// The sun's soft shadow filter is a project setting (B-714).
+	LookPreset3D::apply_shadow_filter_quality(quality);
+	ProjectSettings::get_singleton()->save();
 
 	EditorUndoRedoManager *undo_redo = EditorUndoRedoManager::get_singleton();
 	undo_redo->create_action(TTR("Add U.ZU Look to Scene"));

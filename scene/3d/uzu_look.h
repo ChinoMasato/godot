@@ -96,6 +96,7 @@ public:
 	static void configure_camera(Camera3D *p_camera, Lens p_lens = LENS_STANDARD, float p_shift = 0.0);
 	static float get_lens_fov(Lens p_lens);
 	static float get_eye_height(EyeLevel p_eye_level);
+	static int get_shadow_filter_quality(Quality p_quality);
 
 	// Scene helpers. New nodes are owned by p_root, so they are saved with it.
 	// Adds (or updates) a WorldEnvironment, and configures the sun (the first

@@ -134,6 +134,14 @@ float get_eye_height(EyeLevel p_eye_level);
 // moves the framing without tilting the camera, so vertical lines stay parallel.
 void configure_camera(Camera3D *p_camera, Lens p_lens, float p_shift = 0.0);
 
+// Soft shadow filter quality for the sun at a quality level (B-714). It is a
+// project setting, not part of the scene: high quality uses the high filter,
+// which with a smaller sun removes the grain of wide soft shadows.
+int get_shadow_filter_quality(Quality p_quality);
+// Sets that filter quality in the project settings (in memory; saving them is
+// up to the caller) and, when a renderer runs, for the current run.
+void apply_shadow_filter_quality(Quality p_quality);
+
 // Post effects for the WorldEnvironment: edge contrast and vignette
 // (UZUPostEffect) at high and standard quality; none at low quality, where the
 // Compatibility renderer does not run compositor effects.

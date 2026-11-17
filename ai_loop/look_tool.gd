@@ -124,6 +124,8 @@ func _run(args: PackedStringArray) -> Dictionary:
 
 	var err := _save_scene(root, scene_path)
 	root.free()
+	if err == OK and command == "apply":
+		err = ProjectSettings.save()  # The sun's shadow filter quality is a project setting (B-714).
 	if err != OK:
 		return _error("could not save '%s': %s" % [scene_path, error_string(err)])
 	done["ok"] = true

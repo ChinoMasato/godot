@@ -125,6 +125,13 @@
 				Returns the quality that suits [param rendering_method] ([code]"forward_plus"[/code], [code]"mobile"[/code] or [code]"gl_compatibility"[/code]).
 			</description>
 		</method>
+		<method name="get_shadow_filter_quality" qualifiers="static">
+			<return type="int" />
+			<param index="0" name="quality" type="int" enum="UZULook.Quality" default="0" />
+			<description>
+				Returns the soft shadow filter quality for the sun at [param quality] (a [enum RenderingServer.ShadowQuality] value): soft high at high quality, soft low (the engine default) otherwise. It is the project setting [member ProjectSettings.rendering/lights_and_shadows/directional_shadow/soft_shadow_filter_quality]; [method apply_to_scene] sets it in memory, so save the project settings too to keep it.
+			</description>
+		</method>
 		<method name="get_eye_height" qualifiers="static">
 			<return type="float" />
 			<param index="0" name="eye_level" type="int" enum="UZULook.EyeLevel" />

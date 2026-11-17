@@ -30,6 +30,7 @@
 
 #include "look_preset_3d.h"
 
+#include "core/config/project_settings.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/light_3d.h"
 #include "scene/resources/3d/sky_material.h"
@@ -41,6 +42,7 @@
 #include "scene/resources/shader.h"
 #include "scene/resources/sky.h"
 #include "scene/resources/uzu_post_effect.h"
+#include "servers/rendering/rendering_server.h"
 
 namespace LookPreset3D {
 
@@ -393,7 +395,9 @@ void configure_sun(DirectionalLight3D *p_sun, Quality p_quality, Atmosphere p_at
 			p_sun->set_param(Light3D::PARAM_SHADOW_MAX_DISTANCE, 150.0);
 			// Contact-hardening soft shadows: the farther a shadow falls from what
 			// casts it, the softer it gets (sun-dappled light under high leaves).
-			p_sun->set_param(Light3D::PARAM_SIZE, 0.5);
+			// 0.25 with the high filter (B-714): at 0.5 wide penumbras turned grainy
+			// (grain 4.93 -> 1.37 measured on an RTX 4050, +0.74 ms).
+			p_sun->set_param(Light3D::PARAM_SIZE, 0.25);
 			break;
 		case QUALITY_STANDARD:
 			p_sun->set_shadow_mode(DirectionalLight3D::SHADOW_PARALLEL_4_SPLITS);
@@ -403,6 +407,20 @@ void configure_sun(DirectionalLight3D *p_sun, Quality p_quality, Atmosphere p_at
 			p_sun->set_shadow_mode(DirectionalLight3D::SHADOW_PARALLEL_2_SPLITS);
 			p_sun->set_param(Light3D::PARAM_SHADOW_MAX_DISTANCE, 60.0);
 			break;
+	}
+}
+
+static const char *SHADOW_FILTER_SETTING = "rendering/lights_and_shadows/directional_shadow/soft_shadow_filter_quality";
+
+int get_shadow_filter_quality(Quality p_quality) {
+	return p_quality == QUALITY_HIGH ? RSE::SHADOW_QUALITY_SOFT_HIGH : RSE::SHADOW_QUALITY_SOFT_LOW; // Soft Low is the engine default.
+}
+
+void apply_shadow_filter_quality(Quality p_quality) {
+	const int filter = get_shadow_filter_quality(p_quality);
+	ProjectSettings::get_singleton()->set_setting(SHADOW_FILTER_SETTING, filter);
+	if (RenderingServer::get_singleton()) {
+		RenderingServer::get_singleton()->directional_soft_shadow_filter_set_quality(RSE::ShadowQuality(filter));
 	}
 }
 

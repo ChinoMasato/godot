@@ -28,6 +28,8 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
+#include "core/config/project_settings.h"
+#include "servers/rendering/rendering_server.h"
 #include "tests/test_macros.h"
 
 TEST_FORCE_LINK(test_look_preset_3d)
@@ -153,7 +155,7 @@ TEST_CASE("[SceneTree][LookPreset3D] Sun casts split shadows") {
 	CHECK(sun->get_shadow_mode() == DirectionalLight3D::SHADOW_PARALLEL_4_SPLITS);
 	CHECK(sun->is_blend_splits_enabled());
 	CHECK(sun->get_param(Light3D::PARAM_SHADOW_MAX_DISTANCE) == doctest::Approx(150.0));
-	CHECK(sun->get_param(Light3D::PARAM_SIZE) == doctest::Approx(0.5));
+	CHECK(sun->get_param(Light3D::PARAM_SIZE) == doctest::Approx(0.25)); // B-714: smaller sun, less grain.
 	CHECK(sun->get_rotation_degrees().is_equal_approx(Vector3(-50.0, 150.0, 0.0)));
 
 	LookPreset3D::configure_sun(sun, LookPreset3D::QUALITY_STANDARD);
@@ -166,6 +168,20 @@ TEST_CASE("[SceneTree][LookPreset3D] Sun casts split shadows") {
 	CHECK(sun->get_param(Light3D::PARAM_SHADOW_MAX_DISTANCE) == doctest::Approx(60.0));
 
 	memdelete(sun);
+}
+
+TEST_CASE("[SceneTree][LookPreset3D] High quality uses the high soft shadow filter") {
+	CHECK(LookPreset3D::get_shadow_filter_quality(LookPreset3D::QUALITY_HIGH) == RSE::SHADOW_QUALITY_SOFT_HIGH);
+	CHECK(LookPreset3D::get_shadow_filter_quality(LookPreset3D::QUALITY_STANDARD) == RSE::SHADOW_QUALITY_SOFT_LOW);
+	CHECK(LookPreset3D::get_shadow_filter_quality(LookPreset3D::QUALITY_LOW) == RSE::SHADOW_QUALITY_SOFT_LOW);
+
+	const String setting = "rendering/lights_and_shadows/directional_shadow/soft_shadow_filter_quality";
+	const Variant saved = GLOBAL_GET(setting);
+	LookPreset3D::apply_shadow_filter_quality(LookPreset3D::QUALITY_HIGH);
+	CHECK(int(GLOBAL_GET(setting)) == RSE::SHADOW_QUALITY_SOFT_HIGH);
+	LookPreset3D::apply_shadow_filter_quality(LookPreset3D::QUALITY_STANDARD);
+	CHECK(int(GLOBAL_GET(setting)) == RSE::SHADOW_QUALITY_SOFT_LOW);
+	ProjectSettings::get_singleton()->set_setting(setting, saved);
 }
 
 TEST_CASE("[SceneTree][LookPreset3D] Color grade keeps mid-tones and calms shadows and highlights") {
