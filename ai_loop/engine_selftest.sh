@@ -44,7 +44,7 @@ grep -q 'connection signal="poked"' "$P/main.tscn" && echo "ok   connection save
 expect "classes"    'r["ok"] and "OmniLight3D" in r["classes"] and "Node2D" not in r["classes"]' "$("$E" "$P" classes --inherits Light3D)"
 expect "describe"   'r["ok"] and any(p["name"] == "omni_range" for p in r["properties"])' "$("$E" "$P" describe --class OmniLight3D)"
 expect "check good" 'r["ok"]' "$("$E" "$P" check --path res://hello.gd)"
-expect "check bad"  'not r["ok"] and len(r["errors"]) > 0' "$("$E" "$P" check --path res://broken.gd || true)"
+expect "check bad"  'not r["ok"] and len(r["errors"]) > 0 and all(k in r["errors"][0] for k in ("file", "line", "column", "code", "message")) and r["errors"][0]["line"] > 0' "$("$E" "$P" check --path res://broken.gd || true)"
 expect "run"        'r["ok"] and any("selftest error from _ready" in e["message"] and e["code"].startswith("E") and e["file"] for e in r["errors"])' "$("$E" "$P" run --frames 5)"
 expect "remove"     'r["ok"] and r["removed"] == "Group/Box"' "$("$E" "$P" remove $S --node Group/Box)"
 expect "bad node"   'not r["ok"]' "$("$E" "$P" get $S --node Nope --property position || true)"

@@ -8,7 +8,7 @@
 # add, instance, remove, reparent, call, connect, script, new, classes, describe).
 # This wrapper adds:
 #   run    [--frames 120] [--scene res://x.tscn]   runs the project headless; returns structured errors (B-201) and the log tail
-#   check  --path res://a.gd                       parses and compiles a script; returns errors with lines
+#   check  --path res://a.gd                       checks a script; returns errors and warnings with line, column and code (B-202)
 #   shot   --out x.png [--frames 8]                renders without a GPU (ai_loop/screenshot.sh)
 #
 #   ai_loop/engine.sh my_game new --scene res://level.tscn --type Node3D
@@ -37,12 +37,6 @@ opt() { # opt <name> <default> <args...>
 
 LOG="$(mktemp)"
 trap 'rm -f "$LOG"' EXIT
-
-# Lines that report problems, as a JSON array (at most 50).
-errors_json() {
-  grep -E '^(ERROR|SCRIPT ERROR|USER ERROR|WARNING|USER WARNING|Parse Error|   at: )' "$1" | head -n 50 |
-    python3 -I -c 'import json,sys; print(json.dumps([l.rstrip("\n") for l in sys.stdin]))'
-}
 
 case "${1:-}" in
   run)
@@ -76,10 +70,26 @@ PY
     SCRIPT="$(opt path "" "$@")"
     [ -n "$SCRIPT" ] || { echo '{"ok": false, "error": "check needs --path res://script.gd"}'; exit 1; }
     set +e
-    timeout 120 "$GODOT" --headless --path "$PROJECT" --check-only --script "$SCRIPT" >"$LOG" 2>&1
+    timeout 120 "$GODOT" --headless --path "$PROJECT" --check-only --json --script "$SCRIPT" >"$LOG" 2>&1
     RC=$?
     set -e
-    printf '{"ok": %s, "command": "check", "path": "%s", "errors": %s}\n' "$([ $RC -eq 0 ] && echo true || echo false)" "$SCRIPT" "$(errors_json "$LOG")"
+    # The engine prints one JSON line (B-202): errors and warnings with file, line, column, code, message.
+    python3 -I - "$LOG" "$RC" "$SCRIPT" <<'PY'
+import json, sys
+log, rc, path = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+result = None
+for line in open(log, encoding="utf-8", errors="replace"):
+    if line.startswith('{"ok":'):
+        try:
+            result = json.loads(line)
+        except ValueError:
+            pass
+if result is None:  # The script could not be loaded at all.
+    tail = "".join(open(log, encoding="utf-8", errors="replace").readlines()[-10:])
+    result = {"ok": False, "file": path, "errors": [{"file": path, "line": -1, "column": -1, "code": "LOAD", "message": tail.strip()}], "warnings": []}
+result["ok"] = result["ok"] and rc == 0
+print(json.dumps({"command": "check", "path": path, **result}))
+PY
     exit $(( RC == 0 ? 0 : 1 ))
     ;;
   shot)

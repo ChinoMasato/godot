@@ -44,7 +44,7 @@ TOOLS = {
     "node_call": ("engine", "call", "Call a method on a node and return the result; 'args' is an array in Godot text format.", {"scene": SCENE, "node": NODE, "method": _str("Method name"), "args": _str('e.g. [1, "a"]')}, ["scene", "node", "method"]),
     "signal_connect": ("engine", "connect", "Connect a signal to a method persistently and save.", {"scene": SCENE, "from": NODE, "signal": _str("Signal name"), "to": NODE, "method": _str("Method name")}, ["scene", "from", "signal", "to", "method"]),
     "script_attach": ("engine", "script", "Attach a script to a node and save.", {"scene": SCENE, "node": NODE, "path": _str("Script path, res://...")}, ["scene", "node", "path"]),
-    "script_check": ("engine", "check", "Parse and compile a script; returns errors with line numbers.", {"path": _str("Script path, res://...")}, ["path"]),
+    "script_check": ("engine", "check", "Check a script; returns errors and warnings with file, line, column, code and message.", {"path": _str("Script path, res://...")}, ["path"]),
     "class_list": ("engine", "classes", "List engine classes, optionally only those inheriting a class.", {"inherits": _str("Base class (optional)")}, []),
     "class_describe": ("engine", "describe", "Describe a class: properties, methods, signals and constants.", {"class": _str("Class name")}, ["class"]),
     "project_run": ("engine", "run", "Run the project headless for some frames; returns errors and the log tail.", {"frames": _str("Frames to run (default 120)")}, []),

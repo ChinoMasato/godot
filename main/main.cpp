@@ -36,6 +36,7 @@
 #include "core/crypto/crypto.h"
 #include "core/debugger/engine_debugger.h"
 #include "core/error/error_log_json.h"
+#include "core/error/script_check_json.h"
 #include "core/extension/extension_api_dump.h"
 #include "core/extension/gdextension_interface_dump.gen.h"
 #include "core/extension/gdextension_interface_header_generator.h"
@@ -647,6 +648,7 @@ void Main::print_help(const char *p_binary) {
 	print_help_option("-s, --script <script>", "Run a script.\n", CLI_OPTION_AVAILABILITY_TEMPLATE_UNSAFE);
 	print_help_option("--main-loop <main_loop_name>", "Run a MainLoop specified by its global class name.\n", CLI_OPTION_AVAILABILITY_TEMPLATE_UNSAFE);
 	print_help_option("--check-only", "Only parse for errors and quit (use with --script).\n", CLI_OPTION_AVAILABILITY_TEMPLATE_UNSAFE);
+	print_help_option("--json", "With --check-only, print errors and warnings as one line of JSON (file, line, column, code, message).\n", CLI_OPTION_AVAILABILITY_EDITOR);
 #endif // defined(OVERRIDE_PATH_ENABLED)
 #ifdef TOOLS_ENABLED
 	print_help_option("--import", "Starts the editor, waits for any resources to be imported, and then quits.\n", CLI_OPTION_AVAILABILITY_EDITOR);
@@ -2335,7 +2337,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	if (!log_json_file.is_empty()) {
 		const Error json_err = ErrorLogJSON::start(log_json_file);
 		if (json_err != OK) {
-			OS::get_singleton()->printerr(vformat("Could not open JSON log file \"%s\": %s\n", log_json_file, error_names[json_err]).utf8().get_data());
+			OS::get_singleton()->printerr("%s", vformat("Could not open JSON log file \"%s\": %s\n", log_json_file, error_names[json_err]).utf8().get_data());
 		}
 	}
 
@@ -4085,6 +4087,7 @@ int Main::start() {
 	String script;
 	String main_loop_type;
 	bool check_only = false;
+	bool check_json = false;
 
 #ifdef TOOLS_ENABLED
 	String doc_tool_path;
@@ -4115,6 +4118,8 @@ int Main::start() {
 		// Designed to override and pass arguments to the unit test handler.
 		if (E->get() == "--check-only") {
 			check_only = true;
+		} else if (E->get() == "--json") {
+			check_json = true;
 #ifdef TOOLS_ENABLED
 		} else if (E->get() == "--no-docbase") {
 			gen_flags.set_flag(DocTools::GENERATE_FLAG_SKIP_BASIC_TYPES);
@@ -4435,6 +4440,24 @@ int Main::start() {
 		ERR_FAIL_COND_V_MSG(script_res.is_null(), EXIT_FAILURE, "Can't load script: " + script);
 
 		if (check_only) {
+#ifdef TOOLS_ENABLED
+			ScriptLanguage *language = script_res->get_language();
+			if (check_json && language && language->get_editor_language()) {
+				List<EditorLanguage::ScriptError> errors;
+				List<EditorLanguage::Warning> warnings;
+				language->get_editor_language()->validate(script_res->get_source_code(), script, &errors, &warnings, nullptr, nullptr);
+				if (errors.is_empty() && !script_res->is_script_valid()) {
+					// Compilation can fail after validation passes; the compiler's message is in the log.
+					EditorLanguage::ScriptError compile_error;
+					compile_error.path = script;
+					compile_error.message = "The script failed to compile (see the error log).";
+					errors.push_back(compile_error);
+				}
+				const bool valid = errors.is_empty();
+				print_line(ScriptCheckJSON::format(script, errors, warnings));
+				return valid ? EXIT_SUCCESS : EXIT_FAILURE;
+			}
+#endif
 			return script_res->is_script_valid() ? EXIT_SUCCESS : EXIT_FAILURE;
 		}
 
