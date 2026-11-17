@@ -50,3 +50,5 @@ bin\godot.windows.editor.x86_64.console.exe --path <見本のコピー> --render
 - 見本のプロジェクトは `ai_loop\look_samples\` をコピーして使う（`--import` を1回流してから）。
 - 撮影中はウィンドウが一瞬ずつ開く。
 - エディタを開いたままだと、次のビルドの最後（exe の書き込み）が「アクセスが拒否されました」で失敗する。ビルド前にエディタを閉じる。
+- **Web への書き出し:** このフォーク用の Web テンプレートは、リポジトリの `export-templates` ブランチにある。`uzu.bat engine my_game templates --fetch` で取り出し、`uzu.bat engine my_game export-preset --platform web --template auto` でプリセットに設定する。
+
