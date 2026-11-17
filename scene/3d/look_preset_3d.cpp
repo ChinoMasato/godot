@@ -33,6 +33,7 @@
 #include "scene/3d/light_3d.h"
 #include "scene/resources/3d/sky_material.h"
 #include "scene/resources/environment.h"
+#include "scene/resources/image_texture.h"
 #include "scene/resources/sky.h"
 
 namespace LookPreset3D {
@@ -107,6 +108,59 @@ const AtmosphereValues &get_atmosphere_values(Atmosphere p_atmosphere) {
 
 } // namespace
 
+Color grade_color(const Color &p_color) {
+	// Display-referred (sRGB) input, as the tonemapper hands it to the LUT.
+	const float luminance = p_color.r * 0.2126 + p_color.g * 0.7152 + p_color.b * 0.0722;
+	const float shadow = 1.0 - Math::smoothstep(0.05f, 0.35f, luminance);
+	const float highlight = Math::smoothstep(0.65f, 0.98f, luminance);
+
+	// Keep saturation moderate in the mid-tones and lower it further in the
+	// shadows and highlights, which look more natural closer to grey.
+	const float saturation = 0.92 - 0.17 * shadow - 0.22 * highlight;
+	Color graded = Color(luminance, luminance, luminance).lerp(p_color, saturation);
+
+	// A gentle S-curve on the luminance for clearer light and shade.
+	const float curved = luminance < 0.5 ? 0.5 * Math::pow(2.0f * luminance, 1.25f) : 1.0 - 0.5 * Math::pow(2.0f * (1.0f - luminance), 1.25f);
+	const float target = Math::lerp(luminance, curved, 0.5f);
+	const float gain = luminance > 0.0001 ? target / luminance : 1.0;
+	graded.r *= gain;
+	graded.g *= gain;
+	graded.b *= gain;
+
+	// Slightly cool shadows and slightly warm highlights.
+	graded.r += -0.010 * shadow + 0.015 * highlight;
+	graded.g += 0.005 * highlight;
+	graded.b += 0.020 * shadow - 0.015 * highlight;
+
+	graded.r = CLAMP(graded.r, 0.0f, 1.0f);
+	graded.g = CLAMP(graded.g, 0.0f, 1.0f);
+	graded.b = CLAMP(graded.b, 0.0f, 1.0f);
+	graded.a = 1.0;
+	return graded;
+}
+
+Ref<ImageTexture3D> create_color_grade() {
+	// Small enough to keep scenes that embed it light (about 16 KB of texels).
+	const int size = 16;
+	Vector<Ref<Image>> slices;
+	for (int b = 0; b < size; b++) {
+		Ref<Image> slice = Image::create_empty(size, size, false, Image::FORMAT_RGBA8);
+		for (int g = 0; g < size; g++) {
+			for (int r = 0; r < size; r++) {
+				// The renderer samples the LUT directly with the color, so texel i is
+				// read at (i + 0.5) / size: store the graded color for that input.
+				const Color input((r + 0.5) / size, (g + 0.5) / size, (b + 0.5) / size);
+				slice->set_pixel(r, g, grade_color(input));
+			}
+		}
+		slices.push_back(slice);
+	}
+	Ref<ImageTexture3D> lut;
+	lut.instantiate();
+	lut->create(Image::FORMAT_RGBA8, size, size, size, false, slices);
+	return lut;
+}
+
 Ref<Environment> create_environment(Quality p_quality, Atmosphere p_atmosphere) {
 	const AtmosphereValues &values = get_atmosphere_values(p_atmosphere);
 
@@ -143,6 +197,10 @@ Ref<Environment> create_environment(Quality p_quality, Atmosphere p_atmosphere) 
 	environment->set_glow_intensity(0.6);
 	environment->set_glow_bloom(0.05);
 	environment->set_glow_hdr_bleed_threshold(1.0);
+
+	// Color grade: saturation and light-and-shade as a 3D lookup table.
+	environment->set_adjustment_enabled(true);
+	environment->set_adjustment_color_correction(create_color_grade());
 
 	// Distance fog for aerial perspective, so far objects separate from near ones.
 	environment->set_fog_enabled(true);

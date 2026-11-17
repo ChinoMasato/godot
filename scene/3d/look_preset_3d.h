@@ -34,6 +34,8 @@
 
 class DirectionalLight3D;
 class Environment;
+class ImageTexture3D;
+struct Color;
 
 // Ready-to-use 3D "look" for new scenes (U.ZU Engine, BACKLOG B-701).
 //
@@ -67,5 +69,11 @@ Quality get_default_quality(const String &p_rendering_method);
 
 Ref<Environment> create_environment(Quality p_quality, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
 void configure_sun(DirectionalLight3D *p_sun, Quality p_quality, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
+
+// Color grade applied after tonemapping (display-referred sRGB in and out):
+// moderate saturation in the mid-tones, less in the shadows and highlights,
+// a gentle S-curve, slightly cool shadows and warm highlights.
+Color grade_color(const Color &p_color);
+Ref<ImageTexture3D> create_color_grade();
 
 } // namespace LookPreset3D

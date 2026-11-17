@@ -38,6 +38,7 @@ TEST_FORCE_LINK(test_look_preset_3d)
 #include "scene/3d/look_preset_3d.h"
 #include "scene/resources/3d/sky_material.h"
 #include "scene/resources/environment.h"
+#include "scene/resources/image_texture.h"
 #include "scene/resources/sky.h"
 
 namespace TestLookPreset3D {
@@ -163,6 +164,49 @@ TEST_CASE("[SceneTree][LookPreset3D] Sun casts split shadows") {
 	memdelete(sun);
 }
 
+TEST_CASE("[SceneTree][LookPreset3D] Color grade keeps mid-tones and calms shadows and highlights") {
+	// Neutral grey stays close to neutral grey.
+	const Color grey = LookPreset3D::grade_color(Color(0.5, 0.5, 0.5));
+	CHECK(grey.r == doctest::Approx(0.5).epsilon(0.05));
+	CHECK(grey.g == doctest::Approx(0.5).epsilon(0.05));
+	CHECK(grey.b == doctest::Approx(0.5).epsilon(0.05));
+
+	// Saturation is lowered a little in the mid-tones, and more in the shadows and highlights.
+	const Color mid = Color(0.65, 0.45, 0.3);
+	const Color dark = Color(0.2, 0.1, 0.04);
+	const Color bright = Color(1.0, 0.9, 0.75);
+	const float mid_kept = LookPreset3D::grade_color(mid).get_s() / mid.get_s();
+	const float dark_kept = LookPreset3D::grade_color(dark).get_s() / dark.get_s();
+	const float bright_kept = LookPreset3D::grade_color(bright).get_s() / bright.get_s();
+	CHECK(mid_kept < 1.0);
+	CHECK(mid_kept > 0.8);
+	CHECK(dark_kept < mid_kept);
+	CHECK(bright_kept < mid_kept);
+
+	// Black and white stay in range.
+	const Color black = LookPreset3D::grade_color(Color(0, 0, 0));
+	const Color white = LookPreset3D::grade_color(Color(1, 1, 1));
+	CHECK(black.get_v() < 0.05);
+	CHECK(white.get_v() > 0.95);
+}
+
+TEST_CASE("[SceneTree][LookPreset3D] Environment uses the color grade LUT") {
+	Ref<ImageTexture3D> lut = LookPreset3D::create_color_grade();
+	REQUIRE(lut.is_valid());
+	CHECK(lut->get_width() == 16);
+	CHECK(lut->get_height() == 16);
+	CHECK(lut->get_depth() == 16);
+	// The texels themselves live in the rendering server, which the test runner does not keep.
+
+	Ref<Environment> environment = LookPreset3D::create_environment(LookPreset3D::QUALITY_HIGH);
+	CHECK(environment->is_adjustment_enabled());
+	CHECK(Object::cast_to<ImageTexture3D>(environment->get_adjustment_color_correction().ptr()) != nullptr);
+	// The other adjustments stay neutral.
+	CHECK(environment->get_adjustment_brightness() == doctest::Approx(1.0));
+	CHECK(environment->get_adjustment_contrast() == doctest::Approx(1.0));
+	CHECK(environment->get_adjustment_saturation() == doctest::Approx(1.0));
+}
+
 TEST_CASE("[SceneTree][LookPreset3D] Class defaults stay unchanged") {
 	// Existing scenes do not store default values, so changing them would change how those scenes look.
 	Ref<Environment> environment;
@@ -171,6 +215,7 @@ TEST_CASE("[SceneTree][LookPreset3D] Class defaults stay unchanged") {
 	CHECK_FALSE(environment->is_glow_enabled());
 	CHECK_FALSE(environment->is_fog_enabled());
 	CHECK_FALSE(environment->is_ssao_enabled());
+	CHECK_FALSE(environment->is_adjustment_enabled());
 }
 
 } // namespace TestLookPreset3D
