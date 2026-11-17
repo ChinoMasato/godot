@@ -37,6 +37,7 @@
 #include "scene/resources/environment.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
+#include "scene/resources/shader.h"
 #include "scene/resources/sky.h"
 
 namespace LookPreset3D {
@@ -183,12 +184,126 @@ Ref<ImageTexture3D> create_color_grade() {
 	return lut;
 }
 
-Ref<Environment> create_environment(Quality p_quality, Atmosphere p_atmosphere) {
+// Sky with clouds. The physical sky has no clouds, so this draws a sky gradient,
+// the sun and a cloud layer: clouds are lit on the sun side and darker below,
+// and crowd together toward the horizon because they lie on a plane above.
+// Static on purpose: animating the sky would recompute its reflections every frame.
+static const char *CLOUD_SKY_SHADER = R"(
+shader_type sky;
+
+uniform vec3 zenith_color : source_color = vec3(0.25, 0.45, 0.8);
+uniform vec3 horizon_color : source_color = vec3(0.7, 0.8, 0.9);
+uniform vec3 ground_color : source_color = vec3(0.3, 0.32, 0.25);
+uniform float sky_energy = 1.0;
+uniform float cloud_coverage : hint_range(0.0, 1.0) = 0.45;
+uniform float cloud_scale = 0.6;
+uniform vec3 cloud_light : source_color = vec3(1.0);
+uniform vec3 cloud_shadow : source_color = vec3(0.55, 0.6, 0.7);
+
+float hash(vec2 p) {
+	p = fract(p * vec2(123.34, 456.21));
+	p += dot(p, p + 45.32);
+	return fract(p.x * p.y);
+}
+
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int k = 0; k < 5; k++) {
+		v += a * noise(p);
+		p *= 2.03;
+		a *= 0.5;
+	}
+	return v;
+}
+
+void sky() {
+	vec3 d = EYEDIR;
+	vec3 color = mix(horizon_color, zenith_color, sqrt(max(d.y, 0.0)));
+	if (d.y < 0.0) {
+		color = mix(horizon_color, ground_color, min(1.0, -d.y * 4.0));
+	}
+	vec3 sun_color = LIGHT0_ENABLED ? LIGHT0_COLOR * min(LIGHT0_ENERGY, 2.0) : vec3(0.0);
+	if (LIGHT0_ENABLED) {
+		float s = max(dot(d, LIGHT0_DIRECTION), 0.0);
+		color += sun_color * (pow(s, 8.0) * 0.25 + pow(s, 64.0) * 0.5);
+		color += sun_color * smoothstep(0.9995, 0.9998, s) * 8.0;
+	}
+	if (d.y > 0.0) {
+		vec2 uv = d.xz / (d.y + 0.08) * cloud_scale;
+		float n = fbm(uv * 3.0);
+		float density = smoothstep(1.0 - cloud_coverage, 1.0 - cloud_coverage + 0.25, n);
+		// Brighter where the cloud thins toward the sun (its lit side), darker inside and below.
+		vec2 to_sun = LIGHT0_ENABLED ? LIGHT0_DIRECTION.xz : vec2(0.0);
+		float lit = clamp(0.6 + (n - fbm((uv + to_sun * 0.04) * 3.0)) * 4.0, 0.0, 1.0);
+		vec3 cloud = mix(cloud_shadow, cloud_light, lit) * (LIGHT0_ENABLED ? sun_color * 0.75 + vec3(0.15) : vec3(0.05));
+		color = mix(color, cloud, density * smoothstep(0.0, 0.08, d.y));
+	}
+	COLOR = color * sky_energy;
+}
+)";
+
+Ref<ShaderMaterial> create_cloud_sky(Atmosphere p_atmosphere) {
+	Ref<Shader> shader;
+	shader.instantiate();
+	shader->set_code(CLOUD_SKY_SHADER);
+	Ref<ShaderMaterial> material;
+	material.instantiate();
+	material->set_shader(shader);
+	// Every parameter is set, so scenes keep the look even if the shader's defaults change.
+	Color zenith(0.25, 0.45, 0.8);
+	Color horizon(0.7, 0.8, 0.9);
+	Color ground(0.3, 0.32, 0.25);
+	Color cloud_shadow(0.55, 0.6, 0.7);
+	float coverage = 0.45;
+	switch (p_atmosphere) {
+		case ATMOSPHERE_HUMID:
+			zenith = Color(0.5, 0.58, 0.68);
+			horizon = Color(0.82, 0.84, 0.86);
+			cloud_shadow = Color(0.62, 0.65, 0.7);
+			coverage = 0.6;
+			break;
+		case ATMOSPHERE_GOLDEN_HOUR:
+			zenith = Color(0.3, 0.36, 0.55);
+			horizon = Color(0.95, 0.62, 0.4);
+			cloud_shadow = Color(0.45, 0.4, 0.5);
+			break;
+		case ATMOSPHERE_NIGHT:
+			zenith = Color(0.01, 0.015, 0.04);
+			horizon = Color(0.05, 0.07, 0.12);
+			ground = Color(0.01, 0.01, 0.015);
+			coverage = 0.35;
+			break;
+		case ATMOSPHERE_CLEAR:
+		default:
+			break;
+	}
+	material->set_shader_parameter("zenith_color", zenith);
+	material->set_shader_parameter("horizon_color", horizon);
+	material->set_shader_parameter("ground_color", ground);
+	material->set_shader_parameter("sky_energy", 1.0);
+	material->set_shader_parameter("cloud_coverage", coverage);
+	material->set_shader_parameter("cloud_scale", 0.6);
+	material->set_shader_parameter("cloud_light", Color(1.0, 1.0, 1.0));
+	material->set_shader_parameter("cloud_shadow", cloud_shadow);
+	return material;
+}
+
+Ref<Environment> create_environment(Quality p_quality, Atmosphere p_atmosphere, bool p_clouds) {
 	const AtmosphereValues &values = get_atmosphere_values(p_atmosphere);
 
 	Ref<Sky> sky;
 	sky.instantiate();
-	if (values.night) {
+	if (p_clouds) {
+		sky->set_material(create_cloud_sky(p_atmosphere));
+	} else if (values.night) {
 		Ref<ProceduralSkyMaterial> sky_material;
 		sky_material.instantiate();
 		sky_material->set_sky_top_color(Color(0.01, 0.015, 0.04));

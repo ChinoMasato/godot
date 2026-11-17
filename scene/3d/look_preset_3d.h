@@ -38,6 +38,7 @@ class DirectionalLight3D;
 class OmniLight3D;
 class Environment;
 class ImageTexture3D;
+class ShaderMaterial;
 class StandardMaterial3D;
 struct Color;
 
@@ -72,7 +73,11 @@ enum Atmosphere {
 // ("forward_plus", "mobile", "gl_compatibility").
 Quality get_default_quality(const String &p_rendering_method);
 
-Ref<Environment> create_environment(Quality p_quality, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
+// With p_clouds, the sky is a cloud sky (create_cloud_sky) instead of the
+// physical sky.
+Ref<Environment> create_environment(Quality p_quality, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR, bool p_clouds = false);
+// A sky with a static cloud layer, colored for the atmosphere.
+Ref<ShaderMaterial> create_cloud_sky(Atmosphere p_atmosphere);
 void configure_sun(DirectionalLight3D *p_sun, Quality p_quality, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
 
 // Color grade applied after tonemapping (display-referred sRGB in and out):

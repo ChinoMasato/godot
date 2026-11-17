@@ -44,8 +44,8 @@ UZULook::Quality UZULook::get_default_quality(const String &p_rendering_method) 
 	return Quality(LookPreset3D::get_default_quality(p_rendering_method));
 }
 
-Ref<Environment> UZULook::create_environment(Quality p_quality, Atmosphere p_atmosphere) {
-	return LookPreset3D::create_environment(LookPreset3D::Quality(p_quality), LookPreset3D::Atmosphere(p_atmosphere));
+Ref<Environment> UZULook::create_environment(Quality p_quality, Atmosphere p_atmosphere, bool p_clouds) {
+	return LookPreset3D::create_environment(LookPreset3D::Quality(p_quality), LookPreset3D::Atmosphere(p_atmosphere), p_clouds);
 }
 
 Ref<CameraAttributesPractical> UZULook::create_camera_attributes(Quality p_quality) {
@@ -90,7 +90,7 @@ static void _add_owned(Node *p_root, Node *p_node, const String &p_name) {
 	p_node->set_owner(p_root);
 }
 
-Dictionary UZULook::apply_to_scene(Node *p_root, Quality p_quality, Atmosphere p_atmosphere) {
+Dictionary UZULook::apply_to_scene(Node *p_root, Quality p_quality, Atmosphere p_atmosphere, bool p_clouds) {
 	Dictionary result;
 	ERR_FAIL_NULL_V(p_root, result);
 
@@ -117,7 +117,7 @@ Dictionary UZULook::apply_to_scene(Node *p_root, Quality p_quality, Atmosphere p
 		p_root->move_child(world_environment, 0);
 		result["world_environment"] = "added";
 	}
-	world_environment->set_environment(create_environment(p_quality, p_atmosphere));
+	world_environment->set_environment(create_environment(p_quality, p_atmosphere, p_clouds));
 	world_environment->set_camera_attributes(create_camera_attributes(p_quality));
 
 	// The sun belongs to the atmosphere (its direction, color and strength), so
@@ -176,7 +176,7 @@ Dictionary UZULook::add_lamp(Node *p_root, const Vector3 &p_position, Quality p_
 
 void UZULook::_bind_methods() {
 	ClassDB::bind_static_method("UZULook", D_METHOD("get_default_quality", "rendering_method"), &UZULook::get_default_quality);
-	ClassDB::bind_static_method("UZULook", D_METHOD("create_environment", "quality", "atmosphere"), &UZULook::create_environment, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR));
+	ClassDB::bind_static_method("UZULook", D_METHOD("create_environment", "quality", "atmosphere", "clouds"), &UZULook::create_environment, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR), DEFVAL(false));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_camera_attributes", "quality"), &UZULook::create_camera_attributes, DEFVAL(QUALITY_HIGH));
 	ClassDB::bind_static_method("UZULook", D_METHOD("configure_sun", "sun", "quality", "atmosphere"), &UZULook::configure_sun, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR));
 	ClassDB::bind_static_method("UZULook", D_METHOD("configure_fill_light", "light", "atmosphere"), &UZULook::configure_fill_light, DEFVAL(ATMOSPHERE_CLEAR));
@@ -186,7 +186,7 @@ void UZULook::_bind_methods() {
 	ClassDB::bind_static_method("UZULook", D_METHOD("configure_camera", "camera", "lens", "shift"), &UZULook::configure_camera, DEFVAL(LENS_STANDARD), DEFVAL(0.0));
 	ClassDB::bind_static_method("UZULook", D_METHOD("get_lens_fov", "lens"), &UZULook::get_lens_fov);
 	ClassDB::bind_static_method("UZULook", D_METHOD("get_eye_height", "eye_level"), &UZULook::get_eye_height);
-	ClassDB::bind_static_method("UZULook", D_METHOD("apply_to_scene", "root", "quality", "atmosphere"), &UZULook::apply_to_scene, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR));
+	ClassDB::bind_static_method("UZULook", D_METHOD("apply_to_scene", "root", "quality", "atmosphere", "clouds"), &UZULook::apply_to_scene, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR), DEFVAL(false));
 	ClassDB::bind_static_method("UZULook", D_METHOD("add_lighting_rig", "root", "atmosphere"), &UZULook::add_lighting_rig, DEFVAL(ATMOSPHERE_CLEAR));
 	ClassDB::bind_static_method("UZULook", D_METHOD("add_lamp", "root", "position", "quality"), &UZULook::add_lamp, DEFVAL(QUALITY_HIGH));
 

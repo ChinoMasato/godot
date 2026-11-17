@@ -86,7 +86,7 @@ public:
 
 	static Quality get_default_quality(const String &p_rendering_method);
 
-	static Ref<Environment> create_environment(Quality p_quality = QUALITY_HIGH, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
+	static Ref<Environment> create_environment(Quality p_quality = QUALITY_HIGH, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR, bool p_clouds = false);
 	static Ref<CameraAttributesPractical> create_camera_attributes(Quality p_quality = QUALITY_HIGH);
 	static void configure_sun(DirectionalLight3D *p_sun, Quality p_quality = QUALITY_HIGH, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
 	static void configure_fill_light(DirectionalLight3D *p_light, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
@@ -101,7 +101,7 @@ public:
 	// Adds (or updates) a WorldEnvironment, and configures the sun (the first
 	// DirectionalLight3D that drives the sky) for the atmosphere, adding one if
 	// there is none. Returns what was done, e.g. {"world_environment": "added", "sun": "configured"}.
-	static Dictionary apply_to_scene(Node *p_root, Quality p_quality = QUALITY_HIGH, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
+	static Dictionary apply_to_scene(Node *p_root, Quality p_quality = QUALITY_HIGH, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR, bool p_clouds = false);
 	// Adds fill and rim lights (three-point lighting with the sun as the key light).
 	static Dictionary add_lighting_rig(Node *p_root, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
 	// Adds a warm lamp (an OmniLight3D with a small glowing bulb) at p_position.

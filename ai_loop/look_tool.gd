@@ -2,7 +2,7 @@ extends SceneTree
 ## Agent-facing command line for the U.ZU look (UZULook). Run through ai_loop/look.sh.
 ##
 ## Commands (after "--"):
-##   apply    --scene res://main.tscn [--quality high|standard|low] [--atmosphere clear|humid|golden_hour|night]
+##   apply    --scene res://main.tscn [--quality high|standard|low] [--atmosphere clear|humid|golden_hour|night] [--clouds]
 ##   rig      --scene res://main.tscn [--atmosphere ...]          adds fill and rim lights
 ##   lamp     --scene res://main.tscn --position x,y,z [--quality ...]
 ##   camera   --scene res://main.tscn [--node Path/To/Camera3D] [--lens wide|standard|telephoto] [--shift 0.2] [--eye standing|low]
@@ -83,7 +83,7 @@ func _run(args: PackedStringArray) -> Dictionary:
 	var done := {}
 	match command:
 		"apply":
-			done = UZULook.apply_to_scene(root, quality, atmosphere)
+			done = UZULook.apply_to_scene(root, quality, atmosphere, args.has("--clouds"))
 		"rig":
 			done = UZULook.add_lighting_rig(root, atmosphere)
 		"lamp":

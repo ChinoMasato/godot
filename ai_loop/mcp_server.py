@@ -51,7 +51,7 @@ TOOLS = {
     "screenshot": ("look", "shot", "Render the main scene without a GPU and save a PNG.", {"out": _str("Output PNG path"), "frames": _str("Frames before capture (default 8)")}, ["out"]),
     "panorama": ("look", "panorama", "Capture a 360-degree equirectangular panorama around the main camera and save a PNG.", {"out": _str("Output PNG path"), "width": _str("Width in pixels (default 1024)")}, ["out"]),
     "image_check": ("look", "check", "Check a screenshot: color balance, muddiness, detail by height and composition.", {"image": _str("PNG path")}, ["image"]),
-    "look_apply": ("look", "apply", "Apply the U.ZU look (sky, light, aerial perspective, color grade) and configure the sun.", {"scene": SCENE, "quality": _str("high | standard | low"), "atmosphere": _str("clear | humid | golden_hour | night")}, ["scene"]),
+    "look_apply": ("look", "apply", "Apply the U.ZU look (sky, light, aerial perspective, color grade) and configure the sun.", {"scene": SCENE, "quality": _str("high | standard | low"), "atmosphere": _str("clear | humid | golden_hour | night"), "clouds": {"type": "boolean", "description": "Sky with clouds"}}, ["scene"]),
     "look_rig": ("look", "rig", "Add fill and rim lights (three-point lighting with the sun as key).", {"scene": SCENE, "atmosphere": _str("clear | humid | golden_hour | night")}, ["scene"]),
     "look_lamp": ("look", "lamp", "Add a warm lamp with a glowing bulb.", {"scene": SCENE, "position": _str("x,y,z"), "quality": _str("high | standard | low")}, ["scene", "position"]),
     "look_camera": ("look", "camera", "Set a camera's lens, eye height and vertical shift.", {"scene": SCENE, "node": NODE, "lens": _str("wide | standard | telephoto"), "eye": _str("standing | low"), "shift": _str("Fraction of view height, positive is up")}, ["scene"]),
@@ -63,9 +63,9 @@ def call_tool(project, name, arguments):
     script, command, _, _, _ = TOOLS[name]
     argv = [os.path.join(HERE, f"{script}.sh"), project, command]
     for key, value in (arguments or {}).items():
-        if value is None or value == "":
+        if value is None or value == "" or value is False:
             continue
-        argv += [f"--{key}", str(value)]
+        argv += [f"--{key}"] if value is True else [f"--{key}", str(value)]
     proc = subprocess.run(argv, capture_output=True, text=True, timeout=600)
     lines = [l for l in proc.stdout.splitlines() if l.startswith("{")]
     text = lines[-1] if lines else json.dumps({"ok": False, "error": (proc.stderr or proc.stdout)[-2000:]})

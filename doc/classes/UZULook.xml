@@ -48,8 +48,9 @@
 			<param index="0" name="root" type="Node" />
 			<param index="1" name="quality" type="int" enum="UZULook.Quality" default="0" />
 			<param index="2" name="atmosphere" type="int" enum="UZULook.Atmosphere" default="0" />
+			<param index="3" name="clouds" type="bool" default="false" />
 			<description>
-				Applies the look to the scene rooted at [param root]: adds a [WorldEnvironment] (or updates the existing one) with [method create_environment] and [method create_camera_attributes], and configures the sun (the first [DirectionalLight3D] that drives the sky) with [method configure_sun], adding one if there is none. New nodes are owned by [param root], so they are saved with the scene. Returns what was done, for example [code]{"world_environment": "added", "sun": "configured"}[/code].
+				Applies the look to the scene rooted at [param root]: adds a [WorldEnvironment] (or updates the existing one) with [method create_environment] (with clouds if [param clouds] is [code]true[/code]) and [method create_camera_attributes], and configures the sun (the first [DirectionalLight3D] that drives the sky) with [method configure_sun], adding one if there is none. New nodes are owned by [param root], so they are saved with the scene. Returns what was done, for example [code]{"world_environment": "added", "sun": "configured"}[/code].
 			</description>
 		</method>
 		<method name="configure_camera" qualifiers="static">
@@ -105,8 +106,9 @@
 			<return type="Environment" />
 			<param index="0" name="quality" type="int" enum="UZULook.Quality" default="0" />
 			<param index="1" name="atmosphere" type="int" enum="UZULook.Atmosphere" default="0" />
+			<param index="2" name="clouds" type="bool" default="false" />
 			<description>
-				Returns a new [Environment] with the look for [param quality] and [param atmosphere].
+				Returns a new [Environment] with the look for [param quality] and [param atmosphere]. With [param clouds], the sky is a static cloud layer (lit on the sun side, darker below, denser toward the horizon) instead of the physical sky.
 			</description>
 		</method>
 		<method name="create_material" qualifiers="static">

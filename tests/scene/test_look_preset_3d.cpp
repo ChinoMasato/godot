@@ -42,6 +42,7 @@ TEST_FORCE_LINK(test_look_preset_3d)
 #include "scene/resources/environment.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
+#include "scene/resources/shader.h"
 #include "scene/resources/sky.h"
 
 namespace TestLookPreset3D {
@@ -342,6 +343,29 @@ TEST_CASE("[SceneTree][LookPreset3D] Camera lenses, eye levels and shift") {
 	CHECK(camera->get_rotation_degrees().is_zero_approx());
 
 	memdelete(camera);
+}
+
+TEST_CASE("[SceneTree][LookPreset3D] Sky with clouds") {
+	Ref<Environment> plain = LookPreset3D::create_environment(LookPreset3D::QUALITY_HIGH, LookPreset3D::ATMOSPHERE_CLEAR);
+	CHECK(Object::cast_to<PhysicalSkyMaterial>(plain->get_sky()->get_material().ptr()) != nullptr);
+
+	Ref<Environment> cloudy = LookPreset3D::create_environment(LookPreset3D::QUALITY_HIGH, LookPreset3D::ATMOSPHERE_CLEAR, true);
+	Ref<ShaderMaterial> clear_sky = cloudy->get_sky()->get_material();
+	REQUIRE(clear_sky.is_valid());
+	REQUIRE(clear_sky->get_shader().is_valid());
+	CHECK(clear_sky->get_shader()->get_mode() == Shader::MODE_SKY);
+	// The rest of the look stays the same.
+	CHECK(cloudy->get_tonemapper() == plain->get_tonemapper());
+	CHECK(cloudy->get_fog_density() == doctest::Approx(plain->get_fog_density()));
+
+	// Humid air has more cloud cover and a paler sky than clear air.
+	Ref<ShaderMaterial> humid_sky = LookPreset3D::create_cloud_sky(LookPreset3D::ATMOSPHERE_HUMID);
+	const float clear_coverage = clear_sky->get_shader_parameter("cloud_coverage");
+	const float humid_coverage = humid_sky->get_shader_parameter("cloud_coverage");
+	CHECK(humid_coverage > clear_coverage);
+	const Color clear_zenith = clear_sky->get_shader_parameter("zenith_color");
+	const Color humid_zenith = humid_sky->get_shader_parameter("zenith_color");
+	CHECK(humid_zenith.get_s() < clear_zenith.get_s());
 }
 
 TEST_CASE("[SceneTree][LookPreset3D] Class defaults stay unchanged") {
