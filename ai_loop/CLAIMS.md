@@ -24,3 +24,4 @@
 | U.ZU ルックの AI 向け API（オーナー指示） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | scene/3d/uzu_look.{h,cpp}（新規）, scene/register_scene_types.cpp, servers/rendering/dummy/storage/texture_storage.h, doc/classes/UZULook.xml（新規）, tests/scene/test_uzu_look.cpp（新規）, ai_loop/look.sh・look_tool.gd（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-709（Q6、仮）＋エージェント入口の統合 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/look_samples/（新規）, ai_loop/look.sh, ai_loop/look_tool.gd, ai_loop/palette_check.py, scene/3d/uzu_look.{h,cpp}, tests/scene/test_uzu_look.cpp, doc/classes/UZULook.xml, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-401 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/engine.sh・engine_tool.gd・engine_selftest.sh（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
+| B-402 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/mcp_server.py（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
