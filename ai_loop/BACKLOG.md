@@ -5,10 +5,10 @@
 
 ## Phase 0（基盤）
 
-- [ ] B-001 ベースライン確立: フルビルド（tests=yes）を通し、単体テスト全件を実行して結果を記録する。判定: テスト総数と pass/fail の内訳が LEDGER に残ること。失敗があれば、それ自体が最初の修正課題になる。
-- [ ] B-002 ビルド／テスト所要時間の計測をスクリプト化する（ai_loop/measure.sh）。判定: 実行すると所要時間が LEDGER 形式で1行追記されること。
+- [x] B-001 ベースライン確立（2026-11-17 完了: Claude Code クラウドで 15分54秒、1430/1431 pass、fail 1件は環境起因と対照実験で実証。詳細は LEDGER と iterations/2026-11-17-B-001-claude.md）: フルビルド（tests=yes）を通し、単体テスト全件を実行して結果を記録する。判定: テスト総数と pass/fail の内訳が LEDGER に残ること。失敗があれば、それ自体が最初の修正課題になる。
+- [x] B-002 ビルド／テスト所要時間の計測をスクリプト化する（ai_loop/measure.sh、2026-11-17 完了）。判定: 実行すると所要時間が LEDGER 形式で1行追記されること。
 - [x] B-004 マルチエージェント開発基盤（2026-11-17 完了）: 主ツールを Claude Code とし（千野の決定）、複数 AI エージェントが並行開発できる構成にした — CLAUDE.md（AGENTS.md を取り込み）、ai_loop/MULTI_AGENT.md（1エージェント=1項目=1 worktree、CLAIMS 宣言、ビルドのロック直列化、マージ規律）、CLAIMS.md、iterations/（記録の分離）、agent_start.sh／build_locked.sh／agent_finish.sh。判定: agent_start.sh で worktree＋ブランチが実際に作れること（B-999 で実証済み）、スクリプトの構文チェック pass。
-- [ ] B-003 エンジン名を U.ZU Engine に変更する。**範囲は version.py の `name` のみ**（`short_name` は "godot" のまま。据え置きは互換のため: short_name はユーザーデータ／エディタ設定のディレクトリ名であり、methods.py の is_engine() 判定にも連動する。事前調査: iterations/2026-11-17-B-003-claude.md）。判定（2026-11-17 オーナー決定で差し替え）: 変更後のバイナリが起動し、**起動ヘッダ（--headless --quit の1行目）が U.ZU Engine と表示**されること＋全テスト pass。※ `--version` は名前を含まないため旧判定は使わない。
+- [x] B-003 エンジン名を U.ZU Engine に変更する（2026-11-17 完了: version.py の name のみ変更、起動ヘッダ表示と全テストで検証済み。テストは 1433 件に増加）:**範囲は version.py の `name` のみ**（`short_name` は "godot" のまま。据え置きは互換のため: short_name はユーザーデータ／エディタ設定のディレクトリ名であり、methods.py の is_engine() 判定にも連動する。事前調査: iterations/2026-11-17-B-003-claude.md）。判定（2026-11-17 オーナー決定で差し替え）: 変更後のバイナリが起動し、**起動ヘッダ（--headless --quit の1行目）が U.ZU Engine と表示**されること＋全テスト pass。※ `--version` は名前を含まないため旧判定は使わない。
 
 ## Phase 1（観測可能性と実証）
 

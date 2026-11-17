@@ -58,3 +58,9 @@
 ## 2026-11-17 — AIファースト改善マップを反映（オーナー指示）
 - フォーク実物の棚卸しに基づく改善マップを設計書（第2節末「AIファースト改善マップ」）と BACKLOG へ反映。不足は「出力の構造化」「合否判定」「プレイ自己検証」の3点に集約。原則: 追加モード／オプトインのみで既存挙動を変えない。
 - Wave 1 として5件を登録: B-104（ベンチ合否）、B-201（構造化エラーログ試験実装）、B-202（GDScriptエラーJSON）、B-203（プロジェクト検証コマンド）、B-303（自己検証プレイ最小版）。残り候補は BACKLOG の保留へ Wave 2 として集約。
+
+## 2026-11-17 — リード統合: B-003 実装を ai-native へマージ
+- version.py の name が "U.ZU Engine" になった（short_name は "godot" のまま）。新規テスト tests/core/test_version.cpp（名前と互換を固定する2件）を含む。
+- 検証（Claude Code の最終検証をリードが確認）: 最小プロジェクトで `--headless --quit` の起動ヘッダが "U.ZU Engine v4.8.beta..." と表示され exit 0。全テスト 1433 件中 1432 pass（fail は既知の環境起因 [IP] resolve_hostname のみ。::1 追加時は全件 pass）。変更前は新規テストが fail することも確認済み（red→green）。
+- BACKLOG の B-001／B-002／B-003 を完了に更新。Phase 0 は完了。
+- 申し送り: 起動ヘッダの website（version.py の website = godotengine.org）の扱いは未決定。必要なら別項目としてオーナー判断。
