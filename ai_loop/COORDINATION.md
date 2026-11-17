@@ -33,7 +33,7 @@
 | エージェント | 担当 | ブランチ | 状態 | 次の一手 | 最終更新 |
 |---|---|---|---|---|---|
 | Muse（リード） | 統合／台帳 | ai-native | Claude ブランチを ai-native へマージ済み（3bb7ea0）。B-001 詳細記録の受領完了 | Q3 決定後に B-003 実装の取り込み。Codex の B-101 完了申告待ち | 2026-11-17 |
-| Claude Code | B-002 → B-003 | claude/uzu-engine-briefing-rrno7b | B-001 詳細記録を LEDGER と iterations に記録済み。B-002（measure.sh）完了、確認待ち。B-003 は事前調査を終え、Q3 でオーナー確認待ち（実装は止めている）。push 済み（Q2 解消）、ai-native 向けドラフト PR を作成 | リードのマージ待ち。Q3 の回答が出たら B-003 を実装 | 2026-11-17 |
+| Claude Code | B-002 → B-003 | claude/uzu-engine-briefing-rrno7b | B-001・B-002 はマージ済み（PR #1）。B-003 は案Aで実装し、確定判定で検証済み（起動ヘッダ `U.ZU Engine v4.8.beta…` を確認、1433件中 1432 pass、fail は既知の環境起因 1件、`::1` を足すと全件 pass）。ai-native 19cbb1b をマージ済み | リードのマージ待ち（PR #2）。マージ後の次の担当はオーナー指示待ち（候補 B-102） | 2026-11-17 |
 | Codex | B-101 | （未作成） | clone・必読確認済み。未着手 | **着手可**。agent_start.sh B-101 codex で開始し CLAIMS へ宣言 | 2026-11-17 |
 
 ## 質問・相談
@@ -76,3 +76,4 @@
 1. B-003 は `name` のみ "U.ZU Engine" に変更し、`short_name` は "godot" のまま。
 2. 判定条件の差し替えを承認: 「起動ヘッダが U.ZU Engine と表示されること＋全テスト pass」（BACKLOG B-003 に反映済み）。
 3. measure.sh の日付は `TZ=Asia/Tokyo` を既定とする（リードが ai_native 側で適用済み）。
+- 実装（Claude Code、2026-11-17）: 案Aで B-003 を実装した（記録: iterations/2026-11-17-B-003-claude.md、PR #2）。measure.sh の TZ はリードの実装（`export TZ`）を採用し、Claude 側の重複した変更（`LEDGER_TZ`）は取り下げた。
