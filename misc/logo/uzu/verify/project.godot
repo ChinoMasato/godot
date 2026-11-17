@@ -1,0 +1,7 @@
+config_version=5
+[application]
+config/name="U.ZU Logo Verification"
+[rendering]
+renderer/rendering_method="gl_compatibility"
+[editor_plugins]
+enabled=PackedStringArray("res://addons/uzu_verify/plugin.cfg")

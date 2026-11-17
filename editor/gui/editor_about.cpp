@@ -33,6 +33,7 @@
 #include "core/authors.gen.h"
 #include "core/donors.gen.h"
 #include "core/license.gen.h"
+#include "core/math/math_defs.h"
 #include "core/object/callable_mp.h"
 #include "core/os/os.h"
 #include "editor/editor_node.h"
@@ -89,6 +90,7 @@ void EditorAbout::_notification(int p_what) {
 			license_text_label->end_bulk_theme_override();
 
 			_logo->set_texture(get_editor_theme_icon(SNAME("Logo")));
+			_logo_mark->set_texture(get_editor_theme_icon(SNAME("GodotFile")));
 
 			for (ItemList *il : name_lists) {
 				for (int i = 0; i < il->get_item_count(); i++) {
@@ -97,6 +99,27 @@ void EditorAbout::_notification(int p_what) {
 						il->set_item_icon_modulate(i, get_theme_color(SNAME("font_disabled_color"), EditorStringName(Editor)));
 					}
 				}
+			}
+		} break;
+
+		case NOTIFICATION_VISIBILITY_CHANGED: {
+			if (_logo_mark) {
+				logo_animation_time = 0.0;
+				_logo_mark->set_rotation(0.0);
+				set_process_internal(is_visible());
+			}
+		} break;
+
+		case NOTIFICATION_INTERNAL_PROCESS: {
+			// One gentle turn per opening; stop processing once it has settled.
+			const double duration = 2.4;
+			logo_animation_time = MIN(logo_animation_time + get_process_delta_time(), duration);
+			const double progress = logo_animation_time / duration;
+			const double eased_progress = progress * progress * (3.0 - 2.0 * progress);
+			_logo_mark->set_rotation(Math::TAU * eased_progress);
+			if (logo_animation_time >= duration) {
+				_logo_mark->set_rotation(0.0);
+				set_process_internal(false);
 			}
 		} break;
 	}
@@ -211,7 +234,7 @@ Label *EditorAbout::_create_section(Control *p_parent, const String &p_name, con
 }
 
 EditorAbout::EditorAbout() {
-	set_title(TTRC("Thanks from the Godot community!"));
+	set_title(TTRC("About U.ZU Engine"));
 	set_hide_on_ok(true);
 
 	VBoxContainer *vbc = memnew(VBoxContainer);
@@ -223,9 +246,21 @@ EditorAbout::EditorAbout() {
 	hbc->add_theme_constant_override("separation", 30 * EDSCALE);
 	vbc->add_child(hbc);
 
+	HBoxContainer *brand = memnew(HBoxContainer);
+	brand->add_theme_constant_override("separation", 12 * EDSCALE);
+	hbc->add_child(brand);
+
+	_logo_mark = memnew(TextureRect);
+	_logo_mark->set_custom_minimum_size(Size2(69, 69) * EDSCALE);
+	_logo_mark->set_expand_mode(TextureRect::EXPAND_IGNORE_SIZE);
+	_logo_mark->set_stretch_mode(TextureRect::STRETCH_KEEP_ASPECT_CENTERED);
+	_logo_mark->set_v_size_flags(Control::SIZE_SHRINK_CENTER);
+	_logo_mark->set_pivot_offset_ratio(Vector2(0.5, 0.5));
+	brand->add_child(_logo_mark);
+
 	_logo = memnew(TextureRect);
 	_logo->set_stretch_mode(TextureRect::STRETCH_KEEP_ASPECT_CENTERED);
-	hbc->add_child(_logo);
+	brand->add_child(_logo);
 
 	VBoxContainer *version_info_vbc = memnew(VBoxContainer);
 
