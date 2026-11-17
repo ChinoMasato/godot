@@ -30,6 +30,7 @@
 
 #include "uzu_look.h"
 
+#include "core/config/project_settings.h"
 #include "core/object/class_db.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/decal.h"
@@ -39,8 +40,10 @@
 #include "scene/3d/world_environment.h"
 #include "scene/resources/3d/primitive_meshes.h"
 #include "scene/resources/camera_attributes.h"
+#include "scene/resources/compositor.h"
 #include "scene/resources/environment.h"
 #include "scene/resources/material.h"
+#include "scene/resources/uzu_tilt_shift.h"
 
 UZULook::Quality UZULook::get_default_quality(const String &p_rendering_method) {
 	return Quality(LookPreset3D::get_default_quality(p_rendering_method));
@@ -107,6 +110,132 @@ Decal *UZULook::add_blob_shadow(Node3D *p_node, float p_radius) {
 		decal->set_owner(owner);
 	}
 	return decal;
+}
+
+// HD-2D (B-722): pixel-art sprites in a lit 3D diorama, in one call.
+Dictionary UZULook::apply_hd2d(Node *p_root, Atmosphere p_atmosphere, bool p_camera) {
+	Dictionary result;
+	ERR_FAIL_NULL_V(p_root, result);
+
+	// 1. The look: light, fog, bloom, color grade, sun; a little more glow for the
+	// soft, glowing highlights of the style.
+	result["look"] = apply_to_scene(p_root, QUALITY_HIGH, p_atmosphere);
+	WorldEnvironment *world_environment = nullptr;
+	TypedArray<Node> environments = p_root->find_children("*", "WorldEnvironment", true, false);
+	if (Object::cast_to<WorldEnvironment>(p_root)) {
+		environments.push_front(p_root);
+	}
+	if (!environments.is_empty()) {
+		world_environment = Object::cast_to<WorldEnvironment>(environments[0]);
+	}
+	ERR_FAIL_NULL_V(world_environment, result);
+	Ref<Environment> environment = world_environment->get_environment();
+	if (environment.is_valid()) {
+		environment->set_glow_intensity(environment->get_glow_intensity() * 1.5);
+		environment->set_glow_bloom(0.15);
+	}
+
+	// 2. Tilt-shift band blur after the look's post effect: the diorama feel.
+	Ref<Compositor> compositor = world_environment->get_compositor();
+	if (compositor.is_null()) {
+		compositor.instantiate();
+		world_environment->set_compositor(compositor);
+	}
+	TypedArray<CompositorEffect> effects = compositor->get_compositor_effects();
+	Ref<UZUTiltShift> tilt_shift;
+	tilt_shift.instantiate();
+	tilt_shift->set_focus_center(0.55);
+	tilt_shift->set_focus_width(0.1);
+	tilt_shift->set_transition(0.22);
+	tilt_shift->set_max_blur(10.0);
+	effects.push_back(tilt_shift);
+	compositor->set_compositor_effects(effects);
+
+	// 3. Sprites: lit, outlined, grounded with a blob shadow, all with one texel size
+	// (the median: the most common size wins), crisp.
+	TypedArray<Node> sprites = p_root->find_children("*", "SpriteBase3D", true, false);
+	Vector<float> texels;
+	for (const Variant &v : sprites) {
+		SpriteBase3D *sprite = Object::cast_to<SpriteBase3D>(v);
+		const Vector3 scale = sprite->get_scale().abs();
+		texels.push_back(sprite->get_pixel_size() * MAX(scale.x, MAX(scale.y, scale.z)));
+	}
+	texels.sort();
+	const float texel = texels.is_empty() ? 0.0f : texels[texels.size() / 2];
+	Array sprite_paths;
+	for (const Variant &v : sprites) {
+		SpriteBase3D *sprite = Object::cast_to<SpriteBase3D>(v);
+		sprite->set_pixel_size(texel);
+		sprite->set_scale(Vector3(1, 1, 1));
+		Sprite3D *sprite_3d = Object::cast_to<Sprite3D>(sprite);
+		if (sprite_3d) {
+			configure_lit_sprite(sprite_3d, Ref<Texture2D>(), 1.0);
+		} else {
+			sprite->set_texture_filter(StandardMaterial3D::TEXTURE_FILTER_NEAREST);
+			sprite->set_draw_flag(SpriteBase3D::FLAG_SHADED, true);
+			sprite->set_alpha_cut_mode(SpriteBase3D::ALPHA_CUT_DISCARD);
+		}
+		if (!sprite->has_node(NodePath("BlobShadow"))) {
+			add_blob_shadow(sprite, MAX(sprite->get_aabb().size.x * 0.4f, 0.1f));
+		}
+		sprite_paths.push_back(String(p_root->get_path_to(sprite)));
+	}
+	result["sprites"] = sprite_paths;
+	result["texel"] = texel;
+	ProjectSettings::get_singleton()->set_setting("rendering/textures/canvas_textures/default_texture_filter", 0); // Nearest.
+
+	// 4. Camera rig: a telephoto lens looking down at 30 degrees, keeping the point
+	// the camera looked at (on the ground, or 10 m ahead) and its framing size.
+	if (p_camera) {
+		Camera3D *camera = nullptr;
+		TypedArray<Node> cameras = p_root->find_children("*", "Camera3D", true, false);
+		for (const Variant &v : cameras) {
+			Camera3D *c = Object::cast_to<Camera3D>(v);
+			if (!camera || c->is_current()) {
+				camera = c;
+			}
+		}
+		if (camera) {
+			const Transform3D old_transform = camera->get_transform();
+			const Vector3 forward = -old_transform.basis.get_column(2).normalized();
+			float distance = 10.0;
+			if (forward.y < -0.01f && old_transform.origin.y > 0.0f) {
+				distance = old_transform.origin.y / -forward.y; // Where the view meets the ground (y = 0).
+			}
+			const Vector3 target = old_transform.origin + forward * distance;
+			const float old_fov = camera->get_fov();
+			const float fov = get_lens_fov(LENS_TELEPHOTO);
+			// Same framing: the view width at the target stays the same with the narrower lens.
+			const float new_distance = distance * Math::tan(Math::deg_to_rad(old_fov) * 0.5f) / Math::tan(Math::deg_to_rad(fov) * 0.5f);
+			const float yaw = Math::atan2(-forward.x, -forward.z);
+			const float pitch = Math::deg_to_rad(-30.0f);
+			const Vector3 direction = Vector3(-Math::sin(yaw) * Math::cos(pitch), Math::sin(pitch), -Math::cos(yaw) * Math::cos(pitch));
+			Transform3D transform;
+			transform.origin = target - direction * new_distance;
+			transform = transform.looking_at(target, Vector3(0, 1, 0));
+			camera->set_transform(transform);
+			configure_camera(camera, LENS_TELEPHOTO);
+			// Sprites are cards facing the camera, so the key light comes from behind the
+			// camera, 40 degrees to the side; the sun keeps the atmosphere's elevation.
+			TypedArray<Node> lights = p_root->find_children("*", "DirectionalLight3D", true, false);
+			for (const Variant &v : lights) {
+				DirectionalLight3D *sun = Object::cast_to<DirectionalLight3D>(v);
+				if (sun && sun->has_shadow() && sun->get_sky_mode() != DirectionalLight3D::SKY_MODE_LIGHT_ONLY) {
+					const Vector3 rotation = sun->get_rotation_degrees();
+					sun->set_rotation_degrees(Vector3(rotation.x, camera->get_rotation_degrees().y + 40.0, rotation.z));
+					result["sun"] = "behind the camera, 40 degrees to the side";
+					break;
+				}
+			}
+			Dictionary rig;
+			rig["camera"] = String(p_root->get_path_to(camera));
+			rig["fov"] = fov;
+			rig["pitch"] = -30.0;
+			rig["target"] = target;
+			result["camera"] = rig;
+		}
+	}
+	return result;
 }
 
 float UZULook::get_eye_height(EyeLevel p_eye_level) {
@@ -214,6 +343,7 @@ void UZULook::_bind_methods() {
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_lit_sprite_material", "texture", "normal_map", "outline_width", "outline_color"), &UZULook::create_lit_sprite_material, DEFVAL(Variant()), DEFVAL(0.0), DEFVAL(Color(0.06, 0.05, 0.08)));
 	ClassDB::bind_static_method("UZULook", D_METHOD("configure_lit_sprite", "sprite", "normal_map", "outline_width"), &UZULook::configure_lit_sprite, DEFVAL(Variant()), DEFVAL(0.0));
 	ClassDB::bind_static_method("UZULook", D_METHOD("add_blob_shadow", "node", "radius"), &UZULook::add_blob_shadow, DEFVAL(0.4));
+	ClassDB::bind_static_method("UZULook", D_METHOD("apply_hd2d", "root", "atmosphere", "camera"), &UZULook::apply_hd2d, DEFVAL(ATMOSPHERE_GOLDEN_HOUR), DEFVAL(true));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_environment", "quality", "atmosphere", "clouds"), &UZULook::create_environment, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR), DEFVAL(false));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_camera_attributes", "quality"), &UZULook::create_camera_attributes, DEFVAL(QUALITY_HIGH));
 	ClassDB::bind_static_method("UZULook", D_METHOD("configure_sun", "sun", "quality", "atmosphere"), &UZULook::configure_sun, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR));

@@ -105,6 +105,7 @@ public:
 	static Ref<ShaderMaterial> create_lit_sprite_material(const Ref<Texture2D> &p_texture, const Ref<Texture2D> &p_normal_map, float p_outline_width, const Color &p_outline_color);
 	static void configure_lit_sprite(Sprite3D *p_sprite, const Ref<Texture2D> &p_normal_map, float p_outline_width);
 	static Decal *add_blob_shadow(Node3D *p_node, float p_radius);
+	static Dictionary apply_hd2d(Node *p_root, Atmosphere p_atmosphere = ATMOSPHERE_GOLDEN_HOUR, bool p_camera = true);
 
 	// Scene helpers. New nodes are owned by p_root, so they are saved with it.
 	// Adds (or updates) a WorldEnvironment, and configures the sun (the first

@@ -133,6 +133,15 @@
 				Adds a soft round shadow (a [Decal] named [code]BlobShadow[/code]) under [param node], at the bottom of its visual bounds (the feet of a centered sprite), and returns it. The grounding trick of pixel-art games: it anchors a sprite even where real shadows are faint.
 			</description>
 		</method>
+		<method name="apply_hd2d" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="root" type="Node" />
+			<param index="1" name="atmosphere" type="int" enum="UZULook.Atmosphere" default="2" />
+			<param index="2" name="camera" type="bool" default="true" />
+			<description>
+				Applies the "HD-2D" style (pixel-art sprites in a lit 3D diorama) to the scene under [param root] in one call: the look of [method apply_to_scene] at high quality with a little more glow; a [UZUTiltShift] after the look's post effect; every [Sprite3D] made a lit sprite with a one-texel outline ([method configure_lit_sprite]) and a blob shadow ([method add_blob_shadow]); one texel size for all sprites (the median) with nearest filtering, also as the project's default texture filter; and, when [param camera] is [code]true[/code], a telephoto camera looking down at 30 degrees that keeps the ground point the camera looked at and its framing. Returns what was done. Save the project settings too to keep the filter settings.
+			</description>
+		</method>
 		<method name="configure_lit_sprite" qualifiers="static">
 			<return type="void" />
 			<param index="0" name="sprite" type="Sprite3D" />

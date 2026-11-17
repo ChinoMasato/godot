@@ -14,6 +14,8 @@ extends SceneTree
 ##            whose world texel size differs from the others' (median) and on blurry (non-nearest) filtering
 ##   pixel    --scene res://main.tscn [--texel 0.06] [--snap]   pixel discipline preset (B-717): one texel size for all
 ##            sprites, nearest filtering (also the project default), --snap puts sprites on the texel grid
+##   hd2d     --scene res://main.tscn [--atmosphere golden_hour] [--no-camera]   the HD-2D preset in one command (B-722):
+##            look + tilt-shift + lit outlined sprites with blob shadows + one texel size + telephoto camera rig
 ##   info     lists the options
 ## Prints one line "UZU_RESULT {json}" with {"ok": bool, ...}; exits 0 on success, 1 on error.
 
@@ -64,7 +66,7 @@ func _save_scene(root: Node, path: String) -> Error:
 
 func _run(args: PackedStringArray) -> Dictionary:
 	if args.is_empty() or args[0] == "info":
-		return {"ok": true, "commands": ["apply", "rig", "lamp", "camera", "material", "sprite", "texels", "pixel", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
+		return {"ok": true, "commands": ["apply", "hd2d", "rig", "lamp", "camera", "material", "sprite", "texels", "pixel", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
 	var command := args[0]
 
 	if command == "material" and _option(args, "scene").is_empty():
@@ -88,7 +90,7 @@ func _run(args: PackedStringArray) -> Dictionary:
 		return report
 
 	var quality = _pick(QUALITIES, args, "quality", "high")
-	var atmosphere = _pick(ATMOSPHERES, args, "atmosphere", "clear")
+	var atmosphere = _pick(ATMOSPHERES, args, "atmosphere", "golden_hour" if command == "hd2d" else "clear")
 	if quality == null or atmosphere == null:
 		root.free()
 		return _error("unknown --quality or --atmosphere")
@@ -97,6 +99,10 @@ func _run(args: PackedStringArray) -> Dictionary:
 	match command:
 		"apply":
 			done = UZULook.apply_to_scene(root, quality, atmosphere, args.has("--clouds"))
+		"hd2d":
+			done = UZULook.apply_hd2d(root, atmosphere, not args.has("--no-camera"))
+			if done.has("camera"):
+				done["camera"]["target"] = str(done["camera"]["target"])
 		"rig":
 			done = UZULook.add_lighting_rig(root, atmosphere)
 		"lamp":
@@ -179,7 +185,7 @@ func _run(args: PackedStringArray) -> Dictionary:
 
 	var err := _save_scene(root, scene_path)
 	root.free()
-	if err == OK and command in ["apply", "pixel"]:
+	if err == OK and command in ["apply", "pixel", "hd2d"]:
 		err = ProjectSettings.save()  # The sun's shadow filter quality is a project setting (B-714).
 	if err != OK:
 		return _error("could not save '%s': %s" % [scene_path, error_string(err)])
