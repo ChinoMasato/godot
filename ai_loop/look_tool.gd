@@ -6,7 +6,7 @@ extends SceneTree
 ##   rig      --scene res://main.tscn [--atmosphere ...]          adds fill and rim lights
 ##   lamp     --scene res://main.tscn --position x,y,z [--quality ...]
 ##   camera   --scene res://main.tscn [--node Path/To/Camera3D] [--lens wide|standard|telephoto] [--shift 0.2] [--eye standing|low]
-##   material --kind skin|foliage|glass|water|lamp --out res://materials/water.tres
+##   material --kind skin|foliage|foliage_wind|glass|water|lamp --out res://materials/water.tres   (foliage_wind sways, B-720)
 ##   material --kind water --scene res://main.tscn --node Path/To/MeshInstance3D   assigns it as the material override
 ##   sprite   --scene res://main.tscn [--node Path/To/Sprite3D] [--normal res://n.png] [--outline 1] [--blob 0.4]
 ##            makes Sprite3D nodes lit pixel-art sprites (all of them without --node), with an optional blob shadow (B-716)
@@ -41,6 +41,13 @@ func _option(args: PackedStringArray, name: String, default: String = "") -> Str
 	return args[i + 1] if i >= 0 and i + 1 < args.size() else default
 
 
+# The material for a --kind: a preset, or the wind-swayed foliage (B-720).
+func _material(kind: String) -> Material:
+	if kind == "foliage_wind":
+		return UZULook.create_wind_foliage_material()
+	return UZULook.create_material(MATERIALS[kind]) if MATERIALS.has(kind) else null
+
+
 func _pick(table: Dictionary, args: PackedStringArray, name: String, default: String) -> Variant:
 	var key := _option(args, name, default)
 	if not table.has(key):
@@ -69,16 +76,16 @@ func _save_scene(root: Node, path: String) -> Error:
 
 func _run(args: PackedStringArray) -> Dictionary:
 	if args.is_empty() or args[0] == "info":
-		return {"ok": true, "particle": PARTICLES.keys(), "commands": ["apply", "hd2d", "particles", "godrays", "rig", "lamp", "camera", "material", "sprite", "texels", "pixel", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
+		return {"ok": true, "particle": PARTICLES.keys(), "commands": ["apply", "hd2d", "particles", "godrays", "rig", "lamp", "camera", "material", "sprite", "texels", "pixel", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys() + ["foliage_wind"], "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
 	var command := args[0]
 
 	if command == "material" and _option(args, "scene").is_empty():
-		var kind = _pick(MATERIALS, args, "kind", "")
+		var material := _material(_option(args, "kind"))
 		var out := _option(args, "out")
-		if kind == null or out.is_empty():
+		if material == null or out.is_empty():
 			return _error("material needs --kind %s and --out res://path.tres (or --scene and --node to assign it)" % "|".join(MATERIALS.keys()))
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out.get_base_dir()))
-		var err := ResourceSaver.save(UZULook.create_material(kind), out)
+		var err := ResourceSaver.save(material, out)
 		return {"ok": err == OK, "command": command, "saved": out, "error": error_string(err) if err != OK else ""}
 
 	var scene_path := _option(args, "scene")
@@ -153,12 +160,12 @@ func _run(args: PackedStringArray) -> Dictionary:
 				camera.position.y = UZULook.get_eye_height(EYE_LEVELS[eye])
 			done = {"camera": str(root.get_path_to(camera)), "fov": UZULook.get_lens_fov(lens), "projection": camera.projection, "height": camera.position.y}
 		"material":
-			var kind = _pick(MATERIALS, args, "kind", "")
+			var material := _material(_option(args, "kind"))
 			var target := root.get_node_or_null(_option(args, "node")) as GeometryInstance3D
-			if kind == null or target == null:
+			if material == null or target == null:
 				root.free()
 				return _error("material needs --kind and --node pointing to a GeometryInstance3D")
-			target.material_override = UZULook.create_material(kind)
+			target.material_override = material
 			done = {"node": str(root.get_path_to(target)), "material": _option(args, "kind")}
 		"sprite":
 			var sprites := []

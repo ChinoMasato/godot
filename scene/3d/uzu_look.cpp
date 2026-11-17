@@ -113,6 +113,10 @@ Decal *UZULook::add_blob_shadow(Node3D *p_node, float p_radius) {
 	return decal;
 }
 
+Ref<ShaderMaterial> UZULook::create_wind_foliage_material(float p_strength, float p_speed) {
+	return LookPreset3D::create_wind_foliage_material(p_strength, p_speed);
+}
+
 GPUParticles3D *UZULook::create_particles(ParticleKind p_kind, const Vector3 &p_extents) {
 	return LookPreset3D::create_particles(LookPreset3D::ParticleKind(p_kind), p_extents);
 }
@@ -378,6 +382,7 @@ void UZULook::_bind_methods() {
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_lit_sprite_material", "texture", "normal_map", "outline_width", "outline_color"), &UZULook::create_lit_sprite_material, DEFVAL(Variant()), DEFVAL(0.0), DEFVAL(Color(0.06, 0.05, 0.08)));
 	ClassDB::bind_static_method("UZULook", D_METHOD("configure_lit_sprite", "sprite", "normal_map", "outline_width"), &UZULook::configure_lit_sprite, DEFVAL(Variant()), DEFVAL(0.0));
 	ClassDB::bind_static_method("UZULook", D_METHOD("add_blob_shadow", "node", "radius"), &UZULook::add_blob_shadow, DEFVAL(0.4));
+	ClassDB::bind_static_method("UZULook", D_METHOD("create_wind_foliage_material", "strength", "speed"), &UZULook::create_wind_foliage_material, DEFVAL(0.12), DEFVAL(1.2));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_particles", "kind", "extents"), &UZULook::create_particles, DEFVAL(Vector3(4, 2, 4)));
 	ClassDB::bind_static_method("UZULook", D_METHOD("add_god_rays", "root", "position", "width", "length"), &UZULook::add_god_rays, DEFVAL(3.0), DEFVAL(8.0));
 	ClassDB::bind_static_method("UZULook", D_METHOD("apply_hd2d", "root", "atmosphere", "camera"), &UZULook::apply_hd2d, DEFVAL(ATMOSPHERE_GOLDEN_HOUR), DEFVAL(true));

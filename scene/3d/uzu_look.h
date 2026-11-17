@@ -114,6 +114,7 @@ public:
 	static Ref<ShaderMaterial> create_lit_sprite_material(const Ref<Texture2D> &p_texture, const Ref<Texture2D> &p_normal_map, float p_outline_width, const Color &p_outline_color);
 	static void configure_lit_sprite(Sprite3D *p_sprite, const Ref<Texture2D> &p_normal_map, float p_outline_width);
 	static Decal *add_blob_shadow(Node3D *p_node, float p_radius);
+	static Ref<ShaderMaterial> create_wind_foliage_material(float p_strength, float p_speed);
 	static GPUParticles3D *create_particles(ParticleKind p_kind, const Vector3 &p_extents);
 	static MeshInstance3D *add_god_rays(Node *p_root, const Vector3 &p_position, float p_width, float p_length);
 	static Dictionary apply_hd2d(Node *p_root, Atmosphere p_atmosphere = ATMOSPHERE_GOLDEN_HOUR, bool p_camera = true);

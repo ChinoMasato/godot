@@ -228,6 +228,25 @@ TEST_CASE("[SceneTree][LookPreset3D] Lit sprites take the scene's light, shadows
 	memdelete(blob);
 }
 
+TEST_CASE("[SceneTree][LookPreset3D] Leaves sway in the wind with the foliage look") {
+	Ref<ShaderMaterial> wind = LookPreset3D::create_wind_foliage_material();
+	REQUIRE(wind.is_valid());
+	const String code = wind->get_shader()->get_code();
+	CHECK(code.contains("TIME")); // Moves.
+	CHECK(code.contains("VERTEX.xz +=")); // Sideways, in the vertex shader.
+	CHECK(code.contains("cull_disabled")); // Leaves are seen from both sides.
+	CHECK(code.contains("BACKLIGHT"));
+	const Ref<StandardMaterial3D> foliage = LookPreset3D::create_material(LookPreset3D::MATERIAL_FOLIAGE);
+	CHECK(Color(wind->get_shader_parameter("albedo")).is_equal_approx(foliage->get_albedo()));
+	CHECK(float(wind->get_shader_parameter("roughness")) == doctest::Approx(foliage->get_roughness()));
+	CHECK(Color(wind->get_shader_parameter("backlight")).is_equal_approx(foliage->get_backlight()));
+	CHECK(float(wind->get_shader_parameter("wind_strength")) == doctest::Approx(0.12));
+	CHECK(float(wind->get_shader_parameter("wind_speed")) == doctest::Approx(1.2));
+	Ref<ShaderMaterial> clamped = LookPreset3D::create_wind_foliage_material(5.0, -1.0);
+	CHECK(float(clamped->get_shader_parameter("wind_strength")) == doctest::Approx(1.0));
+	CHECK(float(clamped->get_shader_parameter("wind_speed")) == doctest::Approx(0.0));
+}
+
 TEST_CASE("[SceneTree][LookPreset3D] Sparkle particles") {
 	struct Expected {
 		LookPreset3D::ParticleKind kind;

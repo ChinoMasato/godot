@@ -478,6 +478,52 @@ Ref<StandardMaterial3D> create_material(MaterialKind p_kind) {
 	return material;
 }
 
+static const char *WIND_FOLIAGE_SHADER = R"(
+shader_type spatial;
+render_mode cull_disabled;
+
+// The look of the foliage material (create_material(MATERIAL_FOLIAGE)).
+uniform vec4 albedo : source_color = vec4(0.32, 0.5, 0.18, 1.0);
+uniform float roughness : hint_range(0.0, 1.0) = 0.6;
+uniform vec4 backlight : source_color = vec4(0.45, 0.6, 0.15, 1.0);
+// Wind.
+uniform float wind_strength : hint_range(0.0, 1.0) = 0.12;
+uniform float wind_speed : hint_range(0.0, 8.0) = 1.2;
+uniform vec2 wind_direction = vec2(1.0, 0.3);
+uniform float sway_height = 1.5; // Height above the base over which the sway reaches its full size.
+
+void vertex() {
+	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	float height = clamp((VERTEX.y + sway_height * 0.5) / sway_height, 0.0, 1.0);
+	float phase = dot(world.xz, vec2(0.35, 0.21));
+	float sway = sin(TIME * wind_speed + phase) * 0.7 + sin(TIME * wind_speed * 2.3 + phase * 1.7) * 0.3;
+	VERTEX.xz += normalize(wind_direction) * sway * wind_strength * height * height;
+}
+
+void fragment() {
+	ALBEDO = albedo.rgb;
+	ROUGHNESS = roughness;
+	BACKLIGHT = backlight.rgb;
+}
+)";
+
+Ref<ShaderMaterial> create_wind_foliage_material(float p_strength, float p_speed) {
+	Ref<Shader> shader;
+	shader.instantiate();
+	shader->set_code(WIND_FOLIAGE_SHADER);
+	Ref<ShaderMaterial> material;
+	material.instantiate();
+	material->set_shader(shader);
+	// The same look as the foliage preset.
+	const Ref<StandardMaterial3D> foliage = create_material(MATERIAL_FOLIAGE);
+	material->set_shader_parameter("albedo", foliage->get_albedo());
+	material->set_shader_parameter("roughness", foliage->get_roughness());
+	material->set_shader_parameter("backlight", foliage->get_backlight());
+	material->set_shader_parameter("wind_strength", CLAMP(p_strength, 0.0f, 1.0f));
+	material->set_shader_parameter("wind_speed", CLAMP(p_speed, 0.0f, 8.0f));
+	return material;
+}
+
 void configure_fill_light(DirectionalLight3D *p_light, Atmosphere p_atmosphere) {
 	ERR_FAIL_NULL(p_light);
 	const AtmosphereValues &values = get_atmosphere_values(p_atmosphere);

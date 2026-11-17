@@ -106,6 +106,10 @@ enum MaterialKind {
 };
 
 Ref<StandardMaterial3D> create_material(MaterialKind p_kind);
+// Leaves in the wind (B-720): the foliage material's look (color, roughness, light
+// through the leaves) as a shader that sways the mesh, more the higher above its
+// base (the base stays put), out of phase from place to place.
+Ref<ShaderMaterial> create_wind_foliage_material(float p_strength = 0.12, float p_speed = 1.2);
 
 // Three-point lighting with the sun as the key light: a fill light from the
 // side in the color of the sky, and a rim light from behind. Neither casts

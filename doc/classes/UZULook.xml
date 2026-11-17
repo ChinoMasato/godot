@@ -161,6 +161,14 @@
 				Makes [param sprite] a lit pixel-art sprite: the material of [method create_lit_sprite_material] as its [member GeometryInstance3D.material_override], shadow casting on, nearest filtering, alpha cut, and the sprite's own billboard off (the material faces the camera).
 			</description>
 		</method>
+		<method name="create_wind_foliage_material" qualifiers="static">
+			<return type="ShaderMaterial" />
+			<param index="0" name="strength" type="float" default="0.12" />
+			<param index="1" name="speed" type="float" default="1.2" />
+			<description>
+				Returns leaves in the wind: the look of [code]create_material(MATERIAL_FOLIAGE)[/code] (color, roughness, light through the leaves, both sides) as a shader that sways the mesh sideways, more the higher above its base, out of phase from place to place. [param strength] is the sway in meters at the top (up to 1), [param speed] its pace (up to 8).
+			</description>
+		</method>
 		<method name="create_particles" qualifiers="static">
 			<return type="GPUParticles3D" />
 			<param index="0" name="kind" type="int" enum="UZULook.ParticleKind" />
