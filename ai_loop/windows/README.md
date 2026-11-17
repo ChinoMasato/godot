@@ -32,3 +32,21 @@ ai_loop\windows\uzu.bat selfplay ai_loop\selfplay\sample_game --input ai_loop\se
 - **まだ Linux 専用のもの:** ビルドのロックと計測（`build_locked.sh`・`measure.sh`・`agent_*.sh`）。Windows のビルドは `setup.ps1` が受け持つ。
 - **確認の状況:** これらのツールはクラウド（Linux）で作って確かめた。Windows での確認はまだなので、`uzu.bat selftest` の結果（最後の数行）を教えてほしい。
 
+## GPU での見た目と重さの確認（Windows）
+
+ビルドしたエディタ（`bin\godot.windows.editor.x86_64.console.exe`）と PC の GPU（Vulkan）で、U.ZU ルックを撮って計る。クラウドの `look.sh shot`（lavapipe）では分からない、本物の GPU での見た目とフレーム時間を確かめる用。
+
+```powershell
+# 10種類の見本を撮る（shoot_all.sh と同じ組み合わせ）。out\index.html で並べて見られる
+python ai_loop\windows\shoot_gpu.py . out
+
+# 画質ごとの GPU フレーム時間（--quality none|low|standard|high）
+bin\godot.windows.editor.x86_64.console.exe --path <見本のコピー> --rendering-driver vulkan --resolution 1920x1080 --script ai_loop\windows\frame_time.gd -- --quality high --frames 300
+
+# 高画質から1つだけ設定を変えて、重さと見た目を比べる（--variant base|no_ssil|no_ssr|no_ssao|no_pcss|pcss_025|taa など）
+bin\godot.windows.editor.x86_64.console.exe --path <見本のコピー> --rendering-driver vulkan --resolution 1920x1080 --script ai_loop\windows\look_variant.gd -- --variant taa --shot out.png
+```
+
+- 見本のプロジェクトは `ai_loop\look_samples\` をコピーして使う（`--import` を1回流してから）。
+- 撮影中はウィンドウが一瞬ずつ開く。
+- エディタを開いたままだと、次のビルドの最後（exe の書き込み）が「アクセスが拒否されました」で失敗する。ビルド前にエディタを閉じる。

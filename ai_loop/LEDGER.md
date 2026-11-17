@@ -76,3 +76,17 @@
 - A-2 をリードが実施: 標準ループビルドを editor に変更（build_locked.sh／measure.sh は TARGET 環境変数、既定 editor。template_release は実行時・書き出し確認用に温存）。AGENTS.md の Build／Test 節も更新。
 - Codex の B-101 はドラフト（fce3e6b）のまま未完（エンジン検証と完了申告待ち）。統合対象外。
 - 残: B-703b（UZUPostEffect）が Phase 7 の最後の1件。Phase 2 の Wave 1（B-201〜B-203）と B-104、B-303 は未着手。
+
+## 2026-11-18 — リード統合: WIN-GPU の残りと B-101。影の対策を B-714 として決定
+- agent/win-gpu-claude-local の未統合分2件（Windows GPU 道具 shoot_gpu.py／frame_time.gd／look_variant.gd と WIN-GPU 記録）を ai-native へ統合（README の競合は両節を残して解消）。同ブランチの他のコミット（B-703b、B-201〜B-203、B-104、B-301〜B-305、B-502、B-503 draft、B-601、B-103）は Claude Code（クラウド）が ai-native へ直接反映済みだったもの。
+- B-101（Codex）を統合: tests/doctest_json.py（doctest XML→JSON）。Codex の実エンジン検証は editor ビルドで 1481 pass／0 fail／3 skip、JSON 一覧と集計の一致を確認。リード側でも変換器の単体テスト10件が pass することを確認した。CLAIMS の競合は行を併せて解消。
+- 影の判断（オーナーから委任、WIN-GPU の RTX 4050 実測に基づく）: 「高」の light_angular_distance 0.5→0.25＋影フィルタ High を採用（粒 4.93→1.37、+0.74 ms）。TAA は不採用。B-703b は変更なし。実施は B-714 として BACKLOG に登録（値のテスト更新＋GPU 再計測が判定）。
+- 申し送り: テスト総数が環境で異なる（クラウド 1477／Windows 1475／Codex 1481）。Windows との差2件は未特定（全件一覧はオーナー PC の gpu_shots/out/test_cases_windows.txt）。--headless --import の segfault が1回だけ発生（6回再試行で再現せず）。いずれも監視事項。
+- 状態メモ: ai-native は Claude Code（クラウド）の直接 push で前進している（B-306、B-504〜B-507、B-801、B-802 を含む）。その運用方針の記録はブランチ側の転記で届いたため、オーナー本人への確認を別途行う。
+
+## 2026-11-18 — 運用方針の確定: 検証済み作業は ai-native へ直接反映
+- オーナーがリードとのチャットで明示的に確認: Claude Code は検証（ビルド＋全テスト pass）を通した作業を ai-native へ直接反映してよい（PR・リード統合を待たない）。記録（iterations／CLAIMS）は従来どおり。
+- リード（Muse）の役割は、事後レビュー、台帳（LEDGER／BACKLOG／COORDINATION）の整合、判断事項（例: B-714 の影対策）に移る。ブランチ経由で届いた作業（Codex の B-101、ローカルの GPU 確認）は従来どおりリードが統合する。
+
+## 2026-11-18 — Wave 3 を登録（AI 開発特化の次の一手）
+- オーナーの問いへのリードの整理を BACKLOG と COORDINATION（Q11）に反映。登録: B-307 状態ハッシュ、B-308 失敗パケット、B-309 セーブステート、B-204 プロジェクトマップ、B-205 UID 修復、B-105 テスト影響選択。推しは検証3点セット（B-307〜309）。Wave 3 候補（リファクタ API 化、意味的 diff、性能予算、要約モード）は保留に集約。
