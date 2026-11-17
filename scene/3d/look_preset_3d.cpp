@@ -33,8 +33,10 @@
 #include "core/config/project_settings.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/decal.h"
+#include "scene/3d/gpu_particles_3d.h"
 #include "scene/3d/light_3d.h"
 #include "scene/3d/sprite_3d.h"
+#include "scene/resources/3d/primitive_meshes.h"
 #include "scene/resources/3d/sky_material.h"
 #include "scene/resources/camera_attributes.h"
 #include "scene/resources/compositor.h"
@@ -42,6 +44,7 @@
 #include "scene/resources/gradient_texture.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
+#include "scene/resources/particle_process_material.h"
 #include "scene/resources/shader.h"
 #include "scene/resources/sky.h"
 #include "scene/resources/uzu_post_effect.h"
@@ -658,6 +661,110 @@ Decal *create_blob_shadow(float p_radius) {
 	decal->set_lower_fade(0.5);
 	decal->set_upper_fade(0.5);
 	return decal;
+}
+
+struct ParticleValues {
+	int amount;
+	float lifetime;
+	Vector3 gravity;
+	Vector3 direction;
+	float spread;
+	float velocity_min;
+	float velocity_max;
+	float size;
+	Color color; // Above 1 glows (the look's glow picks it up).
+	bool additive;
+	bool turbulence;
+	bool blink;
+};
+
+static ParticleValues _particle_values(ParticleKind p_kind) {
+	switch (p_kind) {
+		case PARTICLES_FIREFLIES:
+			return { 24, 6.0, Vector3(0, 0, 0), Vector3(0, 1, 0), 180.0, 0.05, 0.25, 0.06, Color(2.2, 2.6, 0.6), true, true, true };
+		case PARTICLES_SNOW:
+			return { 300, 8.0, Vector3(0, -0.6, 0), Vector3(0, -1, 0), 20.0, 0.1, 0.3, 0.05, Color(0.95, 0.97, 1.0), false, true, false };
+		case PARTICLES_EMBERS:
+			return { 60, 2.5, Vector3(0, 0.8, 0), Vector3(0, 1, 0), 25.0, 0.5, 1.2, 0.035, Color(3.0, 1.1, 0.25), true, true, true };
+		case PARTICLES_DUST:
+		default:
+			return { 120, 10.0, Vector3(0, -0.01, 0), Vector3(0, 1, 0), 180.0, 0.01, 0.06, 0.025, Color(1.4, 1.3, 1.1), true, true, false };
+	}
+}
+
+GPUParticles3D *create_particles(ParticleKind p_kind, const Vector3 &p_extents) {
+	const ParticleValues values = _particle_values(p_kind);
+
+	Ref<ParticleProcessMaterial> process;
+	process.instantiate();
+	process->set_emission_shape(ParticleProcessMaterial::EMISSION_SHAPE_BOX);
+	process->set_emission_box_extents(p_extents);
+	process->set_gravity(values.gravity);
+	process->set_direction(values.direction);
+	process->set_spread(values.spread);
+	process->set_param_min(ParticleProcessMaterial::PARAM_INITIAL_LINEAR_VELOCITY, values.velocity_min);
+	process->set_param_max(ParticleProcessMaterial::PARAM_INITIAL_LINEAR_VELOCITY, values.velocity_max);
+	process->set_param_min(ParticleProcessMaterial::PARAM_SCALE, 0.6);
+	process->set_param_max(ParticleProcessMaterial::PARAM_SCALE, 1.0);
+	process->set_color(values.color);
+	process->set_turbulence_enabled(values.turbulence);
+	process->set_turbulence_noise_strength(0.5);
+	process->set_turbulence_noise_scale(4.0);
+	// Fade in and out over the lifetime; blinking kinds pulse in between.
+	Ref<Gradient> fade;
+	fade.instantiate();
+	fade->set_color(0, Color(1, 1, 1, 0));
+	fade->set_color(1, Color(1, 1, 1, 0));
+	if (values.blink) {
+		fade->add_point(0.2, Color(1, 1, 1, 1));
+		fade->add_point(0.35, Color(1, 1, 1, 0.15));
+		fade->add_point(0.55, Color(1, 1, 1, 1));
+		fade->add_point(0.8, Color(1, 1, 1, 0.3));
+	} else {
+		fade->add_point(0.15, Color(1, 1, 1, 1));
+		fade->add_point(0.85, Color(1, 1, 1, 1));
+	}
+	Ref<GradientTexture1D> ramp;
+	ramp.instantiate();
+	ramp->set_gradient(fade);
+	process->set_color_ramp(ramp);
+
+	// A soft round dot facing the camera.
+	Ref<Gradient> dot;
+	dot.instantiate();
+	dot->set_color(0, Color(1, 1, 1, 1));
+	dot->set_color(1, Color(1, 1, 1, 0));
+	Ref<GradientTexture2D> dot_texture;
+	dot_texture.instantiate();
+	dot_texture->set_gradient(dot);
+	dot_texture->set_fill(GradientTexture2D::FILL_RADIAL);
+	dot_texture->set_fill_from(Vector2(0.5, 0.5));
+	dot_texture->set_fill_to(Vector2(0.5, 0.0));
+	dot_texture->set_width(32);
+	dot_texture->set_height(32);
+	Ref<StandardMaterial3D> material;
+	material.instantiate();
+	material->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+	material->set_billboard_mode(BaseMaterial3D::BILLBOARD_PARTICLES);
+	material->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+	material->set_blend_mode(values.additive ? BaseMaterial3D::BLEND_MODE_ADD : BaseMaterial3D::BLEND_MODE_MIX);
+	material->set_flag(BaseMaterial3D::FLAG_ALBEDO_FROM_VERTEX_COLOR, true);
+	material->set_texture(BaseMaterial3D::TEXTURE_ALBEDO, dot_texture);
+	Ref<QuadMesh> quad;
+	quad.instantiate();
+	quad->set_size(Vector2(values.size, values.size));
+	quad->set_material(material);
+
+	GPUParticles3D *particles = memnew(GPUParticles3D);
+	particles->set_name("Particles");
+	particles->set_amount(values.amount);
+	particles->set_lifetime(values.lifetime);
+	particles->set_pre_process_time(values.lifetime); // Already full when the scene starts.
+	particles->set_process_material(process);
+	particles->set_draw_pass_mesh(0, quad);
+	particles->set_visibility_aabb(AABB(-p_extents - Vector3(2, 2, 2), (p_extents + Vector3(2, 2, 2)) * 2.0));
+	particles->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
+	return particles;
 }
 
 Ref<Compositor> create_compositor(Quality p_quality) {

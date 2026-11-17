@@ -16,6 +16,7 @@ extends SceneTree
 ##            sprites, nearest filtering (also the project default), --snap puts sprites on the texel grid
 ##   hd2d     --scene res://main.tscn [--atmosphere golden_hour] [--no-camera]   the HD-2D preset in one command (B-722):
 ##            look + tilt-shift + lit outlined sprites with blob shadows + one texel size + telephoto camera rig
+##   particles --scene res://main.tscn --kind dust|fireflies|snow|embers [--position x,y,z] [--extents x,y,z]   sparkle particles (B-718)
 ##   info     lists the options
 ## Prints one line "UZU_RESULT {json}" with {"ok": bool, ...}; exits 0 on success, 1 on error.
 
@@ -23,6 +24,7 @@ const QUALITIES := {"high": UZULook.QUALITY_HIGH, "standard": UZULook.QUALITY_ST
 const ATMOSPHERES := {"clear": UZULook.ATMOSPHERE_CLEAR, "humid": UZULook.ATMOSPHERE_HUMID, "golden_hour": UZULook.ATMOSPHERE_GOLDEN_HOUR, "night": UZULook.ATMOSPHERE_NIGHT}
 const MATERIALS := {"skin": UZULook.MATERIAL_SKIN, "foliage": UZULook.MATERIAL_FOLIAGE, "glass": UZULook.MATERIAL_GLASS, "water": UZULook.MATERIAL_WATER, "lamp": UZULook.MATERIAL_LAMP}
 const LENSES := {"wide": UZULook.LENS_WIDE, "standard": UZULook.LENS_STANDARD, "telephoto": UZULook.LENS_TELEPHOTO}
+const PARTICLES := {"dust": UZULook.PARTICLES_DUST, "fireflies": UZULook.PARTICLES_FIREFLIES, "snow": UZULook.PARTICLES_SNOW, "embers": UZULook.PARTICLES_EMBERS}
 const EYE_LEVELS := {"standing": UZULook.EYE_LEVEL_STANDING, "low": UZULook.EYE_LEVEL_LOW}
 
 
@@ -66,7 +68,7 @@ func _save_scene(root: Node, path: String) -> Error:
 
 func _run(args: PackedStringArray) -> Dictionary:
 	if args.is_empty() or args[0] == "info":
-		return {"ok": true, "commands": ["apply", "hd2d", "rig", "lamp", "camera", "material", "sprite", "texels", "pixel", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
+		return {"ok": true, "particle": PARTICLES.keys(), "commands": ["apply", "hd2d", "particles", "rig", "lamp", "camera", "material", "sprite", "texels", "pixel", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
 	var command := args[0]
 
 	if command == "material" and _option(args, "scene").is_empty():
@@ -103,6 +105,19 @@ func _run(args: PackedStringArray) -> Dictionary:
 			done = UZULook.apply_hd2d(root, atmosphere, not args.has("--no-camera"))
 			if done.has("camera"):
 				done["camera"]["target"] = str(done["camera"]["target"])
+		"particles":
+			var kind = _pick(PARTICLES, args, "kind", "")
+			var ext := _option(args, "extents", "4,2,4").split(",")
+			var pos := _option(args, "position", "0,1,0").split(",")
+			if kind == null or ext.size() != 3 or pos.size() != 3:
+				root.free()
+				return _error("particles needs --kind %s (and --position/--extents as x,y,z)" % "|".join(PARTICLES.keys()))
+			var particles: GPUParticles3D = UZULook.create_particles(kind, Vector3(ext[0].to_float(), ext[1].to_float(), ext[2].to_float()))
+			particles.name = _option(args, "kind").capitalize()
+			particles.position = Vector3(pos[0].to_float(), pos[1].to_float(), pos[2].to_float())
+			root.add_child(particles, true)
+			particles.owner = root
+			done = {"node": str(root.get_path_to(particles)), "kind": _option(args, "kind"), "amount": particles.amount}
 		"rig":
 			done = UZULook.add_lighting_rig(root, atmosphere)
 		"lamp":

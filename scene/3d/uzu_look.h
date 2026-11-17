@@ -36,6 +36,7 @@
 
 class Camera3D;
 class Decal;
+class GPUParticles3D;
 class Node3D;
 class ShaderMaterial;
 class Sprite3D;
@@ -89,6 +90,13 @@ public:
 		EYE_LEVEL_LOW = LookPreset3D::EYE_LEVEL_LOW,
 	};
 
+	enum ParticleKind {
+		PARTICLES_DUST = LookPreset3D::PARTICLES_DUST,
+		PARTICLES_FIREFLIES = LookPreset3D::PARTICLES_FIREFLIES,
+		PARTICLES_SNOW = LookPreset3D::PARTICLES_SNOW,
+		PARTICLES_EMBERS = LookPreset3D::PARTICLES_EMBERS,
+	};
+
 	static Quality get_default_quality(const String &p_rendering_method);
 
 	static Ref<Environment> create_environment(Quality p_quality = QUALITY_HIGH, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR, bool p_clouds = false);
@@ -105,6 +113,7 @@ public:
 	static Ref<ShaderMaterial> create_lit_sprite_material(const Ref<Texture2D> &p_texture, const Ref<Texture2D> &p_normal_map, float p_outline_width, const Color &p_outline_color);
 	static void configure_lit_sprite(Sprite3D *p_sprite, const Ref<Texture2D> &p_normal_map, float p_outline_width);
 	static Decal *add_blob_shadow(Node3D *p_node, float p_radius);
+	static GPUParticles3D *create_particles(ParticleKind p_kind, const Vector3 &p_extents);
 	static Dictionary apply_hd2d(Node *p_root, Atmosphere p_atmosphere = ATMOSPHERE_GOLDEN_HOUR, bool p_camera = true);
 
 	// Scene helpers. New nodes are owned by p_root, so they are saved with it.
@@ -123,3 +132,4 @@ VARIANT_ENUM_CAST(UZULook::Atmosphere);
 VARIANT_ENUM_CAST(UZULook::MaterialKind);
 VARIANT_ENUM_CAST(UZULook::Lens);
 VARIANT_ENUM_CAST(UZULook::EyeLevel);
+VARIANT_ENUM_CAST(UZULook::ParticleKind);

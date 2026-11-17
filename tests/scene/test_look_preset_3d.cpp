@@ -38,15 +38,18 @@ TEST_FORCE_LINK(test_look_preset_3d)
 
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/decal.h"
+#include "scene/3d/gpu_particles_3d.h"
 #include "scene/3d/light_3d.h"
 #include "scene/3d/look_preset_3d.h"
 #include "scene/3d/sprite_3d.h"
+#include "scene/resources/3d/primitive_meshes.h"
 #include "scene/resources/3d/sky_material.h"
 #include "scene/resources/camera_attributes.h"
 #include "scene/resources/environment.h"
 #include "scene/resources/gradient_texture.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
+#include "scene/resources/particle_process_material.h"
 #include "scene/resources/shader.h"
 #include "scene/resources/sky.h"
 
@@ -223,6 +226,52 @@ TEST_CASE("[SceneTree][LookPreset3D] Lit sprites take the scene's light, shadows
 	CHECK(blob_texture->get_gradient()->get_color(0).a > 0.3); // Dark in the middle...
 	CHECK(blob_texture->get_gradient()->get_color(1).a == doctest::Approx(0.0)); // ...gone at the rim.
 	memdelete(blob);
+}
+
+TEST_CASE("[SceneTree][LookPreset3D] Sparkle particles") {
+	struct Expected {
+		LookPreset3D::ParticleKind kind;
+		bool glows; // Color above 1 and additive blending.
+		float gravity_y_sign;
+		bool rising;
+	};
+	const Expected expected[] = {
+		{ LookPreset3D::PARTICLES_DUST, true, -1, false },
+		{ LookPreset3D::PARTICLES_FIREFLIES, true, 0, false },
+		{ LookPreset3D::PARTICLES_SNOW, false, -1, false },
+		{ LookPreset3D::PARTICLES_EMBERS, true, 1, true },
+	};
+	for (const Expected &e : expected) {
+		GPUParticles3D *particles = LookPreset3D::create_particles(e.kind, Vector3(3, 1, 2));
+		CHECK(particles->get_amount() > 0);
+		CHECK(particles->get_lifetime() > 0.0);
+		CHECK(particles->get_pre_process_time() == doctest::Approx(particles->get_lifetime())); // Full from the start.
+		CHECK(particles->get_cast_shadows_setting() == GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
+		Ref<ParticleProcessMaterial> process = particles->get_process_material();
+		REQUIRE(process.is_valid());
+		CHECK(process->get_emission_shape() == ParticleProcessMaterial::EMISSION_SHAPE_BOX);
+		CHECK(process->get_emission_box_extents().is_equal_approx(Vector3(3, 1, 2)));
+		CHECK(SIGN(process->get_gravity().y) == e.gravity_y_sign);
+		CHECK((process->get_direction().y > 0) == (e.rising || e.kind != LookPreset3D::PARTICLES_SNOW));
+		CHECK(process->get_color_ramp().is_valid()); // Fades in and out.
+		const Color color = process->get_color();
+		CHECK((MAX(color.r, MAX(color.g, color.b)) > 1.0) == e.glows);
+		Ref<QuadMesh> quad = particles->get_draw_pass_mesh(0);
+		REQUIRE(quad.is_valid());
+		Ref<StandardMaterial3D> material = quad->get_material();
+		REQUIRE(material.is_valid());
+		CHECK(material->get_billboard_mode() == BaseMaterial3D::BILLBOARD_PARTICLES);
+		CHECK((material->get_blend_mode() == BaseMaterial3D::BLEND_MODE_ADD) == e.glows);
+		memdelete(particles);
+	}
+	// Fireflies are sparse and blink; snow is dense.
+	GPUParticles3D *fireflies = LookPreset3D::create_particles(LookPreset3D::PARTICLES_FIREFLIES);
+	GPUParticles3D *snow = LookPreset3D::create_particles(LookPreset3D::PARTICLES_SNOW);
+	CHECK(fireflies->get_amount() < snow->get_amount());
+	Ref<GradientTexture1D> ramp = Ref<ParticleProcessMaterial>(fireflies->get_process_material())->get_color_ramp();
+	CHECK(ramp->get_gradient()->get_point_count() > 4); // Pulses, not just a fade.
+	memdelete(fireflies);
+	memdelete(snow);
 }
 
 TEST_CASE("[SceneTree][LookPreset3D] High quality uses the high soft shadow filter") {

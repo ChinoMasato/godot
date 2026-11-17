@@ -151,6 +151,14 @@
 				Makes [param sprite] a lit pixel-art sprite: the material of [method create_lit_sprite_material] as its [member GeometryInstance3D.material_override], shadow casting on, nearest filtering, alpha cut, and the sprite's own billboard off (the material faces the camera).
 			</description>
 		</method>
+		<method name="create_particles" qualifiers="static">
+			<return type="GPUParticles3D" />
+			<param index="0" name="kind" type="int" enum="UZULook.ParticleKind" />
+			<param index="1" name="extents" type="Vector3" default="Vector3(4, 2, 4)" />
+			<description>
+				Returns sparkle particles of [param kind] that emit in a box of half size [param extents] around the node: small soft dots facing the camera that fade in and out, already full when the scene starts. Dust, fireflies and embers glow (additive, bright enough for the look's glow); fireflies blink; snow falls and sways.
+			</description>
+		</method>
 		<method name="create_lit_sprite_material" qualifiers="static">
 			<return type="ShaderMaterial" />
 			<param index="0" name="texture" type="Texture2D" />
@@ -234,6 +242,18 @@
 		</constant>
 		<constant name="EYE_LEVEL_LOW" value="1" enum="EyeLevel">
 			0.8 meters, a seated or child's view.
+		</constant>
+		<constant name="PARTICLES_DUST" value="0" enum="ParticleKind">
+			Light dust drifting in sunbeams.
+		</constant>
+		<constant name="PARTICLES_FIREFLIES" value="1" enum="ParticleKind">
+			Slow, blinking green-yellow lights at dusk.
+		</constant>
+		<constant name="PARTICLES_SNOW" value="2" enum="ParticleKind">
+			Soft flakes falling and swaying.
+		</constant>
+		<constant name="PARTICLES_EMBERS" value="3" enum="ParticleKind">
+			Orange sparks rising from a fire.
 		</constant>
 	</constants>
 </class>

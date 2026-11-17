@@ -34,6 +34,7 @@
 #include "core/object/class_db.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/decal.h"
+#include "scene/3d/gpu_particles_3d.h"
 #include "scene/3d/light_3d.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/sprite_3d.h"
@@ -110,6 +111,10 @@ Decal *UZULook::add_blob_shadow(Node3D *p_node, float p_radius) {
 		decal->set_owner(owner);
 	}
 	return decal;
+}
+
+GPUParticles3D *UZULook::create_particles(ParticleKind p_kind, const Vector3 &p_extents) {
+	return LookPreset3D::create_particles(LookPreset3D::ParticleKind(p_kind), p_extents);
 }
 
 // HD-2D (B-722): pixel-art sprites in a lit 3D diorama, in one call.
@@ -343,6 +348,7 @@ void UZULook::_bind_methods() {
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_lit_sprite_material", "texture", "normal_map", "outline_width", "outline_color"), &UZULook::create_lit_sprite_material, DEFVAL(Variant()), DEFVAL(0.0), DEFVAL(Color(0.06, 0.05, 0.08)));
 	ClassDB::bind_static_method("UZULook", D_METHOD("configure_lit_sprite", "sprite", "normal_map", "outline_width"), &UZULook::configure_lit_sprite, DEFVAL(Variant()), DEFVAL(0.0));
 	ClassDB::bind_static_method("UZULook", D_METHOD("add_blob_shadow", "node", "radius"), &UZULook::add_blob_shadow, DEFVAL(0.4));
+	ClassDB::bind_static_method("UZULook", D_METHOD("create_particles", "kind", "extents"), &UZULook::create_particles, DEFVAL(Vector3(4, 2, 4)));
 	ClassDB::bind_static_method("UZULook", D_METHOD("apply_hd2d", "root", "atmosphere", "camera"), &UZULook::apply_hd2d, DEFVAL(ATMOSPHERE_GOLDEN_HOUR), DEFVAL(true));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_environment", "quality", "atmosphere", "clouds"), &UZULook::create_environment, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR), DEFVAL(false));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_camera_attributes", "quality"), &UZULook::create_camera_attributes, DEFVAL(QUALITY_HIGH));
@@ -375,4 +381,9 @@ void UZULook::_bind_methods() {
 	BIND_ENUM_CONSTANT(LENS_TELEPHOTO);
 	BIND_ENUM_CONSTANT(EYE_LEVEL_STANDING);
 	BIND_ENUM_CONSTANT(EYE_LEVEL_LOW);
+
+	BIND_ENUM_CONSTANT(PARTICLES_DUST);
+	BIND_ENUM_CONSTANT(PARTICLES_FIREFLIES);
+	BIND_ENUM_CONSTANT(PARTICLES_SNOW);
+	BIND_ENUM_CONSTANT(PARTICLES_EMBERS);
 }

@@ -32,11 +32,13 @@
 
 #include "core/math/color.h"
 #include "core/math/rect2.h"
+#include "core/math/vector3.h"
 #include "core/object/ref_counted.h"
 #include "core/templates/vector.h"
 
 class Camera3D;
 class Decal;
+class GPUParticles3D;
 class Sprite3D;
 class Texture2D;
 class Compositor;
@@ -158,6 +160,16 @@ void configure_lit_sprite(Sprite3D *p_sprite, const Ref<Texture2D> &p_normal_map
 // A soft round "blob" shadow projected on the ground (a Decal), the grounding
 // trick of pixel-art games: it anchors a sprite even where real shadows are faint.
 Decal *create_blob_shadow(float p_radius = 0.4);
+
+// Sparkle particles (B-718): small glowing motes that make a still scene feel alive.
+enum ParticleKind {
+	PARTICLES_DUST, // Light dust drifting in sunbeams.
+	PARTICLES_FIREFLIES, // Slow, blinking green-yellow lights at dusk.
+	PARTICLES_SNOW, // Soft flakes falling and swaying.
+	PARTICLES_EMBERS, // Orange sparks rising from a fire.
+};
+// Returns a GPUParticles3D that emits in a box of half size p_extents around itself.
+GPUParticles3D *create_particles(ParticleKind p_kind, const Vector3 &p_extents = Vector3(4, 2, 4));
 
 // Post effects for the WorldEnvironment: edge contrast and vignette
 // (UZUPostEffect) at high and standard quality; none at low quality, where the
