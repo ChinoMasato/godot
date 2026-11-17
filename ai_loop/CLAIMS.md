@@ -38,3 +38,4 @@
 | B-303 | Claude Code (cloud) | ai-native（直接） | ai_loop/selfplay.sh（新規）, ai_loop/selfplay_selftest.sh（新規）, ai_loop/selfplay/（新規）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-502 | Claude Code (cloud) | ai-native（直接） | ai_loop/prepublish.py（新規）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-601 | Claude Code (cloud) | ai-native（直接） | ai_loop/feedback/（新規: FORMAT.md, to_backlog.py, sample_feedback.json）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
+| B-302 | Claude Code (cloud) | ai-native（直接） | ai_loop/phase3_ai_player_requirements.md（新規）, ai_loop/COORDINATION.md（Q8）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
