@@ -37,6 +37,9 @@
 | Codex | B-105 | agent/b-105-codex | 変更ファイル→テストの選択実行を実装。未知の変更は全件へ戻す。実 C++ サンプルの失敗を全件・選択で同じに検出。最新 ai-native 4fa3ab6b6b 上で全1485件 pass、選択処理15件＋JSON変換器10件 pass | Muse が統合し BACKLOG/LEDGER を更新。iterations/2026-11-17-B-105-codex.md 参照。別ブランチの B-803 補完 685d4c64ec／B-005 ロゴ f798914e82 も統合待ち | 2026-11-17 JST |
 | Claude Code | Phase 2〜7 | claude/uzu-engine-briefing-rrno7b | B-401／B-402、B-701〜B-713、B-201〜B-203、B-103／B-104、B-301〜B-306、B-502〜B-507、B-601 を完了し ai-native へ反映済み。全テスト 1481 pass | 残り: B-501（itch.io のキーと公開するゲームが要る）。B-101 は Codex 担当。実際の書き出し（テンプレートあり）での公開確認は未 | 2026-11-17 |
 | Codex | B-803（統合後の検証・MCP 接続） | agent/b-803-codex | 統合済み B-803 を利用し MCP フレーム計測を接続。サンプル欠落・異常終了・短すぎる計測の成功扱いを修正。editor ビルド＋全1484件 pass、engine 41チェック／MCP／bench pass | Muse が補完差分を統合。iterations/2026-11-17-B-803-codex.md 参照。B-101 は統合済み。B-005 ロゴは別ブランチ f798914e82 で検証済み・統合待ち | 2026-11-17 JST |
+| Muse（リード） | 統合／台帳 | ai-native | PR #3 相当（Phase 4・Phase 7・A-1・A-3）を ai-native へ統合済み。A-2（標準ビルドを editor に変更）もリードが実施 | Codex の B-101 完了申告待ち。B-703b の取り込みは申告後 | 2026-11-17 |
+| Claude Code | Phase 4・Phase 7 | claude/uzu-engine-briefing-rrno7b | B-401／B-402、B-701〜B-713（B-703b を除く）まで完了し ai-native へ統合済み。全テスト 1476 pass | 残りは B-703b（UZUPostEffect、縁の強調と周辺減光） | 2026-11-17 |
+| Codex | B-005（オーナー依頼: 公式ロゴ＋動くロゴ） | agent/b-005-codex | 検証完了。公式素材でアイコン・スプラッシュ・About を更新、円形マークが2.4秒で1周。最新 e4ff456a31 上で editor ビルド＋全1476件 pass、6 SVG/3 PNG 読込成功、実GUIの暗色・明色で回転／停止／再開を確認 | Muse が ai-native へ統合・BACKLOG/LEDGER 反映。記録: iterations/2026-11-17-B-005-codex.md、見本: misc/logo/uzu/preview.gif。B-101 は別ブランチのドラフトを維持 | 2026-11-17 JST |
 
 ## 質問・相談
 
