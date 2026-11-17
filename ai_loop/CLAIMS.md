@@ -34,3 +34,4 @@
 | B-203 | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd, ai_loop/engine.sh, ai_loop/engine_selftest.sh, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-104 | Claude Code (cloud) | ai-native（直接） | ai_loop/bench.py（新規）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-103 | Claude Code (cloud) | ai-native（直接） | ai_loop/gdscript_errors_inventory.md（新規）, core/error/error_log_json.{h,cpp}, tests/core/test_error_log_json.cpp, ai_loop/iterations/ | 反映済み | 2026-11-17 |
+| B-301 | Claude Code (cloud) | ai-native（直接） | ai_loop/telemetry/（新規: FORMAT.md, telemetry.gd, report.py, sample_logs/）, ai_loop/iterations/ | 反映済み | 2026-11-17 |

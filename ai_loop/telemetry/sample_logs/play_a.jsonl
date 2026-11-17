@@ -1,0 +1,8 @@
+{"v": 1, "session": "s-0a1b2c3d4e5f6071", "type": "start", "frame": 0, "time": 0.0, "scene": "res://main.tscn", "cell": [0, 0, 0], "game": "sample"}
+{"v": 1, "session": "s-0a1b2c3d4e5f6071", "type": "checkpoint", "frame": 120, "time": 2.0, "scene": "res://main.tscn", "cell": [50, 0, 0], "id": "cp1"}
+{"v": 1, "session": "s-0a1b2c3d4e5f6071", "type": "death", "frame": 200, "time": 3.333, "scene": "res://main.tscn", "cell": [100, 0, 0], "cause": "pit"}
+{"v": 1, "session": "s-0a1b2c3d4e5f6071", "type": "death", "frame": 330, "time": 5.5, "scene": "res://main.tscn", "cell": [100, 0, 0], "cause": "pit"}
+{"v": 1, "session": "s-0a1b2c3d4e5f6071", "type": "stall", "frame": 1000, "time": 16.667, "scene": "res://main.tscn", "cell": [100, 0, 0], "seconds": 10.0}
+{"v": 1, "session": "s-0a1b2c3d4e5f6071", "type": "checkpoint", "frame": 1300, "time": 21.667, "scene": "res://main.tscn", "cell": [150, 0, 0], "id": "cp2"}
+{"v": 1, "session": "s-0a1b2c3d4e5f6071", "type": "clear", "frame": 1500, "time": 25.0, "scene": "res://main.tscn", "cell": [200, 0, 0]}
+{"v": 1, "session": "s-0a1b2c3d4e5f6071", "type": "quit", "frame": 1510, "time": 25.167, "scene": "res://main.tscn", "cell": [200, 0, 0], "frames": 1510, "fps": 60.0}
