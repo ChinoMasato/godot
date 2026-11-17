@@ -1,0 +1,7 @@
+{"events": [
+ {"frame": 0, "action": "move_right", "pressed": true},
+ {"frame": 72, "action": "jump", "pressed": true},
+ {"frame": 73, "action": "jump", "pressed": false},
+ {"frame": 222, "action": "jump", "pressed": true},
+ {"frame": 223, "action": "jump", "pressed": false}
+]}
