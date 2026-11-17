@@ -44,7 +44,7 @@ TOOLS = {
     "node_call": ("engine", "call", "Call a method on a node and return the result; 'args' is an array in Godot text format.", {"scene": SCENE, "node": NODE, "method": _str("Method name"), "args": _str('e.g. [1, "a"]')}, ["scene", "node", "method"]),
     "signal_connect": ("engine", "connect", "Connect a signal to a method persistently and save.", {"scene": SCENE, "from": NODE, "signal": _str("Signal name"), "to": NODE, "method": _str("Method name")}, ["scene", "from", "signal", "to", "method"]),
     "script_attach": ("engine", "script", "Attach a script to a node and save.", {"scene": SCENE, "node": NODE, "path": _str("Script path, res://...")}, ["scene", "node", "path"]),
-    "script_check": ("engine", "check", "Check a script; returns errors and warnings with file, line, column, code and message.", {"path": _str("Script path, res://...")}, ["path"]),
+    "script_check": ("engine", "check", "Check a GDScript, .gdshader or .gdshaderinc file without a renderer; returns errors and warnings with file, line, column, code and message.", {"path": _str("Script path, res://...")}, ["path"]),
     "class_list": ("engine", "classes", "List engine classes, optionally only those inheriting a class.", {"inherits": _str("Base class (optional)")}, []),
     "class_describe": ("engine", "describe", "Describe a class: properties, methods, signals and constants.", {"class": _str("Class name")}, ["class"]),
     "project_run": ("engine", "run", "Run the project headless for some frames; returns errors and the log tail.", {"frames": _str("Frames to run (default 120)")}, []),
@@ -64,6 +64,7 @@ TOOLS = {
     "export_presets": ("engine", "presets", "List the project's export presets.", {}, []),
     "export_templates": ("engine", "templates", "Where export templates are looked for, which are installed, and the presets' custom templates.", {}, []),
     "project_export": ("engine", "export", "Export the project with a preset; lists the files written.", {"preset": _str("Preset name"), "out": _str("Output file (default: the preset's path)")}, ["preset"]),
+    "frame_benchmark": ("bench", "run", "Measure runtime frame work average/p95/worst and startup times in a project copy. Marks are in seconds. Headless measures CPU work; render also measures wall time.", {"frames": _str("Run frames, at least 12 including 10 warmup frames (default 60)"), "repeat": _str("Measured runs (default 3), plus one discarded warmup run"), "render": {"type": "boolean", "description": "Include rendering using the existing rendering setup"}}, []),
     "project_validate": ("engine", "validate", "Load every scene, resource and script of the project; list problems (missing files, broken scripts with errors, missing main scene or autoloads).", {}, []),
     "screenshot": ("look", "shot", "Render the main scene without a GPU and save a PNG.", {"out": _str("Output PNG path"), "frames": _str("Frames before capture (default 8)")}, ["out"]),
     "panorama": ("look", "panorama", "Capture a 360-degree equirectangular panorama around the main camera and save a PNG.", {"out": _str("Output PNG path"), "width": _str("Width in pixels (default 1024)")}, ["out"]),
@@ -84,7 +85,10 @@ TOOLS = {
 
 def call_tool(project, name, arguments):
     script, command, _, _, _ = TOOLS[name]
-    argv = [sys.executable, os.path.join(HERE, "uzu.py"), script, project, command]  # Cross-platform entry (B-801).
+    if script == "bench":
+        argv = [sys.executable, os.path.join(HERE, "bench.py"), command, "--project", project]
+    else:
+        argv = [sys.executable, os.path.join(HERE, "uzu.py"), script, project, command]  # Cross-platform entry (B-801).
     for key, value in (arguments or {}).items():
         if value is None or value == "" or value is False:
             continue
@@ -137,6 +141,8 @@ def self_test():
     with tempfile.TemporaryDirectory() as project:
         with open(os.path.join(project, "project.godot"), "w") as f:
             f.write('config_version=5\n\n[application]\n\nconfig/name="mcp selftest"\nrun/main_scene="res://main.tscn"\n')
+        with open(os.path.join(project, "bad.gdshader"), "w") as f:
+            f.write("shader_type canvas_item;\nvoid fragment() { COLOR = nope; }\n")
         requests = [
             {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": PROTOCOL_VERSION, "capabilities": {}, "clientInfo": {"name": "selftest", "version": "0"}}},
             {"jsonrpc": "2.0", "method": "notifications/initialized"},
@@ -147,6 +153,9 @@ def self_test():
             {"jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": {"name": "scene_tree", "arguments": {"scene": "res://main.tscn"}}},
             {"jsonrpc": "2.0", "id": 7, "method": "tools/call", "params": {"name": "node_get", "arguments": {"scene": "res://main.tscn", "node": "Nope", "property": "position"}}},
             {"jsonrpc": "2.0", "id": 8, "method": "nope"},
+            {"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": {"name": "script_check", "arguments": {"path": "res://bad.gdshader"}}},
+            {"jsonrpc": "2.0", "id": 10, "method": "tools/call", "params": {"name": "frame_benchmark", "arguments": {"frames": "40", "repeat": "1"}}},
+            {"jsonrpc": "2.0", "id": 11, "method": "tools/call", "params": {"name": "frame_benchmark", "arguments": {"frames": "0"}}},
         ]
         proc = subprocess.run([sys.executable, os.path.abspath(__file__), "--project", project], input="\n".join(json.dumps(r) for r in requests) + "\n", capture_output=True, text=True, timeout=600)
         responses = {r["id"]: r for r in map(json.loads, proc.stdout.splitlines())}
@@ -159,7 +168,13 @@ def self_test():
         assert "Light" in paths and "WorldEnvironment" in paths and "Sun" in paths, tree
         assert responses[7]["result"]["isError"], responses[7]
         assert responses[8]["error"]["code"] == -32601, responses[8]
-        assert len(responses) == 8, "notifications must not get a response"
+        shader = json.loads(responses[9]["result"]["content"][0]["text"])
+        assert responses[9]["result"]["isError"] and shader["errors"][0]["line"] == 2, shader
+        timing = json.loads(responses[10]["result"]["content"][0]["text"])
+        assert not responses[10]["result"]["isError"], timing
+        assert timing["marks"]["[Frame] work worst"] >= timing["marks"]["[Frame] work average"] > 0, timing
+        assert responses[11]["result"]["isError"], responses[11]
+        assert len(responses) == 11, "notifications must not get a response"
     print("mcp selftest: ok")
     return 0
 

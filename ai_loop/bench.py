@@ -13,6 +13,9 @@ Usage:
   ai_loop/bench.py check    --project P --baseline base.json [run and compare options]
   ai_loop/bench.py --self-test
 
+Frames must be at least 12 (including 10 recorder warmup frames).
+A failed engine or a run without frame samples fails the benchmark.
+
 A result file is {"marks": {"[Startup] Main::Setup": seconds, ...}, "repeat": n, "frames": n}.
 "run --out base.json" makes a baseline. compare and check print one JSON line
 {"ok", "regressions": [...], "improvements": [...], "missing": [...]} and exit 1
@@ -41,6 +44,9 @@ def run(project, repeat=3, frames=60, render=False):
     """Median of each startup mark (--benchmark-file) and of the frame times (B-803)
     over several runs. The frame times come from a recorder autoload installed in a
     copy of the project. Headless by default (CPU work only); render=True draws too."""
+    # The recorder discards ten warmup frames and needs a completed sample.
+    if repeat <= 0 or frames < 12:
+        raise ValueError("repeat must be positive and frames must be at least 12 (10 warmup frames)")
     samples = {}
     with tempfile.TemporaryDirectory() as tmp:
         game = os.path.join(tmp, "game")
@@ -56,7 +62,9 @@ def run(project, repeat=3, frames=60, render=False):
                 cmd, env = uzu.render_command(cmd + uzu.driver())
             else:
                 cmd.insert(1, "--headless")
-            subprocess.run(cmd + ["--", "--uzu-frametime", frame_out], capture_output=True, timeout=600, env=env)
+            proc = subprocess.run(cmd + ["--", "--uzu-frametime", frame_out], capture_output=True, timeout=600, env=env)
+            if proc.returncode != 0:
+                raise RuntimeError(f"the engine failed (run {i + 1}, exit {proc.returncode}): {uzu.tail(proc.stderr.decode(errors='replace'))}")
             if not os.path.exists(out):
                 raise RuntimeError(f"the engine wrote no benchmark file (run {i + 1}); does {project} have a main scene?")
             if i < 0:
@@ -64,13 +72,14 @@ def run(project, repeat=3, frames=60, render=False):
             with open(out, encoding="utf-8") as f:
                 for key, seconds in json.load(f).items():
                     samples.setdefault(key, []).append(float(seconds))
-            if os.path.exists(frame_out):
-                with open(frame_out, encoding="utf-8") as f:
-                    ft = json.load(f)
-                for name in ("average", "p95", "worst"):
-                    samples.setdefault(f"[Frame] work {name}", []).append(ft["work"][f"{name}_ms"] / 1000.0)
-                    if render:  # Headless frames are padded with a sleep: wall time says nothing there.
-                        samples.setdefault(f"[Frame] wall {name}", []).append(ft["wall"][f"{name}_ms"] / 1000.0)
+            if not os.path.exists(frame_out):
+                raise RuntimeError(f"no frame samples (run {i + 1}); did the scene quit before warmup finished?")
+            with open(frame_out, encoding="utf-8") as f:
+                ft = json.load(f)
+            for name in ("average", "p95", "worst"):
+                samples.setdefault(f"[Frame] work {name}", []).append(ft["work"][f"{name}_ms"] / 1000.0)
+                if render:  # Headless frames are padded with a sleep: wall time says nothing there.
+                    samples.setdefault(f"[Frame] wall {name}", []).append(ft["wall"][f"{name}_ms"] / 1000.0)
     return {"marks": {k: statistics.median(v) for k, v in samples.items()}, "repeat": repeat, "frames": frames, "render": render}
 
 
@@ -114,16 +123,16 @@ def self_test():
             f.write('config_version=5\n\n[application]\n\nconfig/name="bench selftest"\nrun/main_scene="res://main.tscn"\n')
         with open(os.path.join(project, "main.tscn"), "w") as f:
             f.write('[gd_scene format=3]\n\n[node name="Main" type="Node"]\n')
-        base = run(project, repeat=3, frames=5)
+        base = run(project, repeat=3, frames=40)
         assert "[Startup] Load Autoloads" in base["marks"], base
-        same = compare(base, run(project, repeat=3, frames=5))
+        same = compare(base, run(project, repeat=3, frames=40))
         assert same["ok"], same
         # An artificially slow change: an autoload that busy-waits 300 ms at startup.
         with open(os.path.join(project, "slow.gd"), "w") as f:
             f.write("extends Node\n\nfunc _init() -> void:\n\tOS.delay_msec(300)\n")
         with open(os.path.join(project, "project.godot"), "a") as f:
             f.write('\n[autoload]\n\nSlow="*res://slow.gd"\n')
-        slow = compare(base, run(project, repeat=3, frames=5))
+        slow = compare(base, run(project, repeat=3, frames=40))
         assert not slow["ok"], slow
         assert any(r["mark"] == "[Startup] Load Autoloads" for r in slow["regressions"]), slow
         # A slow frame (5 ms of work in every _process) is a frame-time regression (B-803).
@@ -135,6 +144,30 @@ def self_test():
             f.write('[gd_scene load_steps=2 format=3]\n\n[ext_resource type="Script" path="res://main.gd" id="1"]\n\n[node name="Main" type="Node"]\nscript = ExtResource("1")\n')
         heavy = compare(base, run(project, repeat=3, frames=40))
         assert any(r["mark"] == "[Frame] work average" for r in heavy["regressions"]), heavy
+        # Early exit must not masquerade as a successful frame benchmark.
+        with open(os.path.join(project, "main.gd"), "w") as f:
+            f.write("extends Node\nfunc _ready() -> void:\n\tget_tree().quit()\n")
+        try:
+            run(project, repeat=1, frames=40)
+        except RuntimeError as error:
+            assert "no frame samples" in str(error), error
+        else:
+            raise AssertionError("early exit returned a benchmark without frame samples")
+        with open(os.path.join(project, "main.gd"), "w") as f:
+            f.write("extends Node\nfunc _ready() -> void:\n\tget_tree().quit(7)\n")
+        try:
+            run(project, repeat=1, frames=40)
+        except RuntimeError as error:
+            assert "exit 7" in str(error), error
+        else:
+            raise AssertionError("failed engine returned a successful benchmark")
+        for repeat, frames in ((0, 40), (1, 0), (1, 10)):
+            try:
+                run(project, repeat=repeat, frames=frames)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("invalid benchmark arguments were accepted")
         # compare() on its own: noise below min_ms passes, a real slowdown fails.
         assert compare({"marks": {"a": 0.0001}}, {"marks": {"a": 0.0004}})["ok"]
         assert not compare({"marks": {"a": 0.1}}, {"marks": {"a": 0.2}})["ok"]
@@ -184,4 +217,8 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except (ValueError, RuntimeError, subprocess.TimeoutExpired, uzu.ToolError) as error:
+        print(json.dumps({"ok": False, "error": str(error)}))
+        sys.exit(1)
