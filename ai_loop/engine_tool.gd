@@ -20,6 +20,8 @@ extends SceneTree
 ## Class database:
 ##   classes    [--inherits Node3D]
 ##   describe   --class Light3D                                   properties, methods, signals, constants
+## Project:
+##   validate                                                     loads every scene, resource and script; lists problems (B-203)
 ## Prints one line "ENGINE_RESULT {json}"; exits 0 on success, 1 on error.
 
 
@@ -101,6 +103,8 @@ func _own_recursive(node: Node, owner: Node) -> void:
 
 func _run(command: String, args: PackedStringArray) -> Dictionary:
 	match command:
+		"validate":
+			return _validate()
 		"classes":
 			var base := _option(args, "inherits")
 			var names: Array = Array(ClassDB.get_inheriters_from_class(base) if not base.is_empty() else ClassDB.get_class_list())
@@ -249,3 +253,64 @@ func _scene_command(command: String, args: PackedStringArray, root: Node) -> Dic
 			node.set_script(script)
 			return {"ok": true, "save": true, "node": _node_info(root, node)}
 	return _error("unknown command '%s'" % command)
+
+
+const RESOURCE_EXTENSIONS := ["tscn", "scn", "tres", "res"]
+const SCRIPT_EXTENSIONS := ["gd"]
+
+
+# Every file under res:// except hidden directories (.godot, .git...).
+func _project_files(dir: String, out: Array) -> void:
+	for sub in DirAccess.get_directories_at(dir):
+		if not sub.begins_with("."):
+			_project_files(dir.path_join(sub), out)
+	for file in DirAccess.get_files_at(dir):
+		out.append(dir.path_join(file))
+
+
+# A dependency entry is "uid://...::Type::res://path" or a plain path.
+func _dependency_path(entry: String) -> String:
+	var parts := entry.split("::")
+	var path := parts[parts.size() - 1] if parts.size() >= 3 else parts[0]
+	if path.is_empty() or path.begins_with("uid://"):
+		var uid := ResourceUID.text_to_id(parts[0])
+		if uid != ResourceUID.INVALID_ID and ResourceUID.has_id(uid):
+			path = ResourceUID.get_id_path(uid)
+	return path
+
+
+func _exists(path: String) -> bool:
+	return ResourceLoader.exists(path) or FileAccess.file_exists(path)
+
+
+func _validate() -> Dictionary:
+	var issues := []
+	var files := []
+	_project_files("res://", files)
+	var checked := 0
+	for file in files:
+		var ext: String = file.get_extension().to_lower()
+		if ext in RESOURCE_EXTENSIONS:
+			checked += 1
+			for entry in ResourceLoader.get_dependencies(file):
+				var dep := _dependency_path(entry)
+				if not _exists(dep):
+					issues.append({"kind": "missing_dependency", "file": file, "target": dep, "message": "%s refers to %s, which does not exist" % [file, dep]})
+			if ResourceLoader.load(file, "", ResourceLoader.CACHE_MODE_IGNORE) == null:
+				issues.append({"kind": "load_failed", "file": file, "message": "%s could not be loaded" % file})
+		elif ext in SCRIPT_EXTENSIONS:
+			checked += 1
+			var script := ResourceLoader.load(file, "", ResourceLoader.CACHE_MODE_IGNORE) as Script
+			# An abstract class cannot be instantiated, but it is valid.
+			if script == null or not (script.can_instantiate() or script.is_abstract()):
+				issues.append({"kind": "script_error", "file": file, "message": "%s has errors" % file})
+	var main_scene: String = ProjectSettings.get_setting("application/run/main_scene", "")
+	if not main_scene.is_empty() and not _exists(_dependency_path(main_scene)):
+		issues.append({"kind": "missing_main_scene", "file": "res://project.godot", "target": main_scene, "message": "the main scene %s does not exist" % main_scene})
+	for prop in ProjectSettings.get_property_list():
+		var name: String = prop.name
+		if name.begins_with("autoload/"):
+			var target := String(ProjectSettings.get_setting(name)).trim_prefix("*")
+			if not _exists(_dependency_path(target)):
+				issues.append({"kind": "missing_autoload", "file": "res://project.godot", "target": target, "message": "the autoload %s points to %s, which does not exist" % [name.trim_prefix("autoload/"), target]})
+	return {"ok": issues.is_empty(), "command": "validate", "checked": checked, "issues": issues}

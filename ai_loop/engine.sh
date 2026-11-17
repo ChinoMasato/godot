@@ -9,6 +9,7 @@
 # This wrapper adds:
 #   run    [--frames 120] [--scene res://x.tscn]   runs the project headless; returns structured errors (B-201) and the log tail
 #   check  --path res://a.gd                       checks a script; returns errors and warnings with line, column and code (B-202)
+#   validate                                       loads every scene, resource and script; lists problems such as missing files (B-203)
 #   shot   --out x.png [--frames 8]                renders without a GPU (ai_loop/screenshot.sh)
 #
 #   ai_loop/engine.sh my_game new --scene res://level.tscn --type Node3D
@@ -91,6 +92,31 @@ result["ok"] = result["ok"] and rc == 0
 print(json.dumps({"command": "check", "path": path, **result}))
 PY
     exit $(( RC == 0 ? 0 : 1 ))
+    ;;
+  validate)
+    # Loads every scene, resource and script (engine_tool.gd validate, B-203), then
+    # adds each broken script's errors from the engine's JSON check (B-202).
+    set +e
+    "$GODOT" --headless --path "$PROJECT" --script "$ROOT/ai_loop/engine_tool.gd" -- validate >"$LOG" 2>&1
+    RC=$?
+    set -e
+    python3 -I - "$LOG" "$GODOT" "$PROJECT" <<'PY'
+import json, subprocess, sys
+log, godot, project = sys.argv[1:4]
+line = next((l for l in open(log, encoding="utf-8", errors="replace") if l.startswith("ENGINE_RESULT ")), None)
+if line is None:
+    print(json.dumps({"ok": False, "command": "validate", "error": "no result from the engine", "log_tail": "".join(open(log, encoding="utf-8", errors="replace").readlines()[-20:])}))
+    sys.exit(1)
+result = json.loads(line[len("ENGINE_RESULT "):])
+for issue in result.get("issues", []):
+    if issue["kind"] == "script_error":
+        out = subprocess.run([godot, "--headless", "--path", project, "--check-only", "--json", "--script", issue["file"]], capture_output=True, text=True, timeout=120).stdout
+        check = next((json.loads(l) for l in out.splitlines() if l.startswith('{"ok":')), None)
+        issue["errors"] = check["errors"] if check else []
+print(json.dumps(result))
+sys.exit(0 if result.get("ok") else 1)
+PY
+    exit $?
     ;;
   shot)
     exec "$ROOT/ai_loop/look.sh" "$PROJECT" "$@"

@@ -46,6 +46,11 @@ expect "describe"   'r["ok"] and any(p["name"] == "omni_range" for p in r["prope
 expect "check good" 'r["ok"]' "$("$E" "$P" check --path res://hello.gd)"
 expect "check bad"  'not r["ok"] and len(r["errors"]) > 0 and all(k in r["errors"][0] for k in ("file", "line", "column", "code", "message")) and r["errors"][0]["line"] > 0' "$("$E" "$P" check --path res://broken.gd || true)"
 expect "run"        'r["ok"] and any("selftest error from _ready" in e["message"] and e["code"].startswith("E") and e["file"] for e in r["errors"])' "$("$E" "$P" run --frames 5)"
+# validate (B-203): the broken script and a missing file are found; fixed, nothing is left.
+printf '[gd_resource type="Resource" load_steps=2 format=3]\n\n[ext_resource type="Texture2D" path="res://missing.png" id="1"]\n\n[resource]\nmetadata/tex = ExtResource("1")\n' >"$P/ref.tres"
+expect "validate broken" 'not r["ok"] and {("script_error", "res://broken.gd"), ("missing_dependency", "res://ref.tres")} <= {(i["kind"], i["file"]) for i in r["issues"]} and any(e["line"] == 2 for i in r["issues"] for e in i.get("errors", []))' "$("$E" "$P" validate || true)"
+rm "$P/broken.gd" "$P/ref.tres"
+expect "validate clean" 'r["ok"] and r["issues"] == [] and r["checked"] >= 2' "$("$E" "$P" validate)"
 expect "remove"     'r["ok"] and r["removed"] == "Group/Box"' "$("$E" "$P" remove $S --node Group/Box)"
 expect "bad node"   'not r["ok"]' "$("$E" "$P" get $S --node Nope --property position || true)"
 expect "bad scene"  'not r["ok"]' "$("$E" "$P" tree --scene res://nope.tscn || true)"
