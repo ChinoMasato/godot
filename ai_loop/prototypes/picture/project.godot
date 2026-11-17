@@ -1,0 +1,15 @@
+config_version=5
+
+[application]
+
+config/name="U.ZU Picture prototype"
+run/main_scene="res://main.tscn"
+
+[display]
+
+window/size/viewport_width=1672
+window/size/viewport_height=941
+
+[rendering]
+
+renderer/rendering_method="forward_plus"

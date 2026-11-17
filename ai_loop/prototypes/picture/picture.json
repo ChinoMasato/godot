@@ -1,0 +1,171 @@
+{
+	"image": "res://art/art.webp",
+	"depth": {
+		"path": "res://art/depth.png",
+		"kind": "disparity",
+		"near": 4.5,
+		"far": 160
+	},
+	"fov": 38,
+	"normal": "res://art/normal.webp",
+	"regions": {
+		"glow": {
+			"path": "res://art/mask.png",
+			"channel": "r"
+		},
+		"wet": {
+			"path": "res://art/mask.png",
+			"channel": "g"
+		},
+		"sky": {
+			"path": "res://art/mask.png",
+			"channel": "b"
+		},
+		"flicker": {
+			"path": "res://art/mask.png",
+			"channel": "a"
+		},
+		"waterfall": {
+			"path": "res://art/mask2.png",
+			"channel": "r"
+		},
+		"sway": {
+			"path": "res://art/mask2.png",
+			"channel": "g"
+		},
+		"water": {
+			"path": "res://art/mask2.png",
+			"channel": "b"
+		}
+	},
+	"lights": [
+		{
+			"at": [
+				1040,
+				575
+			],
+			"color": "#ffa64d",
+			"energy": 2.4,
+			"flicker": 1.0
+		},
+		{
+			"at": [
+				1643,
+				522
+			],
+			"color": "#ffb45e",
+			"energy": 1.8,
+			"flicker": 1.0
+		},
+		{
+			"at": [
+				1497,
+				548
+			],
+			"color": "#ffb060",
+			"energy": 1.0,
+			"flicker": 1.0
+		},
+		{
+			"at": [
+				1610,
+				395
+			],
+			"color": "#ffc070",
+			"energy": 1.0,
+			"flicker": 0.6
+		},
+		{
+			"at": [
+				1135,
+				330
+			],
+			"color": "#ffc77a",
+			"energy": 1.6,
+			"flicker": 0.15
+		},
+		{
+			"at": [
+				1450,
+				120
+			],
+			"color": "#ffd27a",
+			"energy": 1.4,
+			"flicker": 0.1
+		}
+	],
+	"moon": {
+		"at": [
+			937,
+			141
+		],
+		"color": "#a8bce0",
+		"energy": 0.6
+	},
+	"effects": {
+		"rain": {
+			"amount": 1600,
+			"opacity": 0.09
+		},
+		"embers": {
+			"from": [
+				[
+					1040,
+					575
+				],
+				[
+					1643,
+					522
+				]
+			],
+			"amount": 48
+		},
+		"fog": {
+			"density": 0.35,
+			"layers": [
+				9,
+				18,
+				40,
+				90
+			],
+			"amount": 0.4,
+			"top": 0.1
+		},
+		"clouds": {
+			"amount": 0.8,
+			"speed": 1.0,
+			"direction": [
+				1,
+				0
+			]
+		},
+		"lightning": {
+			"first": 2.0,
+			"every": [
+				6,
+				14
+			],
+			"strength": 0.85,
+			"seed": 1,
+			"at": [
+				700,
+				120
+			]
+		}
+	},
+	"camera": {
+		"drift": 1.6,
+		"push": 1.2
+	},
+	"look": {
+		"atmosphere": "night",
+		"quality": "high",
+		"post": true,
+		"vignette": 0.3
+	},
+	"relief": {
+		"tear": 0.05,
+		"backdrop": true,
+		"backdrop_radius": 6
+	}
+}
