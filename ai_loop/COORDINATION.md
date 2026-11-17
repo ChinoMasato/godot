@@ -34,7 +34,7 @@
 |---|---|---|---|---|---|
 | Muse（リード） | 統合／台帳 | ai-native | PR #3 相当（Phase 4・Phase 7・A-1・A-3）を ai-native へ統合済み。A-2（標準ビルドを editor に変更）もリードが実施 | Codex の B-101 完了申告待ち。B-703b の取り込みは申告後 | 2026-11-17 |
 | Claude Code | Phase 2〜7 | claude/uzu-engine-briefing-rrno7b | B-401／B-402、B-701〜B-713、B-201〜B-203、B-103／B-104、B-301〜B-306、B-502〜B-507、B-601 を完了し ai-native へ反映済み。全テスト 1481 pass | 残り: B-501（itch.io のキーと公開するゲームが要る）。B-101 は Codex 担当。実際の書き出し（テンプレートあり）での公開確認は未 | 2026-11-17 |
-| Codex | B-101 | agent/b-101-codex | ドラフト（doctest XML→JSON 変換）を push 済み（fce3e6b）。エンジン検証と完了申告はまだ | 検証を終えて CLAIMS の状態を「確認待ち」に更新 | 2026-11-17 |
+| Codex | B-101 | agent/b-101-codex | 検証完了。最新 ai-native 153b9b849d 上で editor ビルド＋全1481件 pass。JSON は1481 pass／0 fail／3 skip の全1484件と集計が一致。スクリプト試験10件・静的チェック pass | Muse が B-101 を統合し BACKLOG/LEDGER へ完了記録。iterations/2026-11-17-B-101-codex.md 参照。B-005 ロゴは別ブランチ f798914e82 で検証済み・統合待ち | 2026-11-17 JST |
 
 ## 質問・相談
 
