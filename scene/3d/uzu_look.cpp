@@ -119,6 +119,7 @@ Dictionary UZULook::apply_to_scene(Node *p_root, Quality p_quality, Atmosphere p
 	}
 	world_environment->set_environment(create_environment(p_quality, p_atmosphere, p_clouds));
 	world_environment->set_camera_attributes(create_camera_attributes(p_quality));
+	world_environment->set_compositor(LookPreset3D::create_compositor(LookPreset3D::Quality(p_quality)));
 
 	// The sun belongs to the atmosphere (its direction, color and strength), so
 	// an existing one is configured too: otherwise a night look keeps a day sun.

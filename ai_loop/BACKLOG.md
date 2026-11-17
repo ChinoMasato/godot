@@ -40,7 +40,7 @@
 - [x] B-701 3D 標準ルック（ACES・空の環境光・Glow・フォグ・SSAO/SSIL・段階分けした影、画質3段階、エディタの「Add U.ZU Look to Scene」）。
 - [x] B-702 空気遠近の2モードと時間帯（Clear／Humid／Golden Hour、PhysicalSky）。
 - [x] B-703 色調整 LUT（中間色の彩度は控えめ、影とハイライトはさらに灰色寄り、S字カーブ）。
-- [ ] B-703b 縁の強調と周辺減光: 新しい後処理の部品 `UZUPostEffect`（CompositorEffect、新しいファイル）として追加する（Q7 で案B に決定）。Compatibility（Web）では効かない。判定: 値の単体テスト＋全テスト pass＋A-1 の画像をオーナーが判断。
+- [x] B-703b 縁の強調と周辺減光: 新しい後処理の部品 `UZUPostEffect`（CompositorEffect、新しいファイル）として追加する（Q7 で案B に決定）。Compatibility（Web）では効かない。判定: 値の単体テスト＋全テスト pass＋A-1 の画像をオーナーが判断。
 - [x] B-704 素材のプリセット（肌・葉・ガラス・水・灯り）、画質「高」で SSR。
 - [x] B-705 照明のプリセット（Night、3点照明の補助光・背面光、街灯）。
 - [x] B-706 遠景ぼかし（画質「高」）。

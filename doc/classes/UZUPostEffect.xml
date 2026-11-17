@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUPostEffect" inherits="CompositorEffect" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Edge contrast and vignette for the U.ZU look, as a compositor effect.
+	</brief_description>
+	<description>
+		A [CompositorEffect] that runs after transparent geometry on the HDR color: it strengthens the light-dark contrast at edges (an unsharp mask), so forms read more clearly, and darkens the corners (vignette), which draws the eye to the center. [method UZULook.apply_to_scene] adds it at [constant UZULook.QUALITY_HIGH] and [constant UZULook.QUALITY_STANDARD].
+		It runs on the Forward+ and Mobile renderers with a 16-bit float color buffer, and does nothing in the Compatibility renderer.
+	</description>
+	<tutorials>
+	</tutorials>
+	<members>
+		<member name="edge_strength" type="float" setter="set_edge_strength" getter="get_edge_strength" default="0.3">
+			How strongly edges are sharpened. [code]0.0[/code] turns it off.
+		</member>
+		<member name="vignette_strength" type="float" setter="set_vignette_strength" getter="get_vignette_strength" default="0.35">
+			How much the corners are darkened, from [code]0.0[/code] (none) to [code]1.0[/code] (black corners).
+		</member>
+	</members>
+</class>

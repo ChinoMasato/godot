@@ -34,11 +34,13 @@
 #include "scene/3d/light_3d.h"
 #include "scene/resources/3d/sky_material.h"
 #include "scene/resources/camera_attributes.h"
+#include "scene/resources/compositor.h"
 #include "scene/resources/environment.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
 #include "scene/resources/shader.h"
 #include "scene/resources/sky.h"
+#include "scene/resources/uzu_post_effect.h"
 
 namespace LookPreset3D {
 
@@ -531,6 +533,19 @@ void configure_camera(Camera3D *p_camera, Lens p_lens, float p_shift) {
 	// at the near plane.
 	const float size = 2.0 * z_near * Math::tan(Math::deg_to_rad(fov) * 0.5f);
 	p_camera->set_frustum(size, Vector2(0.0, p_shift * size), z_near, z_far);
+}
+
+Ref<Compositor> create_compositor(Quality p_quality) {
+	Ref<Compositor> compositor;
+	compositor.instantiate();
+	if (p_quality != QUALITY_LOW) {
+		Ref<UZUPostEffect> effect;
+		effect.instantiate();
+		TypedArray<CompositorEffect> effects;
+		effects.push_back(effect);
+		compositor->set_compositor_effects(effects);
+	}
+	return compositor;
 }
 
 Vector<Vector2> get_composition_guide_lines(const Rect2 &p_frame) {

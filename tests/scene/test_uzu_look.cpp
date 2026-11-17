@@ -40,8 +40,10 @@ TEST_FORCE_LINK(test_uzu_look)
 #include "scene/3d/uzu_look.h"
 #include "scene/3d/world_environment.h"
 #include "scene/resources/camera_attributes.h"
+#include "scene/resources/compositor.h"
 #include "scene/resources/environment.h"
 #include "scene/resources/material.h"
+#include "scene/resources/uzu_post_effect.h"
 
 namespace TestUZULook {
 
@@ -74,6 +76,11 @@ TEST_CASE("[SceneTree][UZULook] Apply the look to a scene") {
 	CHECK(sun->get_owner() == root);
 	CHECK(world_environment->get_environment()->get_fog_height_density() > 0.0);
 	CHECK(world_environment->get_camera_attributes().is_valid());
+	// Edge contrast and vignette at high quality.
+	REQUIRE(world_environment->get_compositor().is_valid());
+	TypedArray<CompositorEffect> effects = world_environment->get_compositor()->get_compositor_effects();
+	REQUIRE(effects.size() == 1);
+	CHECK(Object::cast_to<UZUPostEffect>(effects[0]) != nullptr);
 
 	// Applying again updates the existing environment and reconfigures the
 	// existing sun for the new atmosphere (a night look must not keep a day sun).
@@ -83,6 +90,8 @@ TEST_CASE("[SceneTree][UZULook] Apply the look to a scene") {
 	CHECK(sun->get_param(Light3D::PARAM_ENERGY) < 0.5);
 	CHECK(root->get_child_count() == 2);
 	CHECK_FALSE(world_environment->get_environment()->is_ssao_enabled());
+	// No post effect at low quality (the Compatibility renderer does not run it).
+	CHECK(world_environment->get_compositor()->get_compositor_effects().is_empty());
 
 	// Fill and rim lights do not count as a sun.
 	Dictionary rig = UZULook::add_lighting_rig(root);

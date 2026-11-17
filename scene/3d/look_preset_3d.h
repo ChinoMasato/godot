@@ -35,6 +35,7 @@
 #include "core/templates/vector.h"
 
 class Camera3D;
+class Compositor;
 class CameraAttributesPractical;
 class DirectionalLight3D;
 class OmniLight3D;
@@ -132,6 +133,11 @@ float get_eye_height(EyeLevel p_eye_level);
 // Sets the lens. A non-zero shift (fraction of the view height, positive is up)
 // moves the framing without tilting the camera, so vertical lines stay parallel.
 void configure_camera(Camera3D *p_camera, Lens p_lens, float p_shift = 0.0);
+
+// Post effects for the WorldEnvironment: edge contrast and vignette
+// (UZUPostEffect) at high and standard quality; none at low quality, where the
+// Compatibility renderer does not run compositor effects.
+Ref<Compositor> create_compositor(Quality p_quality);
 
 // Composition guides for a frame, as line segments (pairs of points): the two
 // rule-of-thirds lines each way, the two diagonals and a small center cross.
