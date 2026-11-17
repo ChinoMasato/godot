@@ -11,13 +11,15 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py look     <project> <command> [options]   the U.ZU look (B-7xx), shot / check / panorama
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
-  uzu.py selftest [engine | selfplay | tools | all]
+  uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
 engine commands: run, check, validate, shot, import, and every command of ai_loop/engine_tool.gd
 (tree, props, get, set, add, instance, remove, reparent, call, connect, script, new,
 classes, describe, actions, res-new, res-props, res-get, res-set, setting-get,
-setting-set, action-add, action-remove, import-get, import-set). look commands: shot, check, panorama, and those of
-ai_loop/look_tool.gd (apply, rig, lamp, camera, material, info).
+setting-set, action-add, action-remove, import-get, import-set, export-preset, presets);
+also export (--preset, B-804) and templates. look commands: shot, check, panorama, and those of
+ai_loop/look_tool.gd (apply, rig, lamp, camera, material, info), and bake (lightmaps, B-805:
+--scene res://x.tscn [--node Path/To/LightmapGI] [--prepare]).
 Every command prints one JSON line {"ok": bool, ...}; exit 0 on success.
 
 Environment:
@@ -181,12 +183,60 @@ def engine(project, args):
         return look(project, args)
     if command == "import":
         return import_assets(project)
+    if command == "export":
+        return export(project, opt(args, "preset"), opt(args, "out"), "--debug" in args)
+    if command == "templates":
+        return templates(project)
     result, _ = gd_tool(project, "engine_tool.gd", args, "ENGINE_RESULT ")
     if command == "import-set" and result.get("ok"):
         imported = import_assets(project)  # The new setting takes effect only once the file is reimported.
         result["ok"] = imported["ok"]
         result["errors"] = imported["errors"]
     return result
+
+
+def export(project, preset, out="", debug=False):
+    """Exports the project with a preset (B-804) and lists what was written."""
+    if not preset:
+        raise ToolError("export needs --preset <name> (see: engine <project> presets)")
+    presets = gd_tool(project, "engine_tool.gd", ["presets"], "ENGINE_RESULT ")[0]["presets"]
+    chosen = next((p for p in presets if p["name"] == preset), None)
+    if chosen is None:
+        raise ToolError(f"no export preset named '{preset}'", presets=[p["name"] for p in presets])
+    out = os.path.abspath(out) if out else os.path.join(project, chosen["export_path"])
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        jsonl = os.path.join(tmp, "errors.jsonl")
+        rc, log = run([find_godot(), "--headless", "--path", project, "--export-debug" if debug else "--export-release", preset, out, "--log-json", jsonl], timeout=1800)
+        errors = [e for e in read_jsonl(jsonl) if e.get("level") != "warning"]
+    folder = os.path.dirname(out)
+    files = sorted(f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)))
+    ok = rc == 0 and os.path.exists(out)
+    result = {"ok": ok, "command": "export", "preset": preset, "out": out, "files": files, "size_mb": round(sum(os.path.getsize(os.path.join(folder, f)) for f in files) / 1048576, 3), "errors": errors}
+    if not ok:
+        result["log_tail"] = re.sub(r"\x1b\[[0-9;]*m", "", tail(log, 12))
+        if any("template" in (e.get("message", "") + log).lower() for e in errors) or "template" in log.lower():
+            result["hint"] = "export templates are missing: see `engine <project> templates`, or give the preset a --template zip"
+    return result
+
+
+def templates(project):
+    """Where the editor looks for export templates, which are there, and the presets' own templates."""
+    rc, out = run([find_godot(), "--version"], timeout=60)
+    version = out.strip().splitlines()[-1] if out.strip() else ""
+    config = ".".join(version.split(".")[:3])  # e.g. 4.8.beta (+ .mono in .NET builds)
+    if platform.system() == "Windows":
+        data = os.environ.get("APPDATA", "")
+    elif platform.system() == "Darwin":
+        data = os.path.expanduser("~/Library/Application Support")
+    else:
+        data = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    folder = os.path.join(data, "godot", "export_templates", config)
+    installed = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+    presets = gd_tool(project, "engine_tool.gd", ["presets"], "ENGINE_RESULT ")[0]["presets"]
+    for p in presets:
+        p["custom_template_exists"] = bool(p["custom_template"]) and os.path.exists(p["custom_template"])
+    return {"ok": True, "command": "templates", "engine_version": version, "templates_dir": folder, "installed": installed, "presets": presets}
 
 
 def project_files(project, extensions):
@@ -275,7 +325,53 @@ def look(project, args):
             rc, out_text = run([sys.executable, os.path.join(HERE, "panorama.py"), faces, os.path.abspath(out), "--width", opt(args, "width", "1024")], timeout=600)
         result = next((json.loads(l) for l in out_text.splitlines() if l.startswith("{")), None)
         return result or {"ok": rc == 0, "command": "panorama", "image": os.path.abspath(out), "log": tail(out_text, 5)}
+    if command == "bake":
+        return bake(project, opt(args, "scene"), opt(args, "node"), "--prepare" in args)
     result, _ = gd_tool(project, "look_tool.gd", args, "UZU_RESULT ")
+    return result
+
+
+BAKE_PLUGIN = "res://addons/uzu_bake/plugin.cfg"
+
+
+def bake(project, scene, node="", prepare=False):
+    """Bakes the scene's LightmapGI (B-805). Lightmap baking needs the editor's import
+    system and a GPU-capable renderer, so the editor runs (drawing: software Vulkan
+    without a display) with a temporary plugin that bakes and saves the scene. The
+    project's project.godot is restored and the plugin removed afterwards."""
+    if not scene:
+        raise ToolError("bake needs --scene res://level.tscn")
+    cfg = os.path.join(project, "project.godot")
+    addon = os.path.join(project, "addons", "uzu_bake")
+    if os.path.exists(addon):
+        raise ToolError("addons/uzu_bake already exists in the project; remove it first")
+    with open(cfg, encoding="utf-8") as f:
+        original = f.read()
+    enabled = re.search(r'^enabled=PackedStringArray\((.*)\)$', original, re.M)
+    if "\n[editor_plugins]\n" in original and enabled:
+        items = [x for x in enabled.group(1).split(",") if x.strip()]
+        text = original.replace(enabled.group(0), "enabled=PackedStringArray(" + ", ".join(items + [f'"{BAKE_PLUGIN}"']) + ")", 1)
+    else:
+        text = original.rstrip("\n") + f'\n\n[editor_plugins]\n\nenabled=PackedStringArray("{BAKE_PLUGIN}")\n'
+    shutil.copytree(os.path.join(HERE, "bake"), addon)
+    try:
+        with open(cfg, "w", encoding="utf-8") as f:
+            f.write(text)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "bake.json")
+            user = ["--", "--uzu-bake-scene", scene, "--uzu-bake-out", out] + (["--uzu-bake-node", node] if node else []) + (["--uzu-bake-prepare"] if prepare else [])
+            cmd, env = render_command([find_godot(), "-e", "--path", project] + driver() + user)
+            rc, log = run(cmd, timeout=3600, env=env, cwd=project)
+            result = json.load(open(out, encoding="utf-8")) if os.path.exists(out) else None
+    finally:
+        with open(cfg, "w", encoding="utf-8") as f:
+            f.write(original)  # Exactly as it was.
+        shutil.rmtree(addon, ignore_errors=True)
+        for leftover in glob.glob(os.path.join(project, ".godot", "editor", "*uzu_bake*")):
+            os.remove(leftover)
+    if result is None:
+        return {"ok": False, "command": "bake", "error": "the editor did not report a result", "log_tail": re.sub(r"\x1b\[[0-9;]*m", "", tail(log, 15))}
+    result["command"] = "bake"
     return result
 
 
@@ -372,7 +468,7 @@ def _call(fn, *a):
     try:
         return fn(*a)
     except ToolError as e:
-        return {"ok": False, "error": e.message}
+        return dict({"ok": False, "error": e.message}, **e.extra)
 
 
 def selftest_engine():
@@ -474,6 +570,18 @@ def selftest_engine():
         r = e("validate")
         c.expect("validate shader", not r["ok"] and [(i["kind"], i["file"]) for i in r["issues"]] == [("shader_error", "res://bad.gdshader")] and r["issues"][0]["errors"][0]["line"] == 4, r)
         os.remove(os.path.join(p, "bad.gdshader"))
+        # B-804: export presets and templates (the export itself needs a template; see the B-804 record).
+        r = e("export-preset", "--platform", "web", "--template", "/nonexistent/web.zip")
+        c.expect("export-preset", r["ok"] and r["platform"] == "Web" and r["export_path"] == "build/web/index.html", r)
+        r = e("export-preset", "--platform", "linux", "--name", "Desk")
+        c.expect("export-preset second", r["ok"] and [x["name"] for x in r["presets"]] == ["Web", "Desk"], r)
+        r = e("export-preset", "--platform", "web", "--out", "out/index.html")
+        c.expect("export-preset update", r["ok"] and len(r["presets"]) == 2 and r["presets"][0]["export_path"] == "out/index.html", r)
+        c.expect("export-preset bad", not e("export-preset", "--platform", "ps9")["ok"])
+        r = e("templates")
+        c.expect("templates", r["ok"] and r["engine_version"] and r["presets"][0]["custom_template"] == "/nonexistent/web.zip" and not r["presets"][0]["custom_template_exists"], r)
+        r = e("export", "--preset", "Nope")
+        c.expect("export unknown preset", not r["ok"] and r.get("presets") == ["Web", "Desk"], r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))
@@ -516,6 +624,64 @@ def selftest_selfplay():
     return True
 
 
+BAKE_SCENE = """[gd_scene load_steps=4 format=3]
+
+[sub_resource type="PlaneMesh" id="1"]
+size = Vector2(8, 8)
+
+[sub_resource type="BoxMesh" id="2"]
+
+[sub_resource type="Environment" id="3"]
+background_mode = 1
+background_color = Color(0.4, 0.5, 0.7, 1)
+
+[node name="Level" type="Node3D"]
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+mesh = SubResource("1")
+
+[node name="Box" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+mesh = SubResource("2")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866, 0, -0.866, 0.5, 0, 4, 0)
+light_bake_mode = 2
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("3")
+
+[node name="LightmapGI" type="LightmapGI" parent="."]
+quality = 0
+bounces = 1
+"""
+
+
+def selftest_bake():
+    """Lightmap baking (B-805): runs the editor with a renderer, so it is slow and not part of 'all'."""
+    with tempfile.TemporaryDirectory() as p:
+        original = 'config_version=5\n\n[application]\n\nconfig/name="bake selftest"\nrun/main_scene="res://level.tscn"\n'
+        with open(os.path.join(p, "project.godot"), "w", encoding="utf-8") as f:
+            f.write(original)
+        with open(os.path.join(p, "level.tscn"), "w", encoding="utf-8") as f:
+            f.write(BAKE_SCENE)
+        r = bake(p, "res://level.tscn", prepare=True)
+        assert r["ok"] and r["error"] == "BAKE_ERROR_OK" and r["prepared"] == 2 and r["light_data"].endswith("level.lmbake"), r
+        assert os.path.exists(os.path.join(p, "level.lmbake")) and glob.glob(os.path.join(p, "level*.exr")), os.listdir(p)
+        text = open(os.path.join(p, "level.tscn"), encoding="utf-8").read()
+        assert "level.lmbake" in text and "add_uv2 = true" in text, text
+        assert open(os.path.join(p, "project.godot"), encoding="utf-8").read() == original, "project.godot must be restored"
+        assert not os.path.exists(os.path.join(p, "addons", "uzu_bake")), "the plugin must be removed"
+        # Without a LightmapGI: a clear error, and the project is still restored.
+        with open(os.path.join(p, "empty.tscn"), "w", encoding="utf-8") as f:
+            f.write('[gd_scene format=3]\n\n[node name="E" type="Node3D"]\n')
+        r = bake(p, "res://empty.tscn")
+        assert not r["ok"] and "LightmapGI" in r["error"], r
+        assert open(os.path.join(p, "project.godot"), encoding="utf-8").read() == original
+    print("bake selftest: ok")
+    return True
+
+
 def selftest_tools():
     """The self-tests of the Python tools; each runs in its own interpreter."""
     tools = ["mcp_server.py", "bench.py", "prepublish.py", "aiplayer.py", "telemetry/report.py", "feedback/to_backlog.py", "bridge/mock_server.py", "bridge/client.py"]
@@ -529,8 +695,8 @@ def selftest_tools():
 
 
 def selftest(which):
-    steps = {"engine": selftest_engine, "selfplay": selftest_selfplay, "tools": selftest_tools}
-    names = list(steps) if which == "all" else [which]
+    steps = {"engine": selftest_engine, "selfplay": selftest_selfplay, "tools": selftest_tools, "bake": selftest_bake}
+    names = ["engine", "selfplay", "tools"] if which == "all" else [which]  # bake is slow: run it on its own.
     ok = True
     for name in names:
         try:

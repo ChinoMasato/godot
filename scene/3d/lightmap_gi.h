@@ -285,6 +285,7 @@ protected:
 	void _validate_property(PropertyInfo &p_property) const;
 	static void _bind_methods();
 	void _notification(int p_what);
+	BakeError _bake_bind(Node *p_from_node, const String &p_image_data_path);
 
 public:
 	void set_light_data(const Ref<LightmapGIData> &p_data);

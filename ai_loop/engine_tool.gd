@@ -34,6 +34,9 @@ extends SceneTree
 ##   action-remove --name jump
 ##   import-get   --path res://icon.png                           the file's import settings (.import)
 ##   import-set   --path res://icon.png --param compress/mode --value 1   (uzu.py then reimports)
+## Export (B-804):
+##   export-preset --platform web|linux|windows|macos|android [--name Web] [--out build/web/index.html] [--template /path/release.zip]
+##   presets                                                      the project's export presets
 ## Prints one line "ENGINE_RESULT {json}"; exits 0 on success, 1 on error.
 
 
@@ -127,6 +130,8 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 			return _action_command(command, args)
 		"import-get", "import-set":
 			return _import_command(command, args)
+		"export-preset", "presets":
+			return _preset_command(command, args)
 		"classes":
 			var base := _option(args, "inherits")
 			var names: Array = Array(ClassDB.get_inheriters_from_class(base) if not base.is_empty() else ClassDB.get_class_list())
@@ -504,3 +509,58 @@ func _import_command(command: String, args: PackedStringArray) -> Dictionary:
 	if err != OK:
 		return _error("could not save '%s': %s" % [import_file, error_string(err)])
 	return {"ok": true, "command": command, "path": path, "param": param, "value": _value_out(cfg.get_value("params", param)), "reimport": true}
+
+
+const PLATFORMS := {"web": "Web", "linux": "Linux", "windows": "Windows Desktop", "macos": "macOS", "android": "Android"}
+const PRESETS_FILE := "res://export_presets.cfg"
+
+
+func _presets(cfg: ConfigFile) -> Array:
+	var presets := []
+	for section in cfg.get_sections():
+		if section.begins_with("preset.") and not section.ends_with(".options"):
+			var options := section + ".options"
+			presets.append({"section": section, "name": cfg.get_value(section, "name", ""), "platform": cfg.get_value(section, "platform", ""), "export_path": cfg.get_value(section, "export_path", ""), "custom_template": cfg.get_value(options, "custom_template/release", "")})
+	return presets
+
+
+func _preset_command(command: String, args: PackedStringArray) -> Dictionary:
+	var cfg := ConfigFile.new()
+	if FileAccess.file_exists(PRESETS_FILE):
+		cfg.load(PRESETS_FILE)
+	if command == "presets":
+		return {"ok": true, "command": command, "presets": _presets(cfg)}
+	var platform := _option(args, "platform", "web")
+	if not PLATFORMS.has(platform):
+		return _error("--platform must be one of %s" % ", ".join(PLATFORMS.keys()))
+	var name := _option(args, "name", PLATFORMS[platform])
+	var section := ""
+	var used := 0
+	for preset in _presets(cfg):
+		used += 1
+		if preset.name == name:
+			section = preset.section  # Same name: update that preset.
+	if section.is_empty():
+		section = "preset.%d" % used
+	var out := _option(args, "out", "build/%s/%s" % [platform, "index.html" if platform == "web" else name.to_snake_case()])
+	cfg.set_value(section, "name", name)
+	cfg.set_value(section, "platform", PLATFORMS[platform])
+	cfg.set_value(section, "runnable", true)
+	cfg.set_value(section, "export_filter", "all_resources")
+	cfg.set_value(section, "include_filter", "")  # The editor requires these two keys.
+	cfg.set_value(section, "exclude_filter", "build/*")
+	cfg.set_value(section, "export_path", out)
+	var options := section + ".options"
+	var template := _option(args, "template")
+	if not template.is_empty():
+		cfg.set_value(options, "custom_template/release", template)
+		cfg.set_value(options, "custom_template/debug", template)
+	if platform == "web":
+		cfg.set_value(options, "variant/thread_support", false)  # Works without cross-origin isolation headers.
+		cfg.set_value(options, "variant/extensions_support", false)
+	elif not cfg.has_section(options):
+		cfg.set_value(options, "custom_template/release", "")  # The editor fills the other options with defaults.
+	var err := cfg.save(PRESETS_FILE)
+	if err != OK:
+		return _error("could not save export_presets.cfg: %s" % error_string(err))
+	return {"ok": true, "command": command, "preset": name, "platform": PLATFORMS[platform], "export_path": out, "custom_template": template, "presets": _presets(cfg)}

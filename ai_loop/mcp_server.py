@@ -60,6 +60,10 @@ TOOLS = {
     "assets_import": ("engine", "import", "Import (or reimport) the project's assets: textures, sounds, models.", {}, []),
     "import_get": ("engine", "import-get", "Read an asset's import settings.", {"path": _str("res://asset path")}, ["path"]),
     "import_set": ("engine", "import-set", "Change one import setting of an asset and reimport it.", {"path": _str("res://asset path"), "param": _str("Import parameter, e.g. compress/mode"), "value": _str("Value")}, ["path", "param", "value"]),
+    "export_preset": ("engine", "export-preset", "Create or update an export preset (export_presets.cfg).", {"platform": _str("web | linux | windows | macos | android"), "name": _str("Preset name"), "out": _str("Export path, relative to the project"), "template": _str("Custom export template zip (absolute path)")}, ["platform"]),
+    "export_presets": ("engine", "presets", "List the project's export presets.", {}, []),
+    "export_templates": ("engine", "templates", "Where export templates are looked for, which are installed, and the presets' custom templates.", {}, []),
+    "project_export": ("engine", "export", "Export the project with a preset; lists the files written.", {"preset": _str("Preset name"), "out": _str("Output file (default: the preset's path)")}, ["preset"]),
     "project_validate": ("engine", "validate", "Load every scene, resource and script of the project; list problems (missing files, broken scripts with errors, missing main scene or autoloads).", {}, []),
     "screenshot": ("look", "shot", "Render the main scene without a GPU and save a PNG.", {"out": _str("Output PNG path"), "frames": _str("Frames before capture (default 8)")}, ["out"]),
     "panorama": ("look", "panorama", "Capture a 360-degree equirectangular panorama around the main camera and save a PNG.", {"out": _str("Output PNG path"), "width": _str("Width in pixels (default 1024)")}, ["out"]),
@@ -68,6 +72,7 @@ TOOLS = {
     "look_rig": ("look", "rig", "Add fill and rim lights (three-point lighting with the sun as key).", {"scene": SCENE, "atmosphere": _str("clear | humid | golden_hour | night")}, ["scene"]),
     "look_lamp": ("look", "lamp", "Add a warm lamp with a glowing bulb.", {"scene": SCENE, "position": _str("x,y,z"), "quality": _str("high | standard | low")}, ["scene", "position"]),
     "look_camera": ("look", "camera", "Set a camera's lens, eye height and vertical shift.", {"scene": SCENE, "node": NODE, "lens": _str("wide | standard | telephoto"), "eye": _str("standing | low"), "shift": _str("Fraction of view height, positive is up")}, ["scene"]),
+    "lightmap_bake": ("look", "bake", "Bake the scene's LightmapGI (runs the editor with a renderer; can take minutes). 'prepare' turns on UV2 for primitive meshes.", {"scene": SCENE, "node": NODE, "prepare": {"type": "boolean", "description": "Turn on UV2 for primitive meshes"}}, ["scene"]),
     "look_material": ("look", "material", "Create a preset material (save to 'out', or assign to 'node' in 'scene').", {"kind": _str("skin | foliage | glass | water | lamp"), "out": _str("res://path.tres"), "scene": SCENE, "node": NODE}, ["kind"]),
 }
 

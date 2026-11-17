@@ -1062,6 +1062,14 @@ void LightmapGI::_build_area_light_texture_atlas(const Vector<LightmapGI::Lights
 	}
 }
 
+LightmapGI::BakeError LightmapGI::_bake_bind(Node *p_from_node, const String &p_image_data_path) {
+	// Baking saves images and imports them through the editor's import system, which only
+	// exists while the editor runs (ai_loop/uzu.py runs the bake from an editor plugin).
+	ERR_FAIL_NULL_V_MSG(ResourceLoader::import, BAKE_ERROR_NO_LIGHTMAPPER, "Baking lightmaps needs the editor's import system: call bake() from a plugin or tool script running in the editor.");
+	ERR_FAIL_COND_V_MSG(!is_inside_tree(), BAKE_ERROR_NO_SCENE_ROOT, "The LightmapGI must be inside the scene tree to bake.");
+	return bake(p_from_node ? p_from_node : get_parent(), p_image_data_path);
+}
+
 LightmapGI::BakeError LightmapGI::bake(Node *p_from_node, String p_image_data_path, Lightmapper::BakeStepFunc p_bake_step, void *p_bake_userdata) {
 	if (p_image_data_path.is_empty()) {
 		if (get_light_data().is_null()) {
@@ -2150,7 +2158,8 @@ void LightmapGI::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_specular_intensity", "specular_intensity"), &LightmapGI::set_specular_intensity);
 	ClassDB::bind_method(D_METHOD("get_specular_intensity"), &LightmapGI::get_specular_intensity);
 
-	//	ClassDB::bind_method(D_METHOD("bake", "from_node"), &LightmapGI::bake, DEFVAL(Variant()));
+	// U.ZU Engine (B-805): baking is scriptable, so agents can bake without the editor UI.
+	ClassDB::bind_method(D_METHOD("bake", "from_node", "image_data_path"), &LightmapGI::_bake_bind, DEFVAL(Variant()), DEFVAL(""));
 
 	ADD_GROUP("Tweaks", "");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Ultra"), "set_bake_quality", "get_bake_quality");

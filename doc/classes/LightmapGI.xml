@@ -15,6 +15,18 @@
 	<tutorials>
 		<link title="Using Lightmap global illumination">$DOCS_URL/tutorials/3d/global_illumination/using_lightmap_gi.html</link>
 	</tutorials>
+	<methods>
+		<method name="bake">
+			<return type="int" enum="LightmapGI.BakeError" />
+			<param index="0" name="from_node" type="Node" default="null" />
+			<param index="1" name="image_data_path" type="String" default="&quot;&quot;" />
+			<description>
+				Bakes the lightmaps of [param from_node] and its children (by default the parent of this [LightmapGI], as the editor does) and saves them to [param image_data_path], a [code].lmbake[/code] path (by default the path of the current [member light_data]). Returns [constant BAKE_ERROR_OK] on success.
+				Baking saves the images and imports them with the editor's import system, so it only works while the editor is running, for example from an [EditorPlugin] or a tool script. It also needs a renderer that supports the Forward+ or Mobile methods. Elsewhere it returns [constant BAKE_ERROR_NO_LIGHTMAPPER] (or [constant BAKE_ERROR_NO_SCENE_ROOT] when the node is not in the scene tree).
+				[b]Note:[/b] This method is specific to U.ZU Engine.
+			</description>
+		</method>
+	</methods>
 	<members>
 		<member name="bias" type="float" setter="set_bias" getter="get_bias" default="0.0005">
 			The bias to use when computing shadows. Increasing [member bias] can fix shadow acne on the resulting baked lightmap, but can introduce peter-panning (shadows not connecting to their casters). Real-time [Light3D] shadows are not affected by this [member bias] property.
