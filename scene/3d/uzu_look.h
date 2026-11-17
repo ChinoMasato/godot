@@ -37,6 +37,7 @@
 class Camera3D;
 class Decal;
 class GPUParticles3D;
+class MeshInstance3D;
 class Node3D;
 class ShaderMaterial;
 class Sprite3D;
@@ -114,6 +115,7 @@ public:
 	static void configure_lit_sprite(Sprite3D *p_sprite, const Ref<Texture2D> &p_normal_map, float p_outline_width);
 	static Decal *add_blob_shadow(Node3D *p_node, float p_radius);
 	static GPUParticles3D *create_particles(ParticleKind p_kind, const Vector3 &p_extents);
+	static MeshInstance3D *add_god_rays(Node *p_root, const Vector3 &p_position, float p_width, float p_length);
 	static Dictionary apply_hd2d(Node *p_root, Atmosphere p_atmosphere = ATMOSPHERE_GOLDEN_HOUR, bool p_camera = true);
 
 	// Scene helpers. New nodes are owned by p_root, so they are saved with it.

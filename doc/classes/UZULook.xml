@@ -125,6 +125,16 @@
 				Returns the quality that suits [param rendering_method] ([code]"forward_plus"[/code], [code]"mobile"[/code] or [code]"gl_compatibility"[/code]).
 			</description>
 		</method>
+		<method name="add_god_rays" qualifiers="static">
+			<return type="MeshInstance3D" />
+			<param index="0" name="root" type="Node" />
+			<param index="1" name="position" type="Vector3" />
+			<param index="2" name="width" type="float" default="3.0" />
+			<param index="3" name="length" type="float" default="8.0" />
+			<description>
+				Adds fake god rays under [param root] and returns them: one additive card, [param width] by [param length], that turns around its long axis to face the camera, bright toward the sun and fading out at the far end, with faint streaks. The shaft follows the light of the scene's sun (straight down without one) and passes through [param position]; its color is the sun's, softened toward white. A cheap stand-in for volumetric light in windows, forests and ruins.
+			</description>
+		</method>
 		<method name="add_blob_shadow" qualifiers="static">
 			<return type="Decal" />
 			<param index="0" name="node" type="Node3D" />

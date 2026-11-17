@@ -35,6 +35,7 @@
 #include "scene/3d/decal.h"
 #include "scene/3d/gpu_particles_3d.h"
 #include "scene/3d/light_3d.h"
+#include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/sprite_3d.h"
 #include "scene/resources/3d/primitive_meshes.h"
 #include "scene/resources/3d/sky_material.h"
@@ -765,6 +766,65 @@ GPUParticles3D *create_particles(ParticleKind p_kind, const Vector3 &p_extents) 
 	particles->set_visibility_aabb(AABB(-p_extents - Vector3(2, 2, 2), (p_extents + Vector3(2, 2, 2)) * 2.0));
 	particles->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
 	return particles;
+}
+
+static const char *GOD_RAYS_SHADER = R"(
+shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
+
+uniform vec4 ray_color : source_color = vec4(1.0, 0.86, 0.62, 1.0);
+uniform float intensity : hint_range(0.0, 4.0) = 0.35;
+uniform float streaks : hint_range(0.0, 1.0) = 0.45;
+
+varying float side_view;
+
+void vertex() {
+	// Turn around the shaft's own axis (the node's Y) to face the camera.
+	vec3 axis = MODEL_MATRIX[1].xyz;
+	vec3 origin = MODEL_MATRIX[3].xyz;
+	vec3 to_camera = CAMERA_POSITION_WORLD - origin;
+	vec3 side = normalize(cross(normalize(axis), to_camera));
+	vec3 normal = normalize(cross(side, normalize(axis)));
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(vec4(side * length(MODEL_MATRIX[0].xyz), 0.0), vec4(axis, 0.0), vec4(normal, 0.0), vec4(origin, 1.0));
+	MODELVIEW_NORMAL_MATRIX = mat3(MODELVIEW_MATRIX);
+	// A shaft seen from the side reads as a ray; one pointing at the camera would be
+	// a flat smear, so it fades out.
+	side_view = smoothstep(0.15, 0.6, 1.0 - abs(dot(normalize(axis), normalize(to_camera))));
+}
+
+void fragment() {
+	// UV.y is 0 at the source (top) and 1 at the far end.
+	float across = smoothstep(0.0, 0.35, 1.0 - abs(UV.x * 2.0 - 1.0));
+	float along = smoothstep(0.0, 0.08, UV.y) * (1.0 - smoothstep(0.25, 1.0, UV.y));
+	float streak = 1.0 - streaks + streaks * (0.5 + 0.5 * sin(UV.x * 37.0) * sin(UV.x * 13.0 + 1.7));
+	ALBEDO = ray_color.rgb * intensity;
+	ALPHA = across * along * streak * side_view;
+}
+)";
+
+MeshInstance3D *create_god_rays(float p_width, float p_length, const Color &p_color) {
+	Ref<Shader> shader;
+	shader.instantiate();
+	shader->set_code(GOD_RAYS_SHADER);
+	Ref<ShaderMaterial> material;
+	material.instantiate();
+	material->set_shader(shader);
+	material->set_shader_parameter("ray_color", p_color);
+	material->set_shader_parameter("intensity", 0.35);
+	material->set_shader_parameter("streaks", 0.45);
+
+	Ref<QuadMesh> quad;
+	quad.instantiate();
+	quad->set_size(Vector2(MAX(p_width, 0.01f), MAX(p_length, 0.01f)));
+	quad->set_center_offset(Vector3(0.0, -MAX(p_length, 0.01f) * 0.5f, 0.0)); // From the node downward along -Y.
+	quad->set_material(material);
+
+	MeshInstance3D *rays = memnew(MeshInstance3D);
+	rays->set_name("GodRays");
+	rays->set_mesh(quad);
+	rays->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
+	rays->set_gi_mode(GeometryInstance3D::GI_MODE_DISABLED);
+	return rays;
 }
 
 Ref<Compositor> create_compositor(Quality p_quality) {

@@ -39,6 +39,7 @@
 class Camera3D;
 class Decal;
 class GPUParticles3D;
+class MeshInstance3D;
 class Sprite3D;
 class Texture2D;
 class Compositor;
@@ -170,6 +171,11 @@ enum ParticleKind {
 };
 // Returns a GPUParticles3D that emits in a box of half size p_extents around itself.
 GPUParticles3D *create_particles(ParticleKind p_kind, const Vector3 &p_extents = Vector3(4, 2, 4));
+
+// Fake god rays (B-719): shafts of light as one additive card that turns around
+// its long axis to face the camera. The shaft runs along the node's -Y axis from
+// the node (bright at the source, fading out at the far end).
+MeshInstance3D *create_god_rays(float p_width = 3.0, float p_length = 8.0, const Color &p_color = Color(1.0, 0.86, 0.62));
 
 // Post effects for the WorldEnvironment: edge contrast and vignette
 // (UZUPostEffect) at high and standard quality; none at low quality, where the

@@ -42,6 +42,7 @@ TEST_FORCE_LINK(test_uzu_look)
 #include "scene/3d/sprite_3d.h"
 #include "scene/3d/uzu_look.h"
 #include "scene/3d/world_environment.h"
+#include "scene/resources/3d/primitive_meshes.h"
 #include "scene/resources/camera_attributes.h"
 #include "scene/resources/compositor.h"
 #include "scene/resources/environment.h"
@@ -64,6 +65,39 @@ TEST_CASE("[SceneTree][UZULook] Registered for scripts") {
 	CHECK(error.error == Callable::CallError::CALL_OK);
 	CHECK(double(fov) == doctest::Approx(25.0));
 	CHECK(ClassDB::get_integer_constant("UZULook", "ATMOSPHERE_HUMID") == UZULook::ATMOSPHERE_HUMID);
+}
+
+TEST_CASE("[SceneTree][UZULook] God rays follow the sun") {
+	Node3D *root = memnew(Node3D);
+	DirectionalLight3D *sun = memnew(DirectionalLight3D);
+	sun->set_rotation_degrees(Vector3(-50, 30, 0));
+	sun->set_color(Color(1.0, 0.7, 0.4));
+	root->add_child(sun);
+
+	MeshInstance3D *rays = UZULook::add_god_rays(root, Vector3(1, 2, 3), 2.0, 6.0);
+	REQUIRE(rays != nullptr);
+	CHECK(rays->get_parent() == root);
+	CHECK(rays->get_owner() == root);
+	CHECK(rays->get_cast_shadows_setting() == GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
+	// The shaft (the node's Y axis) points back toward the sun, and passes through the position.
+	const Vector3 toward_sun = sun->get_transform().basis.get_column(2).normalized();
+	CHECK(rays->get_transform().basis.get_column(1).normalized().is_equal_approx(toward_sun));
+	CHECK((rays->get_position() - toward_sun * 3.0).is_equal_approx(Vector3(1, 2, 3)));
+	Ref<QuadMesh> quad = rays->get_mesh();
+	REQUIRE(quad.is_valid());
+	CHECK(quad->get_size().is_equal_approx(Vector2(2, 6)));
+	CHECK(quad->get_center_offset().is_equal_approx(Vector3(0, -3, 0)));
+	Ref<ShaderMaterial> material = quad->get_material();
+	REQUIRE(material.is_valid());
+	const String code = material->get_shader()->get_code();
+	CHECK(code.contains("blend_add"));
+	CHECK(code.contains("unshaded"));
+	CHECK(code.contains("depth_draw_never"));
+	CHECK(code.contains("side_view")); // Fades out when seen end-on.
+	CHECK(float(material->get_shader_parameter("intensity")) == doctest::Approx(0.35));
+	// The sun's color, softened toward white.
+	CHECK(Color(material->get_shader_parameter("ray_color")).is_equal_approx(Color(1.0, 0.7, 0.4).lerp(Color(1, 1, 1), 0.3)));
+	memdelete(root);
 }
 
 TEST_CASE("[SceneTree][UZULook] HD-2D in one call") {

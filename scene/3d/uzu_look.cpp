@@ -117,6 +117,36 @@ GPUParticles3D *UZULook::create_particles(ParticleKind p_kind, const Vector3 &p_
 	return LookPreset3D::create_particles(LookPreset3D::ParticleKind(p_kind), p_extents);
 }
 
+MeshInstance3D *UZULook::add_god_rays(Node *p_root, const Vector3 &p_position, float p_width, float p_length) {
+	ERR_FAIL_NULL_V(p_root, nullptr);
+	// The sun's color, and the shaft along its light (from the sky down through the position).
+	DirectionalLight3D *sun = nullptr;
+	TypedArray<Node> lights = p_root->find_children("*", "DirectionalLight3D", true, false);
+	for (const Variant &v : lights) {
+		DirectionalLight3D *light = Object::cast_to<DirectionalLight3D>(v);
+		if (light && light->get_sky_mode() != DirectionalLight3D::SKY_MODE_LIGHT_ONLY) {
+			sun = light;
+			break;
+		}
+	}
+	const Color color = sun ? sun->get_color().lerp(Color(1, 1, 1), 0.3) : Color(1.0, 0.86, 0.62);
+	MeshInstance3D *rays = LookPreset3D::create_god_rays(p_width, p_length, color);
+	Vector3 light_direction = Vector3(0, -1, 0);
+	if (sun) {
+		// Where the light travels (in the scene's space; outside the tree, the sun's own transform).
+		const Transform3D sun_transform = sun->is_inside_tree() ? sun->get_global_transform() : sun->get_transform();
+		light_direction = -sun_transform.basis.get_column(2).normalized();
+	}
+	// The shaft starts up toward the sun and runs down along the light through p_position.
+	const Vector3 up = -light_direction;
+	const Vector3 side = Math::abs(up.dot(Vector3(0, 0, 1))) < 0.99f ? up.cross(Vector3(0, 0, 1)).normalized() : up.cross(Vector3(1, 0, 0)).normalized();
+	Basis basis(side, up, side.cross(up));
+	rays->set_transform(Transform3D(basis, p_position + up * p_length * 0.5f));
+	p_root->add_child(rays, true);
+	rays->set_owner(p_root->get_owner() ? p_root->get_owner() : p_root);
+	return rays;
+}
+
 // HD-2D (B-722): pixel-art sprites in a lit 3D diorama, in one call.
 Dictionary UZULook::apply_hd2d(Node *p_root, Atmosphere p_atmosphere, bool p_camera) {
 	Dictionary result;
@@ -349,6 +379,7 @@ void UZULook::_bind_methods() {
 	ClassDB::bind_static_method("UZULook", D_METHOD("configure_lit_sprite", "sprite", "normal_map", "outline_width"), &UZULook::configure_lit_sprite, DEFVAL(Variant()), DEFVAL(0.0));
 	ClassDB::bind_static_method("UZULook", D_METHOD("add_blob_shadow", "node", "radius"), &UZULook::add_blob_shadow, DEFVAL(0.4));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_particles", "kind", "extents"), &UZULook::create_particles, DEFVAL(Vector3(4, 2, 4)));
+	ClassDB::bind_static_method("UZULook", D_METHOD("add_god_rays", "root", "position", "width", "length"), &UZULook::add_god_rays, DEFVAL(3.0), DEFVAL(8.0));
 	ClassDB::bind_static_method("UZULook", D_METHOD("apply_hd2d", "root", "atmosphere", "camera"), &UZULook::apply_hd2d, DEFVAL(ATMOSPHERE_GOLDEN_HOUR), DEFVAL(true));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_environment", "quality", "atmosphere", "clouds"), &UZULook::create_environment, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR), DEFVAL(false));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_camera_attributes", "quality"), &UZULook::create_camera_attributes, DEFVAL(QUALITY_HIGH));
