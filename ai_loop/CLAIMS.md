@@ -16,3 +16,4 @@
 | A-3（Q5、仮、B-102 相当） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | core/io/ip.cpp, tests/core/io/test_ip.cpp, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-702（Q6、仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | scene/3d/look_preset_3d.{h,cpp}, tests/scene/test_look_preset_3d.cpp, editor/scene/3d/node_3d_editor_plugin.{h,cpp}, ai_loop/iterations/ | 確認待ち（見た目はオーナー判断） | 2026-11-17 |
 | B-703（Q6、仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | scene/3d/look_preset_3d.{h,cpp}, tests/scene/test_look_preset_3d.cpp, ai_loop/iterations/ | 確認待ち（見た目はオーナー判断） | 2026-11-17 |
+| B-704（Q6、仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | scene/3d/look_preset_3d.{h,cpp}, tests/scene/test_look_preset_3d.cpp, ai_loop/iterations/ | 関数まで完了。UI の置き場所はオーナー確認待ち | 2026-11-17 |

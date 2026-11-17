@@ -39,6 +39,7 @@ TEST_FORCE_LINK(test_look_preset_3d)
 #include "scene/resources/3d/sky_material.h"
 #include "scene/resources/environment.h"
 #include "scene/resources/image_texture.h"
+#include "scene/resources/material.h"
 #include "scene/resources/sky.h"
 
 namespace TestLookPreset3D {
@@ -205,6 +206,34 @@ TEST_CASE("[SceneTree][LookPreset3D] Environment uses the color grade LUT") {
 	CHECK(environment->get_adjustment_brightness() == doctest::Approx(1.0));
 	CHECK(environment->get_adjustment_contrast() == doctest::Approx(1.0));
 	CHECK(environment->get_adjustment_saturation() == doctest::Approx(1.0));
+}
+
+TEST_CASE("[SceneTree][LookPreset3D] Materials for light that passes through") {
+	Ref<StandardMaterial3D> skin = LookPreset3D::create_material(LookPreset3D::MATERIAL_SKIN);
+	CHECK(skin->get_feature(BaseMaterial3D::FEATURE_SUBSURFACE_SCATTERING));
+	CHECK(skin->get_flag(BaseMaterial3D::FLAG_SUBSURFACE_MODE_SKIN));
+	CHECK(skin->get_subsurface_scattering_strength() > 0.0);
+
+	Ref<StandardMaterial3D> foliage = LookPreset3D::create_material(LookPreset3D::MATERIAL_FOLIAGE);
+	CHECK(foliage->get_feature(BaseMaterial3D::FEATURE_BACKLIGHT));
+	CHECK(foliage->get_cull_mode() == BaseMaterial3D::CULL_DISABLED);
+	// Light through a leaf is warmer (more yellow) than the leaf itself.
+	CHECK(foliage->get_backlight().r > foliage->get_albedo().r);
+
+	Ref<StandardMaterial3D> glass = LookPreset3D::create_material(LookPreset3D::MATERIAL_GLASS);
+	CHECK(glass->get_transparency() == BaseMaterial3D::TRANSPARENCY_ALPHA);
+	CHECK(glass->get_albedo().a < 0.5);
+	CHECK(glass->get_roughness() < 0.1);
+
+	Ref<StandardMaterial3D> water = LookPreset3D::create_material(LookPreset3D::MATERIAL_WATER);
+	CHECK(water->get_transparency() == BaseMaterial3D::TRANSPARENCY_ALPHA);
+	CHECK(water->get_albedo().a < 1.0);
+	CHECK(water->get_roughness() < 0.1);
+	CHECK(water->get_albedo().b > water->get_albedo().r);
+
+	// Reflections for water and glossy surfaces at high quality only.
+	CHECK(LookPreset3D::create_environment(LookPreset3D::QUALITY_HIGH)->is_ssr_enabled());
+	CHECK_FALSE(LookPreset3D::create_environment(LookPreset3D::QUALITY_STANDARD)->is_ssr_enabled());
 }
 
 TEST_CASE("[SceneTree][LookPreset3D] Class defaults stay unchanged") {

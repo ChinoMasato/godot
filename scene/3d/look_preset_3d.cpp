@@ -34,6 +34,7 @@
 #include "scene/resources/3d/sky_material.h"
 #include "scene/resources/environment.h"
 #include "scene/resources/image_texture.h"
+#include "scene/resources/material.h"
 #include "scene/resources/sky.h"
 
 namespace LookPreset3D {
@@ -221,6 +222,8 @@ Ref<Environment> create_environment(Quality p_quality, Atmosphere p_atmosphere) 
 	if (p_quality == QUALITY_HIGH) {
 		environment->set_ssil_enabled(true);
 		environment->set_ssil_intensity(1.0);
+		// Reflections of the scene on water and glossy floors.
+		environment->set_ssr_enabled(true);
 	}
 
 	return environment;
@@ -254,6 +257,46 @@ void configure_sun(DirectionalLight3D *p_sun, Quality p_quality, Atmosphere p_at
 			p_sun->set_param(Light3D::PARAM_SHADOW_MAX_DISTANCE, 60.0);
 			break;
 	}
+}
+
+Ref<StandardMaterial3D> create_material(MaterialKind p_kind) {
+	Ref<StandardMaterial3D> material;
+	material.instantiate();
+	switch (p_kind) {
+		case MATERIAL_SKIN:
+			// Light scatters under the skin: the shadow edge turns warm and soft.
+			material->set_albedo(Color(0.85, 0.64, 0.52));
+			material->set_roughness(0.55);
+			material->set_feature(BaseMaterial3D::FEATURE_SUBSURFACE_SCATTERING, true);
+			material->set_subsurface_scattering_strength(0.6);
+			material->set_flag(BaseMaterial3D::FLAG_SUBSURFACE_MODE_SKIN, true);
+			break;
+		case MATERIAL_FOLIAGE:
+			// Thin leaves let light through: backlit leaves glow yellow-green.
+			material->set_albedo(Color(0.32, 0.5, 0.18));
+			material->set_roughness(0.6);
+			material->set_feature(BaseMaterial3D::FEATURE_BACKLIGHT, true);
+			material->set_backlight(Color(0.45, 0.6, 0.15));
+			material->set_cull_mode(BaseMaterial3D::CULL_DISABLED);
+			break;
+		case MATERIAL_GLASS:
+			// Mostly transparent with crisp highlights and reflections.
+			material->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+			material->set_albedo(Color(0.9, 0.95, 1.0, 0.15));
+			material->set_roughness(0.03);
+			material->set_specular(0.8);
+			break;
+		case MATERIAL_WATER:
+			// Water color, what shows through from below, and reflection. The
+			// shading model already reflects more at grazing angles, so far water
+			// mirrors the sky while near water shows the bottom.
+			material->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+			material->set_albedo(Color(0.1, 0.3, 0.33, 0.55));
+			material->set_roughness(0.04);
+			material->set_specular(0.6);
+			break;
+	}
+	return material;
 }
 
 } // namespace LookPreset3D

@@ -35,6 +35,7 @@
 class DirectionalLight3D;
 class Environment;
 class ImageTexture3D;
+class StandardMaterial3D;
 struct Color;
 
 // Ready-to-use 3D "look" for new scenes (U.ZU Engine, BACKLOG B-701).
@@ -75,5 +76,15 @@ void configure_sun(DirectionalLight3D *p_sun, Quality p_quality, Atmosphere p_at
 // a gentle S-curve, slightly cool shadows and warm highlights.
 Color grade_color(const Color &p_color);
 Ref<ImageTexture3D> create_color_grade();
+
+// Materials for things whose look depends on how light passes through them.
+enum MaterialKind {
+	MATERIAL_SKIN, // Subsurface scattering (skin mode).
+	MATERIAL_FOLIAGE, // Backlight through thin leaves, double-sided.
+	MATERIAL_GLASS, // Transparent, glossy.
+	MATERIAL_WATER, // Transparent water color with glossy reflections.
+};
+
+Ref<StandardMaterial3D> create_material(MaterialKind p_kind);
 
 } // namespace LookPreset3D
