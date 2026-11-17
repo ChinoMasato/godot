@@ -32,6 +32,7 @@
 
 #include "core/object/ref_counted.h"
 
+class Camera3D;
 class CameraAttributesPractical;
 class DirectionalLight3D;
 class OmniLight3D;
@@ -102,5 +103,27 @@ void configure_lamp(OmniLight3D *p_lamp, Quality p_quality);
 // Camera attributes for the WorldEnvironment: a slight blur of the far
 // distance at high quality (none otherwise). Exposure stays in the Environment.
 Ref<CameraAttributesPractical> create_camera_attributes(Quality p_quality);
+
+// Lenses (vertical field of view). Wide angles stress depth, telephoto stresses
+// scale; slightly toward telephoto reads calm and natural. Godot's Camera3D
+// default (75) is a wide angle.
+enum Lens {
+	LENS_WIDE, // 70 degrees.
+	LENS_STANDARD, // 45 degrees.
+	LENS_TELEPHOTO, // 25 degrees.
+};
+
+// Eye heights for placing a camera: people placed on the same ground then
+// have their heads on the horizon line at any distance (standing).
+enum EyeLevel {
+	EYE_LEVEL_STANDING, // 1.6 m.
+	EYE_LEVEL_LOW, // 0.8 m, a seated or child's view.
+};
+
+float get_lens_fov(Lens p_lens);
+float get_eye_height(EyeLevel p_eye_level);
+// Sets the lens. A non-zero shift (fraction of the view height, positive is up)
+// moves the framing without tilting the camera, so vertical lines stay parallel.
+void configure_camera(Camera3D *p_camera, Lens p_lens, float p_shift = 0.0);
 
 } // namespace LookPreset3D

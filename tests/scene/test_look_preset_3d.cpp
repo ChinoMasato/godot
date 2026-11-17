@@ -34,6 +34,7 @@ TEST_FORCE_LINK(test_look_preset_3d)
 
 #ifndef _3D_DISABLED
 
+#include "scene/3d/camera_3d.h"
 #include "scene/3d/light_3d.h"
 #include "scene/3d/look_preset_3d.h"
 #include "scene/resources/3d/sky_material.h"
@@ -303,6 +304,35 @@ TEST_CASE("[SceneTree][LookPreset3D] Far distance blur at high quality only") {
 	CHECK_FALSE(standard->is_dof_blur_far_enabled());
 	Ref<CameraAttributesPractical> low = LookPreset3D::create_camera_attributes(LookPreset3D::QUALITY_LOW);
 	CHECK_FALSE(low->is_dof_blur_far_enabled());
+}
+
+TEST_CASE("[SceneTree][LookPreset3D] Camera lenses, eye levels and shift") {
+	CHECK(LookPreset3D::get_lens_fov(LookPreset3D::LENS_WIDE) > LookPreset3D::get_lens_fov(LookPreset3D::LENS_STANDARD));
+	CHECK(LookPreset3D::get_lens_fov(LookPreset3D::LENS_STANDARD) > LookPreset3D::get_lens_fov(LookPreset3D::LENS_TELEPHOTO));
+	CHECK(LookPreset3D::get_eye_height(LookPreset3D::EYE_LEVEL_STANDING) == doctest::Approx(1.6));
+	CHECK(LookPreset3D::get_eye_height(LookPreset3D::EYE_LEVEL_LOW) == doctest::Approx(0.8));
+
+	Camera3D *camera = memnew(Camera3D);
+	camera->set_near(0.1);
+	camera->set_far(500.0);
+
+	// Without a shift: an ordinary perspective camera.
+	LookPreset3D::configure_camera(camera, LookPreset3D::LENS_TELEPHOTO);
+	CHECK(camera->get_projection() == Camera3D::PROJECTION_PERSPECTIVE);
+	CHECK(camera->get_fov() == doctest::Approx(25.0));
+	CHECK(camera->get_near() == doctest::Approx(0.1));
+	CHECK(camera->get_far() == doctest::Approx(500.0));
+
+	// With a shift: same view size as the lens, framing moved up, camera not tilted.
+	LookPreset3D::configure_camera(camera, LookPreset3D::LENS_STANDARD, 0.25);
+	CHECK(camera->get_projection() == Camera3D::PROJECTION_FRUSTUM);
+	const real_t expected_size = 2.0 * 0.1 * Math::tan(Math::deg_to_rad(45.0) * 0.5);
+	CHECK(camera->get_size() == doctest::Approx(expected_size));
+	CHECK(camera->get_frustum_offset().x == doctest::Approx(0.0));
+	CHECK(camera->get_frustum_offset().y == doctest::Approx(0.25 * expected_size));
+	CHECK(camera->get_rotation_degrees().is_zero_approx());
+
+	memdelete(camera);
 }
 
 TEST_CASE("[SceneTree][LookPreset3D] Class defaults stay unchanged") {

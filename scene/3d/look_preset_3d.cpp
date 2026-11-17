@@ -30,6 +30,7 @@
 
 #include "look_preset_3d.h"
 
+#include "scene/3d/camera_3d.h"
 #include "scene/3d/light_3d.h"
 #include "scene/resources/3d/sky_material.h"
 #include "scene/resources/camera_attributes.h"
@@ -382,6 +383,39 @@ Ref<CameraAttributesPractical> create_camera_attributes(Quality p_quality) {
 		attributes->set_dof_blur_amount(0.06);
 	}
 	return attributes;
+}
+
+float get_lens_fov(Lens p_lens) {
+	switch (p_lens) {
+		case LENS_WIDE:
+			return 70.0;
+		case LENS_TELEPHOTO:
+			return 25.0;
+		case LENS_STANDARD:
+		default:
+			return 45.0;
+	}
+}
+
+float get_eye_height(EyeLevel p_eye_level) {
+	return p_eye_level == EYE_LEVEL_LOW ? 0.8 : 1.6;
+}
+
+void configure_camera(Camera3D *p_camera, Lens p_lens, float p_shift) {
+	ERR_FAIL_NULL(p_camera);
+	const float fov = get_lens_fov(p_lens);
+	const float z_near = p_camera->get_near();
+	const float z_far = p_camera->get_far();
+	if (Math::is_zero_approx(p_shift)) {
+		p_camera->set_perspective(fov, z_near, z_far);
+		return;
+	}
+	// Shift the view up or down instead of tilting the camera: vertical lines
+	// stay parallel (a calm two-point look) while the framing looks up or down.
+	// With the default keep-height aspect, the frustum size is the view height
+	// at the near plane.
+	const float size = 2.0 * z_near * Math::tan(Math::deg_to_rad(fov) * 0.5f);
+	p_camera->set_frustum(size, Vector2(0.0, p_shift * size), z_near, z_far);
 }
 
 } // namespace LookPreset3D
