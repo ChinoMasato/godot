@@ -44,3 +44,4 @@
 | B-305 | Claude Code (cloud) | ai-native（直接） | ai_loop/selfplay.sh, ai_loop/selfplay/replay.gd, ai_loop/selfplay_selftest.sh, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-306 | Claude Code (cloud) | ai-native（直接） | ai_loop/aiplayer.py（新規）, ai_loop/selfplay/control.gd（新規）, ai_loop/telemetry/telemetry.gd, ai_loop/phase3_ai_player_requirements.md, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-504 | Claude Code (cloud) | ai-native（直接） | ai_loop/bridge/mock_server.py（新規）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
+| B-505〜B-507 | Claude Code (cloud) | ai-native（直接） | ai_loop/bridge/client.py（新規）, ai_loop/publish.sh（新規）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
