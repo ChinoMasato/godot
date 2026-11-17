@@ -12,3 +12,4 @@
 | B-002 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/measure.sh（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-003 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | version.py（name のみ）, tests/core/test_version.cpp（新規）, ai_loop/iterations/ | 確認待ち（案A で実装） | 2026-11-17 |
 | B-701（仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | scene/3d/look_preset_3d.{h,cpp}（新規）, tests/scene/test_look_preset_3d.cpp（新規）, editor/scene/3d/node_3d_editor_plugin.{h,cpp}, ai_loop/iterations/ | 作業中 | 2026-11-17 |
+| A-1（Q5、仮） | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/screenshot.sh（新規）, ai_loop/iterations/ | 作業中 | 2026-11-17 |
