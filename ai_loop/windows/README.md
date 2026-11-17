@@ -52,3 +52,11 @@ bin\godot.windows.editor.x86_64.console.exe --path <見本のコピー> --render
 - エディタを開いたままだと、次のビルドの最後（exe の書き込み）が「アクセスが拒否されました」で失敗する。ビルド前にエディタを閉じる。
 - **Web への書き出し:** このフォーク用の Web テンプレートは、リポジトリの `export-templates` ブランチにある。`uzu.bat engine my_game templates --fetch` で取り出し、`uzu.bat engine my_game export-preset --platform web --template auto` でプリセットに設定する。
 
+## HD-2D の GPU 撮影と重さ（B-715〜B-718、B-722）
+
+```
+python ai_loop\windows\hd2d_gpu.py <出力フォルダ> [--cases raw,look,hd2d,hd2d_no_tiltshift,hd2d_no_camera,hd2d_particles,hd2d_night_fireflies,hd2d_snow] [--frames 300]
+```
+
+見本 hd2d を写して `uzu.py look` のコマンドを当て、`scene_time.gd`（保存されたシーンをそのまま描いて GPU 時間を測る。`--drop UZUTiltShift` で効果を1つ外せる）で撮る。
+
