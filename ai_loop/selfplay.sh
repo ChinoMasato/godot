@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: ai_loop/selfplay.sh <project-dir> --input replay.json [--frames 1800] [--out report.json] [--movie out.avi] [--log events.jsonl]
+# Usage: ai_loop/selfplay.sh <project-dir> --input replay.json [--frames 1800] [--seed N] [--out report.json] [--movie out.avi] [--log events.jsonl]
 # Self-verification play, minimal version (BACKLOG B-303). Runs a copy of the
 # project with recorded input and prints one JSON report: checkpoints reached,
 # deaths, clear and average FPS, in the telemetry report format (B-301,
@@ -9,6 +9,7 @@
 # the input replay (ai_loop/selfplay/replay.gd). The project itself is not changed.
 # The game reports checkpoints, deaths and the clear through UZUTelemetry, and
 # runs at a fixed 60 FPS (--fixed-fps), so the same input gives the same play.
+# --seed fixes the global random seed (randi(), randf()...) before the game starts (B-305).
 # --movie also records the play with the Movie Maker (software Vulkan on a
 # virtual display, as ai_loop/screenshot.sh); without it the run is headless.
 # Environment: GODOT  editor binary (default: bin/godot.linuxbsd.editor.x86_64).
@@ -24,6 +25,9 @@ FRAMES="$(opt frames 1800 "$@")"
 OUT="$(opt out "" "$@")"
 MOVIE="$(opt movie "" "$@")"
 EVENTS="$(opt log "" "$@")"
+SEED="$(opt seed "" "$@")"
+SEED_ARGS=()
+[ -n "$SEED" ] && SEED_ARGS=(--uzu-seed "$SEED")
 [ -n "$INPUT" ] && [ -f "$INPUT" ] || { echo '{"ok": false, "error": "selfplay needs --input replay.json"}'; exit 1; }
 INPUT="$(cd "$(dirname "$INPUT")" && pwd)/$(basename "$INPUT")"
 [ -x "$GODOT" ] || { echo '{"ok": false, "error": "editor binary not found"}'; exit 2; }
@@ -56,7 +60,7 @@ else
   RUN=("$GODOT" --headless "${ARGS[@]}")
 fi
 set +e
-timeout 900 "${RUN[@]}" -- --uzu-telemetry "$LOG" --uzu-replay "$INPUT" >"$WORK/run.txt" 2>&1
+timeout 900 "${RUN[@]}" -- --uzu-telemetry "$LOG" --uzu-replay "$INPUT" "${SEED_ARGS[@]}" >"$WORK/run.txt" 2>&1
 RC=$?
 set -e
 [ -n "$EVENTS" ] && [ -f "$LOG" ] && cp "$LOG" "$EVENTS"

@@ -4,6 +4,8 @@ extends Node
 ## physics frame. Reads "--uzu-replay <file>" after "--": a JSON object
 ## {"events": [{"frame": 0, "action": "move_right", "pressed": true}, ...]},
 ## frames counted in physics frames from the start of the play.
+## "--uzu-seed <n>" fixes the global random seed before the game's nodes start
+## (B-305); a game that calls randomize() itself still gets a new seed.
 
 var _events := []
 var _next := 0
@@ -14,6 +16,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	process_physics_priority = -1000
 	var args := OS.get_cmdline_user_args()
+	var s := args.find("--uzu-seed")
+	if s >= 0 and s + 1 < args.size():
+		seed(args[s + 1].to_int())
 	var i := args.find("--uzu-replay")
 	if i < 0 or i + 1 >= args.size():
 		return
