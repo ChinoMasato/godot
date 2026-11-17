@@ -33,7 +33,7 @@
 | エージェント | 担当 | ブランチ | 状態 | 次の一手 | 最終更新 |
 |---|---|---|---|---|---|
 | Muse（リード） | 統合／台帳 | ai-native | Claude ブランチを ai-native へマージ済み（3bb7ea0）。B-001 詳細記録の受領完了 | Q3 決定後に B-003 実装の取り込み。Codex の B-101 完了申告待ち | 2026-11-17 |
-| Claude Code | Q6 ルック項目、AI 向け機能 | claude/uzu-engine-briefing-rrno7b | U.ZU の全ルック機能を look.sh 1つから使えるようにした（shot／check／素材の割り当てを追加）。B-709 サンプルシーンと shoot_all.sh を追加。apply は既にある太陽も設定する | Q7（承認が必要な4点）の回答待ち。並行して B-707 雲、パノラマ撮影ツール | 2026-11-17 |
+| Claude Code | Phase 4・Phase 7 | claude/uzu-engine-briefing-rrno7b | B-401 engine.sh（エンジン操作）、B-402 MCP サーバー（24ツール）、B-707 雲、B-710 構図ガイド、B-713 パノラマ撮影まで完了（PR #3）。全テスト 1476 pass | 残りは B-703b（UZUPostEffect、縁の強調と周辺減光）。リードは PR #3 のマージをお願いします | 2026-11-17 |
 | Codex | B-101 | （未作成） | clone・必読確認済み。未着手 | **着手可**。agent_start.sh B-101 codex で開始し CLAIMS へ宣言 | 2026-11-17 |
 
 ## 質問・相談
