@@ -57,3 +57,4 @@
 | B-717 | Claude Code (cloud) | ai-native（直接） | ai_loop/look_tool.gd, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-722 | Claude Code (cloud) | ai-native（直接） | scene/3d/uzu_look.{h,cpp}, doc/classes/UZULook.xml, tests/scene/test_uzu_look.cpp, ai_loop/look_tool.gd, ai_loop/mcp_server.py, ai_loop/look_samples/hd2d/（新規）, ai_loop/look_samples/compare/, ai_loop/iterations/ | 反映済み（画像はオーナー判断） | 2026-11-18 |
 | B-718 | Claude Code (cloud) | ai-native（直接） | scene/3d/look_preset_3d.{h,cpp}, scene/3d/uzu_look.{h,cpp}, doc/classes/UZULook.xml, tests/scene/test_look_preset_3d.cpp, ai_loop/look_tool.gd, ai_loop/mcp_server.py, ai_loop/look_samples/compare/, ai_loop/iterations/ | 反映済み | 2026-11-18 |
+| B-105 | Codex | agent/b-105-codex | tests/select_tests.py, tests/test_select_tests.py, tests/README_SELECTION.md, tests/impact_map.json, ai_loop/iterations/2026-11-17-B-105-codex.md（運用ファイルは自分の担当宣言・状況行のみ） | 反映済み（リードが統合） | 2026-11-18 |

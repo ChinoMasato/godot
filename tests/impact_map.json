@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "rules": [
+    {"source": "core/error/error_log_json.*", "tests": ["tests/core/test_error_log_json.cpp"]},
+    {"source": "core/error/script_check_json.*", "tests": ["tests/core/test_script_check_json.cpp"]},
+    {"source": "servers/rendering/shader_check_json.*", "tests": ["tests/servers/rendering/test_shader_check_json.cpp"]},
+    {"source": "scene/3d/uzu_look.*", "tests": ["tests/scene/test_uzu_look.cpp", "tests/scene/test_look_preset_3d.cpp"]},
+    {"source": "scene/3d/look_preset_3d.*", "tests": ["tests/scene/test_look_preset_3d.cpp"]},
+    {"source": "scene/resources/uzu_post_effect.*", "tests": ["tests/scene/test_uzu_post_effect.cpp"]}
+  ]
+}
