@@ -58,7 +58,7 @@ func _save_scene(root: Node, path: String) -> Error:
 
 func _run(args: PackedStringArray) -> Dictionary:
 	if args.is_empty() or args[0] == "info":
-		return {"ok": true, "commands": ["apply", "rig", "lamp", "camera", "material", "shot", "check", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
+		return {"ok": true, "commands": ["apply", "rig", "lamp", "camera", "material", "shot", "check", "panorama", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
 	var command := args[0]
 
 	if command == "material" and _option(args, "scene").is_empty():

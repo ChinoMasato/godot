@@ -25,3 +25,4 @@
 | B-709（Q6、仮）＋エージェント入口の統合 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/look_samples/（新規）, ai_loop/look.sh, ai_loop/look_tool.gd, ai_loop/palette_check.py, scene/3d/uzu_look.{h,cpp}, tests/scene/test_uzu_look.cpp, doc/classes/UZULook.xml, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-401 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/engine.sh・engine_tool.gd・engine_selftest.sh（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-402 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/mcp_server.py（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
+| B-713 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/panorama_capture.gd・panorama.py（新規）, ai_loop/look.sh, ai_loop/look_tool.gd, ai_loop/mcp_server.py, ai_loop/iterations/ | 確認待ち | 2026-11-17 |

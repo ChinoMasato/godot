@@ -49,6 +49,7 @@ TOOLS = {
     "class_describe": ("engine", "describe", "Describe a class: properties, methods, signals and constants.", {"class": _str("Class name")}, ["class"]),
     "project_run": ("engine", "run", "Run the project headless for some frames; returns errors and the log tail.", {"frames": _str("Frames to run (default 120)")}, []),
     "screenshot": ("look", "shot", "Render the main scene without a GPU and save a PNG.", {"out": _str("Output PNG path"), "frames": _str("Frames before capture (default 8)")}, ["out"]),
+    "panorama": ("look", "panorama", "Capture a 360-degree equirectangular panorama around the main camera and save a PNG.", {"out": _str("Output PNG path"), "width": _str("Width in pixels (default 1024)")}, ["out"]),
     "image_check": ("look", "check", "Check a screenshot: color balance, muddiness, detail by height and composition.", {"image": _str("PNG path")}, ["image"]),
     "look_apply": ("look", "apply", "Apply the U.ZU look (sky, light, aerial perspective, color grade) and configure the sun.", {"scene": SCENE, "quality": _str("high | standard | low"), "atmosphere": _str("clear | humid | golden_hour | night")}, ["scene"]),
     "look_rig": ("look", "rig", "Add fill and rim lights (three-point lighting with the sun as key).", {"scene": SCENE, "atmosphere": _str("clear | humid | golden_hour | night")}, ["scene"]),

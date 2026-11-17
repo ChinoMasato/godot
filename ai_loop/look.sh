@@ -10,6 +10,7 @@
 #   ai_loop/look.sh my_game material --kind water --out res://materials/water.tres
 #   ai_loop/look.sh my_game shot --out /tmp/shot.png [--frames 8]
 #   ai_loop/look.sh my_game check --image /tmp/shot.png
+#   ai_loop/look.sh my_game panorama --out /tmp/pano.png [--width 1024]
 #   ai_loop/look.sh my_game info
 #
 # shot renders the main scene without a GPU (ai_loop/screenshot.sh); check reports
@@ -41,6 +42,22 @@ case "${1:-}" in
     printf '%s\n' "$MSG" >&2
     echo '{"ok": false, "command": "shot", "error": "render failed (see stderr)"}'
     exit 1
+    ;;
+  panorama)
+    OUT="$(opt out "" "$@")"
+    [ -n "$OUT" ] || { echo '{"ok": false, "error": "panorama needs --out file.png"}'; exit 1; }
+    GODOT="${GODOT:-$ROOT/bin/godot.linuxbsd.editor.x86_64}"
+    FACES="$(mktemp -d)"
+    trap 'rm -rf "$FACES"' EXIT
+    if ! (cd "$PROJECT" && VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json xvfb-run -a -s "-screen 0 1280x720x24" \
+        "$GODOT" --path "$PROJECT" --rendering-driver vulkan --script "$ROOT/ai_loop/panorama_capture.gd" -- "$FACES") >"$FACES/log.txt" 2>&1 \
+        || [ ! -f "$FACES/faces.json" ]; then
+      cat "$FACES/log.txt" >&2
+      echo '{"ok": false, "command": "panorama", "error": "capture failed (see stderr)"}'
+      exit 1
+    fi
+    python3 "$ROOT/ai_loop/panorama.py" "$FACES" "$OUT" --width "$(opt width 1024 "$@")"
+    exit $?
     ;;
   check)
     IMAGE="$(opt image "" "$@")"
