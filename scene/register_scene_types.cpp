@@ -170,6 +170,7 @@
 #include "scene/resources/texture_rd.h"
 #include "scene/resources/theme.h"
 #include "scene/resources/uzu_post_effect.h"
+#include "scene/resources/uzu_tilt_shift.h"
 #include "scene/resources/video_stream.h"
 #include "scene/resources/world_2d.h"
 #include "scene/theme/theme_db.h"
@@ -467,6 +468,7 @@ void register_scene_types() {
 
 	GDREGISTER_VIRTUAL_CLASS(CompositorEffect);
 	GDREGISTER_CLASS(UZUPostEffect);
+	GDREGISTER_CLASS(UZUTiltShift);
 
 	GDREGISTER_ABSTRACT_CLASS(MultiplayerPeer);
 	GDREGISTER_VIRTUAL_CLASS(MultiplayerPeerExtension);

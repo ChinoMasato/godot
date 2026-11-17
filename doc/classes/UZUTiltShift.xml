@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUTiltShift" inherits="CompositorEffect" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Tilt-shift band blur for the U.ZU look, as a compositor effect.
+	</brief_description>
+	<description>
+		Keeps a horizontal band of the screen sharp and blurs the parts above and below it, more the farther they are from the band, like a tilt-shift lens. Scenes then read as miniature dioramas, the core of the "HD-2D" look. Add it to a [Compositor] used by a [WorldEnvironment] or a [Camera3D].
+		The blur radius of a row is [code]max_blur * smoothstep(0, 1, (|y - focus_center| - focus_width) / transition)[/code], in pixels at 1080 lines and scaled with the screen height ([method get_blur_radius_at] returns it).
+		[b]Note:[/b] Runs only on RenderingDevice renderers (Forward+ and Mobile) with a 16-bit float color buffer. It does nothing in the Compatibility renderer.
+		[b]Note:[/b] This class is specific to U.ZU Engine.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="get_blur_radius_at" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="screen_y" type="float" />
+			<param index="1" name="screen_height" type="float" default="1080.0" />
+			<description>
+				Returns the blur radius in pixels at [param screen_y] (a fraction of the screen height, 0 at the top and 1 at the bottom) on a screen of [param screen_height] lines. The effect's shader uses the same formula, so agents and tests can check the band without rendering.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="focus_center" type="float" setter="set_focus_center" getter="get_focus_center" default="0.55">
+			The middle of the sharp band, as a fraction of the screen height from the top.
+		</member>
+		<member name="focus_width" type="float" setter="set_focus_width" getter="get_focus_width" default="0.12">
+			Half the height of the sharp band, as a fraction of the screen height.
+		</member>
+		<member name="max_blur" type="float" setter="set_max_blur" getter="get_max_blur" default="6.0">
+			The blur radius in pixels (at 1080 lines) far from the band. 0 turns the effect off.
+		</member>
+		<member name="transition" type="float" setter="set_transition" getter="get_transition" default="0.25">
+			The distance from the band (a fraction of the screen height) over which the blur grows from none to [member max_blur].
+		</member>
+	</members>
+</class>
