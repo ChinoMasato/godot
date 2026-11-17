@@ -1,0 +1,102 @@
+[gd_scene format=3]
+
+[sub_resource type="PlaneMesh" id="plane"]
+size = Vector2(400, 400)
+
+[sub_resource type="PlaneMesh" id="leaf"]
+size = Vector2(0.5, 0.9)
+
+[sub_resource type="PlaneMesh" id="pool"]
+size = Vector2(2.4, 1.6)
+
+[sub_resource type="SphereMesh" id="sphere"]
+radius = 0.6
+height = 1.2
+
+[sub_resource type="SphereMesh" id="rock"]
+radius = 0.8
+height = 1.0
+
+[sub_resource type="StandardMaterial3D" id="m_ground"]
+albedo_color = Color(0.4, 0.38, 0.3, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="m_rock"]
+albedo_color = Color(0.55, 0.52, 0.46, 1)
+
+[sub_resource type="StandardMaterial3D" id="m_leaf"]
+albedo_color = Color(0.32, 0.5, 0.18, 1)
+roughness = 0.6
+cull_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="m_skin"]
+albedo_color = Color(0.85, 0.64, 0.52, 1)
+roughness = 0.55
+
+[sub_resource type="StandardMaterial3D" id="m_glass"]
+albedo_color = Color(0.9, 0.95, 1, 1)
+roughness = 0.1
+
+[sub_resource type="StandardMaterial3D" id="m_water"]
+albedo_color = Color(0.1, 0.3, 0.33, 1)
+roughness = 0.5
+
+[node name="Main" type="Node3D"]
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.9659258, 0.258819, 0, -0.258819, 0.9659258, 0, 2.6, 6)
+fov = 55.0
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("plane")
+material_override = SubResource("m_ground")
+
+[node name="Leaf0" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.984808, -0.173648, 0, 0, 0, -1, 0.173648, 0.984808, 0, -0.55, 1.8, 0)
+mesh = SubResource("leaf")
+material_override = SubResource("m_leaf")
+
+[node name="Leaf1" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.965926, 0.258819, 0, 0, 0, -1, -0.258819, 0.965926, 0, 0.0, 2.1, 0)
+mesh = SubResource("leaf")
+material_override = SubResource("m_leaf")
+
+[node name="Leaf2" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.906308, -0.422618, 0, 0, 0, -1, 0.422618, 0.906308, 0, 0.55, 1.7, 0)
+mesh = SubResource("leaf")
+material_override = SubResource("m_leaf")
+
+[node name="Leaf3" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.996195, 0.087156, 0, 0, 0, -1, -0.087156, 0.996195, 0, -0.25000000000000006, 2.6, 0)
+mesh = SubResource("leaf")
+material_override = SubResource("m_leaf")
+
+[node name="Leaf4" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.965926, -0.258819, 0, 0, 0, -1, 0.258819, 0.965926, 0, 0.35, 2.6, 0)
+mesh = SubResource("leaf")
+material_override = SubResource("m_leaf")
+
+[node name="Skin" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.7, 0.6, 0.8)
+mesh = SubResource("sphere")
+material_override = SubResource("m_skin")
+
+[node name="Glass" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, 0.6, 0.8)
+mesh = SubResource("sphere")
+material_override = SubResource("m_glass")
+
+[node name="Rock" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0, 3.3)
+mesh = SubResource("rock")
+material_override = SubResource("m_rock")
+
+[node name="Water" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 3.3)
+mesh = SubResource("pool")
+material_override = SubResource("m_water")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-1.000000, -0.000000, 0.000000, 0.000000, 0.951057, 0.309017, -0.000000, 0.309017, -0.951057, 0, 0, 0)
+light_color = Color(1, 0.92, 0.8, 1)
+shadow_enabled = true

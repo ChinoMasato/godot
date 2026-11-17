@@ -8,15 +8,47 @@
 #   ai_loop/look.sh my_game lamp --scene res://main.tscn --position 2,3,-4
 #   ai_loop/look.sh my_game camera --scene res://main.tscn --lens telephoto --eye standing --shift 0.2
 #   ai_loop/look.sh my_game material --kind water --out res://materials/water.tres
+#   ai_loop/look.sh my_game shot --out /tmp/shot.png [--frames 8]
+#   ai_loop/look.sh my_game check --image /tmp/shot.png
 #   ai_loop/look.sh my_game info
 #
-# Then check it with ai_loop/screenshot.sh and ai_loop/palette_check.py.
+# shot renders the main scene without a GPU (ai_loop/screenshot.sh); check reports
+# color balance, muddiness and composition (ai_loop/palette_check.py).
 # Environment: GODOT  editor binary (default: bin/godot.linuxbsd.editor.x86_64).
 set -euo pipefail
 
 PROJECT="${1:?usage: look.sh <project-dir> <command> [options]}"
 shift
 ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+
+opt() { # opt <name> <default> <args...>
+  local name="$1" default="$2"; shift 2
+  while [ $# -gt 0 ]; do
+    if [ "$1" = "--$name" ] && [ $# -gt 1 ]; then echo "$2"; return; fi
+    shift
+  done
+  echo "$default"
+}
+
+case "${1:-}" in
+  shot)
+    OUT="$(opt out "" "$@")"
+    [ -n "$OUT" ] || { echo '{"ok": false, "error": "shot needs --out file.png"}'; exit 1; }
+    if MSG="$("$ROOT/ai_loop/screenshot.sh" "$PROJECT" "$OUT" "$(opt frames 8 "$@")" 2>&1)"; then
+      printf '{"ok": true, "command": "shot", "image": "%s"}\n' "$OUT"
+      exit 0
+    fi
+    printf '%s\n' "$MSG" >&2
+    echo '{"ok": false, "command": "shot", "error": "render failed (see stderr)"}'
+    exit 1
+    ;;
+  check)
+    IMAGE="$(opt image "" "$@")"
+    [ -n "$IMAGE" ] || { echo '{"ok": false, "error": "check needs --image file.png"}'; exit 1; }
+    python3 "$ROOT/ai_loop/palette_check.py" "$IMAGE" --json-only
+    exit $?
+    ;;
+esac
 GODOT="${GODOT:-$ROOT/bin/godot.linuxbsd.editor.x86_64}"
 [ -x "$GODOT" ] || { echo '{"ok": false, "error": "editor binary not found; build with target=editor"}'; exit 2; }
 

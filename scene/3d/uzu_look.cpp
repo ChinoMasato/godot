@@ -95,7 +95,7 @@ Dictionary UZULook::apply_to_scene(Node *p_root, Quality p_quality, Atmosphere p
 	ERR_FAIL_NULL_V(p_root, result);
 
 	WorldEnvironment *world_environment = nullptr;
-	bool has_directional_light = false;
+	DirectionalLight3D *sun = nullptr;
 	TypedArray<Node> nodes = p_root->find_children("*", "", true, false);
 	nodes.push_front(p_root);
 	for (const Variant &v : nodes) {
@@ -104,8 +104,8 @@ Dictionary UZULook::apply_to_scene(Node *p_root, Quality p_quality, Atmosphere p
 			world_environment = Object::cast_to<WorldEnvironment>(node);
 		}
 		DirectionalLight3D *light = Object::cast_to<DirectionalLight3D>(node);
-		if (light && light->get_sky_mode() != DirectionalLight3D::SKY_MODE_LIGHT_ONLY) {
-			has_directional_light = true;
+		if (!sun && light && light->get_sky_mode() != DirectionalLight3D::SKY_MODE_LIGHT_ONLY) {
+			sun = light;
 		}
 	}
 
@@ -120,10 +120,13 @@ Dictionary UZULook::apply_to_scene(Node *p_root, Quality p_quality, Atmosphere p
 	world_environment->set_environment(create_environment(p_quality, p_atmosphere));
 	world_environment->set_camera_attributes(create_camera_attributes(p_quality));
 
-	if (has_directional_light) {
-		result["sun"] = "kept";
+	// The sun belongs to the atmosphere (its direction, color and strength), so
+	// an existing one is configured too: otherwise a night look keeps a day sun.
+	if (sun) {
+		configure_sun(sun, p_quality, p_atmosphere);
+		result["sun"] = "configured";
 	} else {
-		DirectionalLight3D *sun = memnew(DirectionalLight3D);
+		sun = memnew(DirectionalLight3D);
 		configure_sun(sun, p_quality, p_atmosphere);
 		_add_owned(p_root, sun, "Sun");
 		p_root->move_child(sun, 1);

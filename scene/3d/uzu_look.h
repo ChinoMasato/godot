@@ -98,8 +98,9 @@ public:
 	static float get_eye_height(EyeLevel p_eye_level);
 
 	// Scene helpers. New nodes are owned by p_root, so they are saved with it.
-	// Adds (or updates) a WorldEnvironment, and adds a sun if the scene has no
-	// DirectionalLight3D. Returns what was done, e.g. {"world_environment": "added", "sun": "kept"}.
+	// Adds (or updates) a WorldEnvironment, and configures the sun (the first
+	// DirectionalLight3D that drives the sky) for the atmosphere, adding one if
+	// there is none. Returns what was done, e.g. {"world_environment": "added", "sun": "configured"}.
 	static Dictionary apply_to_scene(Node *p_root, Quality p_quality = QUALITY_HIGH, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
 	// Adds fill and rim lights (three-point lighting with the sun as the key light).
 	static Dictionary add_lighting_rig(Node *p_root, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);

@@ -7,6 +7,7 @@ extends SceneTree
 ##   lamp     --scene res://main.tscn --position x,y,z [--quality ...]
 ##   camera   --scene res://main.tscn [--node Path/To/Camera3D] [--lens wide|standard|telephoto] [--shift 0.2] [--eye standing|low]
 ##   material --kind skin|foliage|glass|water|lamp --out res://materials/water.tres
+##   material --kind water --scene res://main.tscn --node Path/To/MeshInstance3D   assigns it as the material override
 ##   info     lists the options
 ## Prints one line "UZU_RESULT {json}" with {"ok": bool, ...}; exits 0 on success, 1 on error.
 
@@ -57,14 +58,14 @@ func _save_scene(root: Node, path: String) -> Error:
 
 func _run(args: PackedStringArray) -> Dictionary:
 	if args.is_empty() or args[0] == "info":
-		return {"ok": true, "commands": ["apply", "rig", "lamp", "camera", "material", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
+		return {"ok": true, "commands": ["apply", "rig", "lamp", "camera", "material", "shot", "check", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
 	var command := args[0]
 
-	if command == "material":
+	if command == "material" and _option(args, "scene").is_empty():
 		var kind = _pick(MATERIALS, args, "kind", "")
 		var out := _option(args, "out")
 		if kind == null or out.is_empty():
-			return _error("material needs --kind %s and --out res://path.tres" % "|".join(MATERIALS.keys()))
+			return _error("material needs --kind %s and --out res://path.tres (or --scene and --node to assign it)" % "|".join(MATERIALS.keys()))
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out.get_base_dir()))
 		var err := ResourceSaver.save(UZULook.create_material(kind), out)
 		return {"ok": err == OK, "command": command, "saved": out, "error": error_string(err) if err != OK else ""}
@@ -109,6 +110,14 @@ func _run(args: PackedStringArray) -> Dictionary:
 					return _error("unknown --eye")
 				camera.position.y = UZULook.get_eye_height(EYE_LEVELS[eye])
 			done = {"camera": str(root.get_path_to(camera)), "fov": UZULook.get_lens_fov(lens), "projection": camera.projection, "height": camera.position.y}
+		"material":
+			var kind = _pick(MATERIALS, args, "kind", "")
+			var target := root.get_node_or_null(_option(args, "node")) as GeometryInstance3D
+			if kind == null or target == null:
+				root.free()
+				return _error("material needs --kind and --node pointing to a GeometryInstance3D")
+			target.material_override = UZULook.create_material(kind)
+			done = {"node": str(root.get_path_to(target)), "material": _option(args, "kind")}
 		_:
 			root.free()
 			return _error("unknown command '%s'" % command)

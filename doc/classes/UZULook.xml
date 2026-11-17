@@ -49,7 +49,7 @@
 			<param index="1" name="quality" type="int" enum="UZULook.Quality" default="0" />
 			<param index="2" name="atmosphere" type="int" enum="UZULook.Atmosphere" default="0" />
 			<description>
-				Applies the look to the scene rooted at [param root]: adds a [WorldEnvironment] (or updates the existing one) with [method create_environment] and [method create_camera_attributes], and adds a sun configured with [method configure_sun] if the scene has no [DirectionalLight3D] that drives the sky. New nodes are owned by [param root], so they are saved with the scene. Returns what was done, for example [code]{"world_environment": "added", "sun": "kept"}[/code].
+				Applies the look to the scene rooted at [param root]: adds a [WorldEnvironment] (or updates the existing one) with [method create_environment] and [method create_camera_attributes], and configures the sun (the first [DirectionalLight3D] that drives the sky) with [method configure_sun], adding one if there is none. New nodes are owned by [param root], so they are saved with the scene. Returns what was done, for example [code]{"world_environment": "added", "sun": "configured"}[/code].
 			</description>
 		</method>
 		<method name="configure_camera" qualifiers="static">

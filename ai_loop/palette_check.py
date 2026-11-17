@@ -11,7 +11,9 @@ Measures painting principles an agent can check by itself (BACKLOG B-711):
 - muddiness: images look muddy when saturation is uniform everywhere or the
   light-dark contrast is weak, so both are measured;
 - detail density by height: natural scenes are densest near the eye level
-  (horizon), so the row band with the most edges is reported.
+  (horizon), so the row band with the most edges is reported;
+- composition: the most detailed area (the likely focal point) and the nearest
+  guide point (center or a rule-of-thirds intersection) with its distance.
 
 Warnings are hints for a person to judge, not failures. Exit status is 0 unless
 the input cannot be read (2). Standard library only.
@@ -86,6 +88,8 @@ def analyze(path):
 
     # Edge density per horizontal band (10 bands, top to bottom).
     bands = [0.0] * 10
+    grid_w, grid_h = 12, 8
+    cells = [[0.0] * grid_w for _ in range(grid_h)]
     for y in range(STEP, height - STEP, STEP):
         band = min(9, y * 10 // height)
         row, above = rows[y], rows[y - STEP]
@@ -95,10 +99,24 @@ def analyze(path):
             dx = abs(l - (row[j] + row[j + 1] + row[j + 2]))
             dy = abs(l - (above[i] + above[i + 1] + above[i + 2]))
             bands[band] += dx + dy
+            cells[min(grid_h - 1, y * grid_h // height)][min(grid_w - 1, x * grid_w // width)] += dx + dy
     band_total = sum(bands) or 1.0
     densest = max(range(10), key=lambda k: bands[k])
 
+    # Composition: the most detailed area (the likely focal point, smoothed over
+    # neighboring cells) and the nearest classic guide point.
+    def smoothed(cx, cy):
+        return sum(cells[j][i] for j in range(max(0, cy - 1), min(grid_h, cy + 2)) for i in range(max(0, cx - 1), min(grid_w, cx + 2)))
+
+    fx, fy = max(((cx, cy) for cy in range(grid_h) for cx in range(grid_w)), key=lambda c: smoothed(*c))
+    focus = ((fx + 0.5) / grid_w, (fy + 0.5) / grid_h)
+    guides = {"center": (0.5, 0.5), "thirds_upper_left": (1 / 3, 1 / 3), "thirds_upper_right": (2 / 3, 1 / 3), "thirds_lower_left": (1 / 3, 2 / 3), "thirds_lower_right": (2 / 3, 2 / 3)}
+    nearest = min(guides, key=lambda g: math.dist(focus, guides[g]))
+    guide_distance = math.dist(focus, guides[nearest])
+
     warnings = []
+    if min(focus[0], focus[1], 1 - focus[0], 1 - focus[1]) < 0.1:
+        warnings.append("the most detailed area is at the edge of the frame: move the focal point toward the center or a thirds point")
     if distinct_hues > 3:
         warnings.append(f"{distinct_hues} distinct hues: fewer (up to 3) keeps the color calmer")
     if colored and base < 0.5 and neutral / total < 0.5:
@@ -131,6 +149,11 @@ def analyze(path):
         "detail_by_height": {
             "bands_top_to_bottom": [round(b / band_total, 3) for b in bands],
             "densest_band": densest,
+        },
+        "composition": {
+            "focus": [round(focus[0], 3), round(focus[1], 3)],
+            "nearest_guide": nearest,
+            "guide_distance": round(guide_distance, 3),
         },
         "warnings": warnings,
     }
@@ -190,6 +213,19 @@ def self_test():
         write_png(mid, 100, 100, lambda x, y: (255, 255, 255) if 45 <= y < 55 and x % 4 < 2 else (128, 128, 128))
         r = analyze(mid)
         assert r["detail_by_height"]["densest_band"] in (4, 5), r
+
+        # A detailed patch near the upper-left thirds point is found as the focus.
+        thirds = os.path.join(tmp, "thirds.png")
+        write_png(thirds, 120, 90, lambda x, y: (255, 255, 255) if 30 <= x < 50 and 22 <= y < 38 and (x + y) % 3 == 0 else (90, 100, 120))
+        r = analyze(thirds)
+        assert r["composition"]["nearest_guide"] == "thirds_upper_left", r
+        assert r["composition"]["guide_distance"] < 0.1, r
+
+        # Detail only at the left border: an edge warning.
+        edge = os.path.join(tmp, "edge.png")
+        write_png(edge, 120, 90, lambda x, y: (255, 255, 255) if x < 6 and (x + y) % 2 == 0 else (90, 100, 120))
+        r = analyze(edge)
+        assert any("edge of the frame" in w for w in r["warnings"]), r
     print("self-test: ok")
     return 0
 

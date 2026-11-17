@@ -75,10 +75,12 @@ TEST_CASE("[SceneTree][UZULook] Apply the look to a scene") {
 	CHECK(world_environment->get_environment()->get_fog_height_density() > 0.0);
 	CHECK(world_environment->get_camera_attributes().is_valid());
 
-	// Applying again updates the existing environment and keeps the sun.
-	Dictionary second = UZULook::apply_to_scene(root, UZULook::QUALITY_LOW, UZULook::ATMOSPHERE_CLEAR);
+	// Applying again updates the existing environment and reconfigures the
+	// existing sun for the new atmosphere (a night look must not keep a day sun).
+	Dictionary second = UZULook::apply_to_scene(root, UZULook::QUALITY_LOW, UZULook::ATMOSPHERE_NIGHT);
 	CHECK(String(second["world_environment"]) == "updated");
-	CHECK(String(second["sun"]) == "kept");
+	CHECK(String(second["sun"]) == "configured");
+	CHECK(sun->get_param(Light3D::PARAM_ENERGY) < 0.5);
 	CHECK(root->get_child_count() == 2);
 	CHECK_FALSE(world_environment->get_environment()->is_ssao_enabled());
 
