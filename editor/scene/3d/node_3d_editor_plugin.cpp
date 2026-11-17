@@ -2549,14 +2549,15 @@ void Node3DEditor::_add_look_to_scene() {
 	ERR_FAIL_NULL(base);
 
 	const LookPreset3D::Quality quality = LookPreset3D::Quality(look_quality->get_selected_id());
+	const LookPreset3D::Atmosphere atmosphere = LookPreset3D::Atmosphere(look_atmosphere->get_selected_id());
 
 	WorldEnvironment *new_env = memnew(WorldEnvironment);
-	new_env->set_environment(LookPreset3D::create_environment(quality));
+	new_env->set_environment(LookPreset3D::create_environment(quality, atmosphere));
 
 	DirectionalLight3D *new_sun = nullptr;
 	if (directional_light_count == 0) {
 		new_sun = memnew(DirectionalLight3D);
-		LookPreset3D::configure_sun(new_sun, quality);
+		LookPreset3D::configure_sun(new_sun, quality, atmosphere);
 	}
 
 	EditorUndoRedoManager *undo_redo = EditorUndoRedoManager::get_singleton();
@@ -4154,6 +4155,13 @@ void fragment() {
 		look_quality->add_item(TTRC("Low"), LookPreset3D::QUALITY_LOW);
 		look_quality->select(look_quality->get_item_index(LookPreset3D::get_default_quality(OS::get_singleton()->get_current_rendering_method())));
 		look_hb->add_child(look_quality);
+		look_atmosphere = memnew(OptionButton);
+		look_atmosphere->set_accessibility_name(TTRC("U.ZU Look Atmosphere"));
+		look_atmosphere->set_tooltip_text(TTRC("Clear: dry air, the distance turns blue.\nHumid: the distance fades into a white haze.\nGolden Hour: low, warm sun near sunrise or sunset."));
+		look_atmosphere->add_item(TTRC("Clear"), LookPreset3D::ATMOSPHERE_CLEAR);
+		look_atmosphere->add_item(TTRC("Humid"), LookPreset3D::ATMOSPHERE_HUMID);
+		look_atmosphere->add_item(TTRC("Golden Hour"), LookPreset3D::ATMOSPHERE_GOLDEN_HOUR);
+		look_hb->add_child(look_atmosphere);
 		look_add_to_scene = memnew(Button);
 		look_add_to_scene->set_text(TTRC("Add U.ZU Look to Scene"));
 		look_add_to_scene->set_tooltip_text(TTRC("Adds a WorldEnvironment with a tuned look (filmic tonemapping, sky lighting, ambient occlusion, glow and fog) to the current scene, and a sun with soft split shadows if the scene has no DirectionalLight3D.\nHigh: Forward+ on a dedicated GPU. Standard: integrated GPUs or Mobile. Low: Compatibility (Web)."));

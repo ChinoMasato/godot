@@ -39,7 +39,8 @@ class Environment;
 //
 // Builds an Environment and configures a DirectionalLight3D with tuned values:
 // filmic tonemapping, sky-based ambient and reflected light, ambient occlusion,
-// glow, distance fog and split shadows. Godot's class defaults leave all of these
+// glow, distance fog (aerial perspective) and split shadows, for clear air,
+// humid air or golden hour. Godot's class defaults leave all of these
 // off, which is why a fresh 3D scene looks flat.
 //
 // This is engine-internal (not registered with ClassDB). Class defaults are not
@@ -53,11 +54,18 @@ enum Quality {
 	QUALITY_LOW, // Compatibility (Web) renderer: only features it supports.
 };
 
+// Air and time of day (aerial perspective).
+enum Atmosphere {
+	ATMOSPHERE_CLEAR, // Dry, clear air: the distance turns blue.
+	ATMOSPHERE_HUMID, // Humid air: the distance fades into a white haze.
+	ATMOSPHERE_GOLDEN_HOUR, // Low, warm sun near sunrise or sunset.
+};
+
 // Returns the quality that suits the given rendering method name
 // ("forward_plus", "mobile", "gl_compatibility").
 Quality get_default_quality(const String &p_rendering_method);
 
-Ref<Environment> create_environment(Quality p_quality);
-void configure_sun(DirectionalLight3D *p_sun, Quality p_quality);
+Ref<Environment> create_environment(Quality p_quality, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
+void configure_sun(DirectionalLight3D *p_sun, Quality p_quality, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
 
 } // namespace LookPreset3D

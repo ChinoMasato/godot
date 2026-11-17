@@ -356,6 +356,7 @@ private:
 	Button *environ_gi_button = nullptr;
 	Button *environ_add_to_scene = nullptr;
 	OptionButton *look_quality = nullptr;
+	OptionButton *look_atmosphere = nullptr;
 	Button *look_add_to_scene = nullptr;
 
 	Button *sun_environ_settings = nullptr;

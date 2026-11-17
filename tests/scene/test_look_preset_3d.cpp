@@ -57,7 +57,7 @@ TEST_CASE("[SceneTree][LookPreset3D] Environment is lit by a sky and graded") {
 
 		CHECK(environment->get_background() == Environment::BG_SKY);
 		REQUIRE(environment->get_sky().is_valid());
-		CHECK(Object::cast_to<ProceduralSkyMaterial>(environment->get_sky()->get_material().ptr()) != nullptr);
+		CHECK(Object::cast_to<PhysicalSkyMaterial>(environment->get_sky()->get_material().ptr()) != nullptr);
 		CHECK(environment->get_ambient_source() == Environment::AMBIENT_SOURCE_SKY);
 		CHECK(environment->get_ambient_light_energy() == doctest::Approx(0.5));
 		CHECK(environment->get_reflection_source() == Environment::REFLECTION_SOURCE_SKY);
@@ -68,8 +68,57 @@ TEST_CASE("[SceneTree][LookPreset3D] Environment is lit by a sky and graded") {
 		CHECK(environment->is_glow_enabled());
 		CHECK(environment->is_fog_enabled());
 		CHECK(environment->get_fog_mode() == Environment::FOG_MODE_EXPONENTIAL);
-		CHECK(environment->get_fog_density() == doctest::Approx(0.002));
+		CHECK(environment->get_fog_density() > 0.0);
 	}
+}
+
+TEST_CASE("[SceneTree][LookPreset3D] Atmospheres give the two kinds of aerial perspective") {
+	const LookPreset3D::Quality quality = LookPreset3D::QUALITY_HIGH;
+
+	// Clear air: small particles scatter blue, so the distance turns blue.
+	Ref<Environment> clear = LookPreset3D::create_environment(quality, LookPreset3D::ATMOSPHERE_CLEAR);
+	const Color clear_fog = clear->get_fog_light_color();
+	CHECK(clear_fog.b > clear_fog.r);
+	CHECK(clear->get_fog_aerial_perspective() > 0.5);
+	CHECK(clear->get_fog_height_density() == doctest::Approx(0.0));
+
+	// Humid air: larger particles scatter all colors, so the distance turns white, densest near the ground.
+	Ref<Environment> humid = LookPreset3D::create_environment(quality, LookPreset3D::ATMOSPHERE_HUMID);
+	const Color humid_fog = humid->get_fog_light_color();
+	CHECK(humid_fog.get_s() < clear_fog.get_s());
+	CHECK(humid_fog.get_v() > clear_fog.get_v());
+	CHECK(humid->get_fog_aerial_perspective() < clear->get_fog_aerial_perspective());
+	CHECK(humid->get_fog_density() > clear->get_fog_density());
+	CHECK(humid->get_fog_height_density() > 0.0);
+
+	Ref<PhysicalSkyMaterial> clear_sky = clear->get_sky()->get_material();
+	Ref<PhysicalSkyMaterial> humid_sky = humid->get_sky()->get_material();
+	REQUIRE(clear_sky.is_valid());
+	REQUIRE(humid_sky.is_valid());
+	CHECK(humid_sky->get_mie_coefficient() > clear_sky->get_mie_coefficient());
+	CHECK(humid_sky->get_turbidity() > clear_sky->get_turbidity());
+
+	// Golden hour: warm fog.
+	Ref<Environment> golden = LookPreset3D::create_environment(quality, LookPreset3D::ATMOSPHERE_GOLDEN_HOUR);
+	CHECK(golden->get_fog_light_color().r > golden->get_fog_light_color().b);
+}
+
+TEST_CASE("[SceneTree][LookPreset3D] Golden hour has a low, warm sun") {
+	DirectionalLight3D *sun = memnew(DirectionalLight3D);
+
+	LookPreset3D::configure_sun(sun, LookPreset3D::QUALITY_HIGH, LookPreset3D::ATMOSPHERE_CLEAR);
+	const float clear_altitude = -sun->get_rotation_degrees().x;
+
+	LookPreset3D::configure_sun(sun, LookPreset3D::QUALITY_HIGH, LookPreset3D::ATMOSPHERE_GOLDEN_HOUR);
+	const float golden_altitude = -sun->get_rotation_degrees().x;
+	CHECK(golden_altitude > 0.0);
+	CHECK(golden_altitude < 20.0);
+	CHECK(golden_altitude < clear_altitude);
+	CHECK(sun->get_color().r > sun->get_color().b);
+	// Shadows keep the quality settings whatever the atmosphere.
+	CHECK(sun->get_shadow_mode() == DirectionalLight3D::SHADOW_PARALLEL_4_SPLITS);
+
+	memdelete(sun);
 }
 
 TEST_CASE("[SceneTree][LookPreset3D] Screen-space effects scale with quality") {
