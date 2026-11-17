@@ -49,3 +49,4 @@
 | B-802 | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-101 | Codex | agent/b-101-codex | tests/doctest_json.py, tests/test_doctest_json.py, tests/README_JSON.md, ai_loop/iterations/2026-11-17-B-101-codex.md（運用ファイルは自分の担当宣言・状況行のみ） | 反映済み（リードが統合） | 2026-11-18 |
 | B-803 | Claude Code (cloud) | ai-native（直接） | servers/rendering/shader_check_json.{h,cpp}（新規）, servers/rendering/SCsub, main/main.cpp, tests/servers/rendering/test_shader_check_json.cpp（新規）, ai_loop/uzu.py, ai_loop/bench.py, ai_loop/selfplay/frametime.gd（新規）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
+| B-803（統合後の検証・MCP 接続） | Codex | agent/b-803-codex | ai_loop/bench.py, ai_loop/mcp_server.py, ai_loop/README_B803.md, ai_loop/iterations/2026-11-17-B-803-codex.md（運用ファイルは自分の宣言・状況行のみ） | 検証完了・統合待ち | 2026-11-17 |
