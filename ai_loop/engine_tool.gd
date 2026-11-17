@@ -23,6 +23,17 @@ extends SceneTree
 ## Project:
 ##   validate                                                     loads every scene, resource and script; lists problems (B-203)
 ##   actions                                                      the project's input actions and their events (B-304)
+## Resources, settings, input map and import settings (B-802):
+##   res-new      --path res://m.tres --type StandardMaterial3D [--set '{"albedo_color": "Color(1, 0, 0, 1)"}']
+##   res-props    --path res://m.tres                             inspector properties with values
+##   res-get      --path res://m.tres --property P
+##   res-set      --path res://m.tres --property P --value V       saves
+##   setting-get  --name application/config/name
+##   setting-set  --name display/window/size/viewport_width --value 1280   saves project.godot
+##   action-add   --name jump [--key Space] [--mouse left] [--joy-button 0] [--deadzone 0.5] [--replace]
+##   action-remove --name jump
+##   import-get   --path res://icon.png                           the file's import settings (.import)
+##   import-set   --path res://icon.png --param compress/mode --value 1   (uzu.py then reimports)
 ## Prints one line "ENGINE_RESULT {json}"; exits 0 on success, 1 on error.
 
 
@@ -108,6 +119,14 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 			return _validate()
 		"actions":
 			return _actions()
+		"res-new", "res-props", "res-get", "res-set":
+			return _resource_command(command, args)
+		"setting-get", "setting-set":
+			return _setting_command(command, args)
+		"action-add", "action-remove":
+			return _action_command(command, args)
+		"import-get", "import-set":
+			return _import_command(command, args)
 		"classes":
 			var base := _option(args, "inherits")
 			var names: Array = Array(ClassDB.get_inheriters_from_class(base) if not base.is_empty() else ClassDB.get_class_list())
@@ -338,3 +357,150 @@ func _actions() -> Dictionary:
 	for a in actions:
 		a.erase("builtin")
 	return {"ok": true, "command": "actions", "actions": actions}
+
+
+func _editor_properties(object: Object) -> Dictionary:
+	var values := {}
+	for p in object.get_property_list():
+		if p.usage & PROPERTY_USAGE_EDITOR and not p.usage & (PROPERTY_USAGE_CATEGORY | PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP):
+			values[p.name] = _value_out(object.get(p.name))
+	return values
+
+
+func _apply_values(object: Object, json_text: String) -> String:
+	# Applies {"property": "value in text format"}; returns an error message or "".
+	if json_text.is_empty():
+		return ""
+	var values = JSON.parse_string(json_text)
+	if typeof(values) != TYPE_DICTIONARY:
+		return "--set must be a JSON object"
+	for key in values:
+		if not key in object:
+			return "no property '%s' in %s" % [key, object.get_class()]
+		object.set_indexed(key, _value_in(str(values[key])))
+	return ""
+
+
+func _resource_command(command: String, args: PackedStringArray) -> Dictionary:
+	var path := _option(args, "path")
+	if not path.begins_with("res://") or not path.get_extension() in ["tres", "res"]:
+		return _error("--path must be res://....tres or .res")
+	var res: Resource
+	if command == "res-new":
+		var type := _option(args, "type")
+		if not ClassDB.class_exists(type) or not ClassDB.is_parent_class(type, "Resource") or not ClassDB.can_instantiate(type):
+			return _error("--type must be a resource class (e.g. StandardMaterial3D)")
+		res = ClassDB.instantiate(type)
+		var problem := _apply_values(res, _option(args, "set"))
+		if not problem.is_empty():
+			return _error(problem)
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
+	else:
+		res = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) if ResourceLoader.exists(path) else null
+		if res == null:
+			return _error("could not load '%s'" % path)
+	var prop := _option(args, "property")
+	match command:
+		"res-props":
+			return {"ok": true, "command": command, "path": path, "class": res.get_class(), "properties": _editor_properties(res)}
+		"res-get":
+			if not prop.get_slice(":", 0) in res:
+				return _error("no --property '%s' in %s" % [prop, res.get_class()])
+			return {"ok": true, "command": command, "path": path, "property": prop, "value": _value_out(res.get_indexed(prop))}
+		"res-set":
+			if not prop.get_slice(":", 0) in res:
+				return _error("no --property '%s' in %s" % [prop, res.get_class()])
+			res.set_indexed(prop, _value_in(_option(args, "value")))
+	var err := ResourceSaver.save(res, path)
+	if err != OK:
+		return _error("could not save '%s': %s" % [path, error_string(err)])
+	var done := {"ok": true, "command": command, "path": path, "class": res.get_class()}
+	if command == "res-set":
+		done["property"] = prop
+		done["value"] = _value_out(res.get_indexed(prop))
+	return done
+
+
+func _setting_command(command: String, args: PackedStringArray) -> Dictionary:
+	var name := _option(args, "name")
+	if name.is_empty() or not name.contains("/"):
+		return _error("--name must be a setting path like application/config/name")
+	if command == "setting-get":
+		if not ProjectSettings.has_setting(name):
+			return _error("no setting '%s'" % name)
+		return {"ok": true, "command": command, "name": name, "value": _value_out(ProjectSettings.get_setting(name))}
+	ProjectSettings.set_setting(name, _value_in(_option(args, "value")))
+	var err := ProjectSettings.save()
+	if err != OK:
+		return _error("could not save project.godot: %s" % error_string(err))
+	return {"ok": true, "command": command, "name": name, "value": _value_out(ProjectSettings.get_setting(name))}
+
+
+const MOUSE_BUTTONS := {"left": MOUSE_BUTTON_LEFT, "right": MOUSE_BUTTON_RIGHT, "middle": MOUSE_BUTTON_MIDDLE, "wheel_up": MOUSE_BUTTON_WHEEL_UP, "wheel_down": MOUSE_BUTTON_WHEEL_DOWN}
+
+
+func _action_command(command: String, args: PackedStringArray) -> Dictionary:
+	var name := _option(args, "name")
+	if name.is_empty() or name.contains("/"):
+		return _error("--name must be an action name like jump")
+	var key := "input/" + name
+	if command == "action-remove":
+		if not ProjectSettings.has_setting(key):
+			return _error("no action '%s'" % name)
+		ProjectSettings.set_setting(key, null)
+	else:
+		var current = ProjectSettings.get_setting(key) if ProjectSettings.has_setting(key) else {}
+		var events: Array = [] if args.has("--replace") or typeof(current) != TYPE_DICTIONARY else current.get("events", []).duplicate()
+		var key_name := _option(args, "key")
+		if not key_name.is_empty():
+			var code := OS.find_keycode_from_string(key_name)
+			if code == KEY_NONE:
+				return _error("unknown --key '%s' (use names like Space, A, Up, Escape)" % key_name)
+			var e := InputEventKey.new()
+			e.device = -1  # All devices, as the editor does.
+			e.physical_keycode = code
+			events.append(e)
+		var mouse := _option(args, "mouse")
+		if not mouse.is_empty():
+			if not MOUSE_BUTTONS.has(mouse):
+				return _error("--mouse must be one of %s" % ", ".join(MOUSE_BUTTONS.keys()))
+			var e := InputEventMouseButton.new()
+			e.device = -1
+			e.button_index = MOUSE_BUTTONS[mouse]
+			events.append(e)
+		var joy := _option(args, "joy-button")
+		if not joy.is_empty():
+			var e := InputEventJoypadButton.new()
+			e.device = -1
+			e.button_index = joy.to_int()
+			events.append(e)
+		var deadzone := _option(args, "deadzone", str(current.get("deadzone", 0.2) if typeof(current) == TYPE_DICTIONARY else 0.2)).to_float()
+		ProjectSettings.set_setting(key, {"deadzone": deadzone, "events": events})
+	var err := ProjectSettings.save()
+	if err != OK:
+		return _error("could not save project.godot: %s" % error_string(err))
+	var result := _actions()
+	result["command"] = command
+	return result
+
+
+func _import_command(command: String, args: PackedStringArray) -> Dictionary:
+	var path := _option(args, "path")
+	var import_file := path + ".import"
+	var cfg := ConfigFile.new()
+	if cfg.load(import_file) != OK:
+		return _error("no import settings for '%s' (run uzu.py engine <project> import first)" % path)
+	if command == "import-get":
+		var params := {}
+		if cfg.has_section("params"):
+			for k in cfg.get_section_keys("params"):
+				params[k] = _value_out(cfg.get_value("params", k))
+		return {"ok": true, "command": command, "path": path, "importer": cfg.get_value("remap", "importer", ""), "type": cfg.get_value("remap", "type", ""), "params": params}
+	var param := _option(args, "param")
+	if param.is_empty() or not cfg.has_section_key("params", param):
+		return _error("--param must be one of the file's import params (see import-get)")
+	cfg.set_value("params", param, _value_in(_option(args, "value")))
+	var err := cfg.save(import_file)
+	if err != OK:
+		return _error("could not save '%s': %s" % [import_file, error_string(err)])
+	return {"ok": true, "command": command, "path": path, "param": param, "value": _value_out(cfg.get_value("params", param)), "reimport": true}

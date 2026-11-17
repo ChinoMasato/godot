@@ -13,9 +13,10 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all]
 
-engine commands: run, check, validate, shot, and every command of ai_loop/engine_tool.gd
+engine commands: run, check, validate, shot, import, and every command of ai_loop/engine_tool.gd
 (tree, props, get, set, add, instance, remove, reparent, call, connect, script, new,
-classes, describe, actions). look commands: shot, check, panorama, and those of
+classes, describe, actions, res-new, res-props, res-get, res-set, setting-get,
+setting-set, action-add, action-remove, import-get, import-set). look commands: shot, check, panorama, and those of
 ai_loop/look_tool.gd (apply, rig, lamp, camera, material, info).
 Every command prints one JSON line {"ok": bool, ...}; exit 0 on success.
 
@@ -171,8 +172,30 @@ def engine(project, args):
         return result
     if command == "shot":
         return look(project, args)
+    if command == "import":
+        return import_assets(project)
     result, _ = gd_tool(project, "engine_tool.gd", args, "ENGINE_RESULT ")
+    if command == "import-set" and result.get("ok"):
+        imported = import_assets(project)  # The new setting takes effect only once the file is reimported.
+        result["ok"] = imported["ok"]
+        result["errors"] = imported["errors"]
     return result
+
+
+def import_assets(project):
+    """Imports (or reimports) the project's assets: textures, sounds, models... (B-802)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        jsonl = os.path.join(tmp, "errors.jsonl")
+        rc, out = run([find_godot(), "--headless", "--path", project, "--import", "--log-json", jsonl], timeout=1800)
+        errors = [e for e in read_jsonl(jsonl) if e.get("level") != "warning"]
+    imported = []
+    for dirpath, dirs, files in os.walk(project):
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
+        for f in files:
+            if f.endswith(".import"):
+                rel = os.path.relpath(os.path.join(dirpath, f[: -len(".import")]), project).replace(os.sep, "/")
+                imported.append("res://" + rel)
+    return {"ok": rc == 0 and not errors, "command": "import", "exit_code": rc, "imported": sorted(imported), "errors": errors, "log_tail": tail(out, 10) if rc != 0 else ""}
 
 
 # ---------------------------------------------------------------- look
@@ -383,6 +406,36 @@ def selftest_engine():
         c.expect("remove", r["ok"] and r["removed"] == "Group/Box", r)
         c.expect("bad node", not e("get", *S, "--node", "Nope", "--property", "position")["ok"])
         c.expect("bad scene", not e("tree", "--scene", "res://nope.tscn")["ok"])
+        # B-802: resources, settings, input map, import settings.
+        r = e("res-new", "--path", "res://mat/red.tres", "--type", "StandardMaterial3D", "--set", '{"albedo_color": "Color(1, 0, 0, 1)"}')
+        c.expect("res-new", r["ok"] and os.path.exists(os.path.join(p, "mat", "red.tres")), r)
+        r = e("res-set", "--path", "res://mat/red.tres", "--property", "roughness", "--value", "0.25")
+        c.expect("res-set", r["ok"] and r["value"] == 0.25, r)
+        r = e("res-props", "--path", "res://mat/red.tres")
+        c.expect("res-props", r["ok"] and r["properties"]["albedo_color"] == "Color(1, 0, 0, 1)" and r["properties"]["roughness"] == 0.25, r)
+        c.expect("res-get bad", not e("res-get", "--path", "res://mat/red.tres", "--property", "nope")["ok"])
+        c.expect("res-new bad type", not e("res-new", "--path", "res://x.tres", "--type", "Node3D")["ok"])
+        r = e("setting-set", "--name", "display/window/size/viewport_width", "--value", "1280")
+        c.expect("setting-set", r["ok"] and e("setting-get", "--name", "display/window/size/viewport_width")["value"] == 1280, r)
+        c.expect("setting kept", 'run/main_scene="res://main.tscn"' in open(os.path.join(p, "project.godot"), encoding="utf-8").read())
+        r = e("action-add", "--name", "fire", "--mouse", "left", "--key", "F")
+        fire = next((a for a in r.get("actions", []) if a["name"] == "fire"), {})
+        c.expect("action-add", r["ok"] and [x["class"] for x in fire.get("events", [])] == ["InputEventKey", "InputEventMouseButton"], r)
+        c.expect("action-add bad key", not e("action-add", "--name", "x", "--key", "NoSuchKey")["ok"])
+        r = e("action-remove", "--name", "fire")
+        c.expect("action-remove", r["ok"] and [a["name"] for a in r["actions"]] == ["jump"], r)
+        with open(os.path.join(p, "tex.png"), "wb") as f:
+            import struct
+            import zlib
+
+            raw = b"".join(b"\x00" + b"\xc8\x64\x32" * 4 for _ in range(4))
+            chunk = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)  # noqa: E731
+            f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 4, 4, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+        r = e("import")
+        c.expect("import", r["ok"] and "res://tex.png" in r["imported"], r)
+        r = e("import-set", "--path", "res://tex.png", "--param", "compress/mode", "--value", "2")
+        c.expect("import-set", r["ok"] and e("import-get", "--path", "res://tex.png")["params"]["compress/mode"] == 2, r)
+        c.expect("import-set bad", not e("import-set", "--path", "res://tex.png", "--param", "nope", "--value", "1")["ok"])
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))
