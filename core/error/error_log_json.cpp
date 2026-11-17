@@ -32,6 +32,8 @@
 
 #include "core/io/file_access.h"
 #include "core/io/json.h"
+#include "core/object/script_backtrace.h"
+#include "core/object/script_language.h"
 #include "core/os/mutex.h"
 
 static Mutex error_log_mutex;
@@ -59,7 +61,7 @@ String ErrorLogJSON::code_for(const String &p_file, const String &p_function, co
 	return "E" + String::num_uint64(key.hash(), 16).lpad(8, "0").to_upper();
 }
 
-String ErrorLogJSON::format_line(const char *p_function, const char *p_file, int p_line, const char *p_error, const char *p_message, ErrorHandlerType p_type) {
+String ErrorLogJSON::format_line(const char *p_function, const char *p_file, int p_line, const char *p_error, const char *p_message, ErrorHandlerType p_type, const String &p_script_file, int p_script_line, const String &p_script_function) {
 	const String file = String::utf8(p_file);
 	const String function = String::utf8(p_function);
 	const String condition = String::utf8(p_error);
@@ -75,6 +77,11 @@ String ErrorLogJSON::format_line(const char *p_function, const char *p_file, int
 	entry["function"] = function;
 	entry["message"] = message;
 	entry["condition"] = condition;
+	if (!p_script_file.is_empty()) {
+		entry["script_file"] = p_script_file;
+		entry["script_line"] = p_script_line;
+		entry["script_function"] = p_script_function;
+	}
 	return JSON::stringify(entry, "", false);
 }
 
@@ -83,10 +90,25 @@ static void _error_log_json_handler(void *p_userdata, const char *p_function, co
 		return; // An error while writing the log must not recurse.
 	}
 	error_log_writing = true;
+	// An engine error raised from a script (push_error, get_node...) points to C++;
+	// the innermost script frame says which script line caused it.
+	String script_file;
+	String script_function;
+	int script_line = -1;
+	if (p_type != ERR_HANDLER_SCRIPT && p_type != ERR_HANDLER_SHADER) {
+		for (const Ref<ScriptBacktrace> &backtrace : ScriptServer::capture_script_backtraces(false)) {
+			if (backtrace.is_valid() && !backtrace->is_empty()) {
+				script_file = backtrace->get_frame_file(0);
+				script_line = backtrace->get_frame_line(0);
+				script_function = backtrace->get_frame_function(0);
+				break;
+			}
+		}
+	}
 	{
 		MutexLock lock(error_log_mutex);
 		if (error_log_file.is_valid()) {
-			error_log_file->store_line(ErrorLogJSON::format_line(p_function, p_file, p_line, p_error, p_message, p_type));
+			error_log_file->store_line(ErrorLogJSON::format_line(p_function, p_file, p_line, p_error, p_message, p_type, script_file, script_line, script_function));
 			error_log_file->flush();
 		}
 	}

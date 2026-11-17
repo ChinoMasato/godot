@@ -54,6 +54,14 @@ TEST_CASE("[ErrorLogJSON] Lines are JSON with stable codes") {
 	CHECK(String(entry["code"]).begins_with("E"));
 	CHECK(String(entry["code"]).length() == 9);
 	CHECK_FALSE(line.contains("\n"));
+	CHECK_FALSE(entry.has("script_file"));
+
+	// An engine error raised from a script also says where in the script (B-103).
+	const Dictionary from_script = JSON::parse_string(ErrorLogJSON::format_line("get_node", "scene/main/node.cpp", 10, "", "Node not found", ERR_HANDLER_ERROR, "res://main.gd", 5, "_ready"));
+	CHECK(String(from_script["file"]) == "scene/main/node.cpp");
+	CHECK(String(from_script["script_file"]) == "res://main.gd");
+	CHECK(int(from_script["script_line"]) == 5);
+	CHECK(String(from_script["script_function"]) == "_ready");
 
 	// The code depends on the site, not on the message or the line number.
 	CHECK(ErrorLogJSON::code_for("scene/main.cpp", "load_scene", "cond") == ErrorLogJSON::code_for("scene\\main.cpp", "load_scene", "cond"));

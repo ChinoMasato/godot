@@ -37,13 +37,16 @@
 // error and warning is also appended to <file> as one line of JSON (JSON Lines),
 // so agents can read errors without parsing console text. The normal output is
 // unchanged. Each line: {"level", "code", "file", "line", "function", "message",
-// "condition"}. "code" is stable for a given error site (file, function and the
+// "condition"}, plus "script_file", "script_line" and "script_function" when an
+// engine error (push_error, get_node...) was raised from a script. "code" is stable for a given error site (file, function and the
 // checked condition), so the same problem keeps the same code between runs.
 class ErrorLogJSON {
 public:
 	static String level_name(ErrorHandlerType p_type);
 	static String code_for(const String &p_file, const String &p_function, const String &p_condition);
-	static String format_line(const char *p_function, const char *p_file, int p_line, const char *p_error, const char *p_message, ErrorHandlerType p_type);
+	// p_script_* is the script position that caused an engine error (from the
+	// script backtrace, B-103); empty when no script was running.
+	static String format_line(const char *p_function, const char *p_file, int p_line, const char *p_error, const char *p_message, ErrorHandlerType p_type, const String &p_script_file = String(), int p_script_line = -1, const String &p_script_function = String());
 
 	static Error start(const String &p_path);
 	static void stop();
