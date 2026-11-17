@@ -1,0 +1,5 @@
+{"v": 1, "session": "s-1234abcd5678ef90", "type": "start", "frame": 0, "time": 0.0, "scene": "res://main.tscn", "cell": [0, 0, 0], "game": "sample"}
+{"v": 1, "session": "s-1234abcd5678ef90", "type": "checkpoint", "frame": 110, "time": 1.833, "scene": "res://main.tscn", "cell": [50, 0, 0], "id": "cp1"}
+{"v": 1, "session": "s-1234abcd5678ef90", "type": "checkpoint", "frame": 700, "time": 11.667, "scene": "res://main.tscn", "cell": [150, 0, 0], "id": "cp2"}
+{"v": 1, "session": "s-1234abcd5678ef90", "type": "death", "frame": 760, "time": 12.667, "scene": "res://main.tscn", "cell": [150, 0, 0], "cause": "spike"}
+{"v": 1, "session": "s-1234abcd5678ef90", "type": "quit", "frame": 900, "time": 15.0, "scene": "res://main.tscn", "cell": [150, 0, 0], "frames": 900, "fps": 56.0}

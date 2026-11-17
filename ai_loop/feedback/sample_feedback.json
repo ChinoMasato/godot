@@ -1,0 +1,7 @@
+[
+ {"v": 1, "kind": "stuck", "message": "2つ目の穴、何回やっても落ちる…でも越えたときは気持ちよかった！", "where": {"scene": "res://main.tscn", "checkpoint": "cp2"}},
+ {"v": 1, "kind": "stuck", "message": "cp2 のあとの穴がタイミング分からなかった。", "where": {"scene": "res://main.tscn", "checkpoint": "cp2"}, "signature": "みなと"},
+ {"v": 1, "kind": "bug", "message": "ゴールしたのに画面が止まったまま。", "where": {"scene": "res://main.tscn", "checkpoint": "cp3"}, "build": "0.1", "steps": ["右を押し続ける", "ゴールまで行く"], "expected": "クリア画面が出る", "actual": "何も出ずにゲームが終わる"},
+ {"v": 1, "kind": "idea", "message": "穴の手前に、ジャンプの合図になる目印があると嬉しいです。", "where": {"scene": "res://main.tscn"}},
+ {"v": 1, "kind": "bug", "message": "たまに音が二重に聞こえる気がする"}
+]

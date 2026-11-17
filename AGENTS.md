@@ -22,11 +22,15 @@ Toolchain is a venv at `~/workspace/.venv-build` (SCons + zstandard).
 System pip is PEP 668 managed; do not use it.
 
 ```sh
-# Baseline / test build (template, with unit tests)
-~/workspace/.venv-build/bin/scons platform=linuxbsd target=template_release tests=yes accesskit=no arch=x86_64 -j3
+# Standard loop build (editor, with unit tests) — A-2, 2026-11-17.
+# The editor is the standard because template builds never compile
+# editor/ code and cannot use --path. Use target=template_release
+# (binary: bin/godot.linuxbsd.template_release.x86_64) only for
+# runtime/export checks.
+~/workspace/.venv-build/bin/scons platform=linuxbsd target=editor tests=yes accesskit=no arch=x86_64 -j3
 
 # Binary produced:
-#   bin/godot.linuxbsd.template_release.x86_64
+#   bin/godot.linuxbsd.editor.x86_64
 ```
 
 Machine limits: ~1.5 effective CPU cores, ~6 GB RAM. A full build takes
@@ -36,8 +40,8 @@ while one is running.
 ## Test (the oracle)
 
 ```sh
-bin/godot.linuxbsd.template_release.x86_64 --test        # doctest unit tests (tests/)
-bin/godot.linuxbsd.template_release.x86_64 --headless --quit-after 60 --path <project>  # smoke run
+bin/godot.linuxbsd.editor.x86_64 --test        # doctest unit tests (tests/)
+bin/godot.linuxbsd.editor.x86_64 --headless --quit-after 60 --path <project>  # smoke run
 ```
 
 A change is "better" only if the full unit test suite passes and, where a

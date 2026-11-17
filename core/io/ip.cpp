@@ -38,6 +38,22 @@
 
 /************* RESOLVER ******************/
 
+// RFC 6761, section 6.3: "localhost" always resolves to the loopback address.
+// Applied only when the system resolver returns nothing (for example, no
+// "::1 localhost" entry in /etc/hosts), so systems that resolve the name keep
+// their own answer.
+static void _resolve_localhost_fallback(List<IPAddress> &r_addresses, const String &p_hostname, IP::Type p_type) {
+	if (!r_addresses.is_empty() || p_hostname.to_lower() != "localhost") {
+		return;
+	}
+	if (p_type == IP::TYPE_IPV4 || p_type == IP::TYPE_ANY) {
+		r_addresses.push_back(IPAddress("127.0.0.1"));
+	}
+	if (p_type == IP::TYPE_IPV6 || p_type == IP::TYPE_ANY) {
+		r_addresses.push_back(IPAddress("::1"));
+	}
+}
+
 struct _IP_ResolverPrivate {
 	struct QueueItem {
 		SafeNumeric<IP::ResolverStatus> status;
@@ -91,6 +107,7 @@ struct _IP_ResolverPrivate {
 			// We should not lock while resolving the hostname,
 			// only when modifying the queue.
 			IP::get_singleton()->_resolve_hostname(response, hostname, type);
+			_resolve_localhost_fallback(response, hostname, type);
 
 			lock.temp_relock();
 			// Could have been completed by another function, or deleted.
@@ -141,6 +158,7 @@ PackedStringArray IP::resolve_hostname_addresses(const String &p_hostname, Type 
 			// other requests.
 			lock.temp_unlock();
 			_resolve_hostname(res, p_hostname, p_type);
+			_resolve_localhost_fallback(res, p_hostname, p_type);
 			lock.temp_relock();
 			// We might be overriding another result, but we don't care as long as the result is valid.
 			if (res.size()) {

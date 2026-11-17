@@ -355,6 +355,9 @@ private:
 	Button *environ_tonemap_button = nullptr;
 	Button *environ_gi_button = nullptr;
 	Button *environ_add_to_scene = nullptr;
+	OptionButton *look_quality = nullptr;
+	OptionButton *look_atmosphere = nullptr;
+	Button *look_add_to_scene = nullptr;
 
 	Button *sun_environ_settings = nullptr;
 
@@ -430,6 +433,7 @@ private:
 
 	void _add_sun_to_scene(bool p_already_added_environment = false);
 	void _add_environment_to_scene(bool p_already_added_sun = false);
+	void _add_look_to_scene();
 
 	void _update_theme();
 

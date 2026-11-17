@@ -30,3 +30,49 @@
 - 連携窓口を ai_loop/COORDINATION.md に一本化（状況ボード＋質問節＋役割定義）。開始時に読み、終了時に自分の行を更新する運用。正式決定はオーナー承認→リードがLEDGERへ反映した時点で確定、と明記。
 - MULTI_AGENT.md に連携節を追加、AGENTS.md と BRIEFING.md の必読リストに COORDINATION.md を追加。
 - 背景: Claude Code セッションと Codex が稼働開始し、質問（B-001採用可否・作業ブランチ・分担案）と push 403 の報告がオーナー経由で届いたため、中継を不要にする仕組みとして整備。未決事項は COORDINATION.md の Q1/Q2 に集約。
+
+## 2026-11-17 — Q1 決定（オーナー承認）と B-001 ベースライン採用
+- 決定1（B-001）: Claude Code（ローカル）が取得したベースラインを正式採用する。報告値: フルビルド 15分54秒、単体テスト 1431件中 1430 pass、fail 1件は環境起因（Claude Code の報告）。エンジン側コミット ff5246b は運用ファイルのみでコード差分がないため、この結果は現行ツリーに適用できる。詳細記録（ビルド設定・マシン環境・fail 1件のテスト名と根拠）は Claude Code が追って記録し、リードが ai-native へ取り込む。Muse の VM ビルドは本決定により停止した（オブジェクト 2,111 個は保持、増分再開可能。VM 側のテスト結果は得られていない）。
+- 決定2（作業ブランチ）: Claude セッション専用ブランチ claude/uzu-engine-briefing-rrno7b を許可。ai-native へのマージはリード経由。
+- 決定3（分担）: Claude Code = B-002 → B-003、Codex = B-101 を承認。B-002/B-003 に限り ai_loop/ と version.py へのリード権限を Claude Code へ委譲。B-003 は互換影響の事前調査・報告が条件。
+- 連携: 以後の push・マージは保持したデバイス認証トークンでリード（Muse）が随時実施する（オーナー承認済み）。
+
+## 2026-11-17 — B-001 ベースライン確立（Claude Code、クラウド）
+- オーナー判断で本結果を正式なベースラインとして採用（Muse 側のビルドは停止）。詳細: ai_loop/iterations/2026-11-17-B-001-claude.md
+- ビルド設定: AGENTS.md の規定どおり `scons platform=linuxbsd target=template_release tests=yes accesskit=no arch=x86_64`（並列数だけ -j4。4コアのため）。対象 ai-native @ 3d70ab368。
+- マシン: Claude Code クラウドコンテナ（gVisor）、Xeon 2.10GHz × 4コア、RAM 15GB、Ubuntu 24.04.5、gcc 13.3.0、Python 3.13.18、SCons 4.11.1、zstandard 0.25.0。
+- 所要時間: フルビルド 15分54秒（2,665 ファイル、exit 0）、単体テスト約31秒。
+- テスト: 総数 1431／pass 1430／fail 1／skip 3（assertion 423591 中 1000 が fail）。
+- fail: `[IP] resolve_hostname`（tests/core/io/test_ip.cpp:44）、localhost の IPv6 解決が空になる。環境起因と判断した根拠: コンテナの /etc/hosts に `::1 localhost` が無く、getent でも Python の getaddrinfo でも AF_INET6 の localhost を引けない。`::1 localhost` を一時的に足すと全 1431 件 pass、fail 0 になる（そのあと元に戻した）。コード起因の失敗は 0 件。
+
+## 2026-11-17 — リード統合: Claude ブランチを ai-native へマージ
+- claude/uzu-engine-briefing-rrno7b（3bb7ea0）を ai-native へ fast-forward マージ。内容: B-001 詳細記録（LEDGER 本編＋iterations）、B-002 measure.sh（リードがレビュー: flock 直列化・失敗時も記録・doctest 集計のパースを確認、bash -n pass）、B-003 事前調査（コード変更なし）。
+- Q1 の条件（ベースライン詳細記録）はこれで充足。B-001 は正式に完了。
+- B-003 の実装は Q3（COORDINATION.md）のオーナー決定待ち: short_name の扱い（案A: name のみ変更／案B: 両方変更）、判定条件の差し替え、measure.sh の TZ 既定。
+
+## 2026-11-17 — Q3 決定（オーナー承認）: B-003 は案Aパッケージ
+- B-003 の範囲を version.py の name のみに確定（short_name は "godot" のまま、互換維持）。BACKLOG の判定を「起動ヘッダの U.ZU Engine 表示＋全テスト pass」に差し替え（--version は名前を含まないため）。
+- measure.sh の日付は TZ=Asia/Tokyo を既定化（リードが適用、bash -n pass）。
+- B-003 の実装は Claude Code が担当ブランチで実施し、検証（起動ヘッダ＋全テスト）つきで申告する。
+
+## 2026-11-17 — AIファースト改善マップを反映（オーナー指示）
+- フォーク実物の棚卸しに基づく改善マップを設計書（第2節末「AIファースト改善マップ」）と BACKLOG へ反映。不足は「出力の構造化」「合否判定」「プレイ自己検証」の3点に集約。原則: 追加モード／オプトインのみで既存挙動を変えない。
+- Wave 1 として5件を登録: B-104（ベンチ合否）、B-201（構造化エラーログ試験実装）、B-202（GDScriptエラーJSON）、B-203（プロジェクト検証コマンド）、B-303（自己検証プレイ最小版）。残り候補は BACKLOG の保留へ Wave 2 として集約。
+
+## 2026-11-17 — リード統合: B-003 実装を ai-native へマージ
+- version.py の name が "U.ZU Engine" になった（short_name は "godot" のまま）。新規テスト tests/core/test_version.cpp（名前と互換を固定する2件）を含む。
+- 検証（Claude Code の最終検証をリードが確認）: 最小プロジェクトで `--headless --quit` の起動ヘッダが "U.ZU Engine v4.8.beta..." と表示され exit 0。全テスト 1433 件中 1432 pass（fail は既知の環境起因 [IP] resolve_hostname のみ。::1 追加時は全件 pass）。変更前は新規テストが fail することも確認済み（red→green）。
+- BACKLOG の B-001／B-002／B-003 を完了に更新。Phase 0 は完了。
+- 申し送り: 起動ヘッダの website（version.py の website = godotengine.org）の扱いは未決定。必要なら別項目としてオーナー判断。
+
+## 2026-11-17 — B-003 追随: website を U.ZU に変更（オーナー指示）
+- version.py の website を https://godotengine.org から https://u-zu.co.jp へ変更（起動ヘッダと About 表示に出る URL）。docs 欄（ドキュメントへの参照）は本家ドキュメントを指すため据え置き。
+- tests/core/test_version.cpp に website を固定するテストを1件追加（合計3件）。ヘッダ表示の再検証は次の増分ビルド（Claude Code のループ）で併せて確認する。
+
+## 2026-11-17 — リード統合: Phase 4・Phase 7・A-1・A-3 を ai-native へ（PR #3 相当）
+- Claude Code のブランチ（2584812）を ai-native へ fast-forward 統合。オーナーが Q4〜Q7 で直接承認した一連の作業: Phase 7 ルック（B-701〜B-713、B-703b を除く全部。UZULook クラスと look_preset_3d、エディタの U.ZU メニューと構図ガイド、look.sh／palette_check.py／サンプルシーン）、Phase 4（B-401 engine.sh、B-402 MCP サーバー）、A-1（ヘッドレス描画スクリーンショット＋画像差分）、A-4（クラウド環境セットアップ）。
+- A-3（= B-102 として完走）: core/io/ip.cpp に RFC 6761 の localhost フォールバック（システム解決が空返しのときだけ loopback を返す。オーナーが案a を選択）。tests/core/io/test_ip.cpp にテスト追加。これでベースライン以来の既知 fail は解消方向。
+- 検証状態: Claude Code の申告で全テスト 1476 件 pass（従来 1433＋新規 43）。エディタ側コードは Claude の環境で editor ビルド＋起動確認済み（従来の標準ビルド=template では editor/ がコンパイル対象外だった点が A-2 の動機）。
+- A-2 をリードが実施: 標準ループビルドを editor に変更（build_locked.sh／measure.sh は TARGET 環境変数、既定 editor。template_release は実行時・書き出し確認用に温存）。AGENTS.md の Build／Test 節も更新。
+- Codex の B-101 はドラフト（fce3e6b）のまま未完（エンジン検証と完了申告待ち）。統合対象外。
+- 残: B-703b（UZUPostEffect）が Phase 7 の最後の1件。Phase 2 の Wave 1（B-201〜B-203）と B-104、B-303 は未着手。

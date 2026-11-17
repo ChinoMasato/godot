@@ -92,6 +92,7 @@
 #include "editor/translations/editor_translation_preview_menu.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/light_3d.h"
+#include "scene/3d/look_preset_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
 #include "scene/3d/physics/physics_body_3d.h"
 #include "scene/3d/world_environment.h"
@@ -102,6 +103,7 @@
 #include "scene/gui/color_picker.h"
 #include "scene/gui/flow_container.h"
 #include "scene/gui/menu_button.h"
+#include "scene/gui/option_button.h"
 #include "scene/gui/panel_container.h"
 #include "scene/gui/popup.h"
 #include "scene/gui/rich_text_label.h"
@@ -2535,6 +2537,49 @@ void Node3DEditor::_add_environment_to_scene(bool p_already_added_sun) {
 	undo_redo->commit_action();
 }
 
+void Node3DEditor::_add_look_to_scene() {
+	sun_environ_popup->hide();
+
+	Node *base = get_tree()->get_edited_scene_root();
+	if (!base) {
+		// Create a root node so we can add child nodes to it.
+		SceneTreeDock::get_singleton()->add_root_node(memnew(Node3D));
+		base = get_tree()->get_edited_scene_root();
+	}
+	ERR_FAIL_NULL(base);
+
+	const LookPreset3D::Quality quality = LookPreset3D::Quality(look_quality->get_selected_id());
+	const LookPreset3D::Atmosphere atmosphere = LookPreset3D::Atmosphere(look_atmosphere->get_selected_id());
+
+	WorldEnvironment *new_env = memnew(WorldEnvironment);
+	new_env->set_environment(LookPreset3D::create_environment(quality, atmosphere));
+	new_env->set_camera_attributes(LookPreset3D::create_camera_attributes(quality));
+
+	DirectionalLight3D *new_sun = nullptr;
+	if (directional_light_count == 0) {
+		new_sun = memnew(DirectionalLight3D);
+		LookPreset3D::configure_sun(new_sun, quality, atmosphere);
+	}
+
+	EditorUndoRedoManager *undo_redo = EditorUndoRedoManager::get_singleton();
+	undo_redo->create_action(TTR("Add U.ZU Look to Scene"));
+	// Move to the beginning of the scene tree since more "global" nodes
+	// generally look better when placed at the top.
+	if (new_sun) {
+		undo_redo->add_do_method(base, "add_child", new_sun, true);
+		undo_redo->add_do_method(base, "move_child", new_sun, 0);
+		undo_redo->add_do_method(new_sun, "set_owner", base);
+		undo_redo->add_undo_method(base, "remove_child", new_sun);
+		undo_redo->add_do_reference(new_sun);
+	}
+	undo_redo->add_do_method(base, "add_child", new_env, true);
+	undo_redo->add_do_method(base, "move_child", new_env, 0);
+	undo_redo->add_do_method(new_env, "set_owner", base);
+	undo_redo->add_undo_method(base, "remove_child", new_env);
+	undo_redo->add_do_reference(new_env);
+	undo_redo->commit_action();
+}
+
 void Node3DEditor::_update_theme() {
 	sun_title->add_theme_font_override(SceneStringName(font), get_theme_font(SNAME("title_font"), SNAME("Window")));
 	environ_title->add_theme_font_override(SceneStringName(font), get_theme_font(SNAME("title_font"), SNAME("Window")));
@@ -4102,6 +4147,30 @@ void fragment() {
 		environ_add_to_scene->connect(SceneStringName(pressed), callable_mp(this, &Node3DEditor::_add_environment_to_scene).bind(false));
 		environ_vb->add_spacer();
 		environ_vb->add_child(environ_add_to_scene);
+
+		HBoxContainer *look_hb = memnew(HBoxContainer);
+		look_quality = memnew(OptionButton);
+		look_quality->set_accessibility_name(TTRC("U.ZU Look Quality"));
+		look_quality->add_item(TTRC("High"), LookPreset3D::QUALITY_HIGH);
+		look_quality->add_item(TTRC("Standard"), LookPreset3D::QUALITY_STANDARD);
+		look_quality->add_item(TTRC("Low"), LookPreset3D::QUALITY_LOW);
+		look_quality->select(look_quality->get_item_index(LookPreset3D::get_default_quality(OS::get_singleton()->get_current_rendering_method())));
+		look_hb->add_child(look_quality);
+		look_atmosphere = memnew(OptionButton);
+		look_atmosphere->set_accessibility_name(TTRC("U.ZU Look Atmosphere"));
+		look_atmosphere->set_tooltip_text(TTRC("Clear: dry air, the distance turns blue.\nHumid: the distance fades into a white haze.\nGolden Hour: low, warm sun near sunrise or sunset.\nNight: weak, cool moonlight; add lamps for light."));
+		look_atmosphere->add_item(TTRC("Clear"), LookPreset3D::ATMOSPHERE_CLEAR);
+		look_atmosphere->add_item(TTRC("Humid"), LookPreset3D::ATMOSPHERE_HUMID);
+		look_atmosphere->add_item(TTRC("Golden Hour"), LookPreset3D::ATMOSPHERE_GOLDEN_HOUR);
+		look_atmosphere->add_item(TTRC("Night"), LookPreset3D::ATMOSPHERE_NIGHT);
+		look_hb->add_child(look_atmosphere);
+		look_add_to_scene = memnew(Button);
+		look_add_to_scene->set_text(TTRC("Add U.ZU Look to Scene"));
+		look_add_to_scene->set_tooltip_text(TTRC("Adds a WorldEnvironment with a tuned look (filmic tonemapping, sky lighting, ambient occlusion, glow and fog) to the current scene, and a sun with soft split shadows if the scene has no DirectionalLight3D.\nHigh: Forward+ on a dedicated GPU. Standard: integrated GPUs or Mobile. Low: Compatibility (Web)."));
+		look_add_to_scene->set_h_size_flags(SIZE_EXPAND_FILL);
+		look_add_to_scene->connect(SceneStringName(pressed), callable_mp(this, &Node3DEditor::_add_look_to_scene));
+		look_hb->add_child(look_add_to_scene);
+		environ_vb->add_child(look_hb);
 
 		environ_state = memnew(Label);
 		sun_environ_hb->add_child(environ_state);

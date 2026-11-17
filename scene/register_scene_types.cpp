@@ -169,6 +169,7 @@
 #include "scene/resources/texture.h"
 #include "scene/resources/texture_rd.h"
 #include "scene/resources/theme.h"
+#include "scene/resources/uzu_post_effect.h"
 #include "scene/resources/video_stream.h"
 #include "scene/resources/world_2d.h"
 #include "scene/theme/theme_db.h"
@@ -276,6 +277,7 @@
 #include "scene/3d/sprite_3d.h"
 #include "scene/3d/trail_3d.h"
 #include "scene/3d/two_bone_ik_3d.h"
+#include "scene/3d/uzu_look.h"
 #include "scene/3d/visible_on_screen_notifier_3d.h"
 #include "scene/3d/voxel_gi.h"
 #include "scene/3d/world_environment.h"
@@ -464,6 +466,7 @@ void register_scene_types() {
 	GDREGISTER_CLASS(ViewportTexture);
 
 	GDREGISTER_VIRTUAL_CLASS(CompositorEffect);
+	GDREGISTER_CLASS(UZUPostEffect);
 
 	GDREGISTER_ABSTRACT_CLASS(MultiplayerPeer);
 	GDREGISTER_VIRTUAL_CLASS(MultiplayerPeerExtension);
@@ -771,6 +774,7 @@ void register_scene_types() {
 	GDREGISTER_CLASS(VisibleOnScreenNotifier3D);
 	GDREGISTER_CLASS(VisibleOnScreenEnabler3D);
 	GDREGISTER_CLASS(WorldEnvironment);
+	GDREGISTER_ABSTRACT_CLASS(UZULook);
 	GDREGISTER_CLASS(FogVolume);
 	GDREGISTER_CLASS(FogMaterial);
 	GDREGISTER_CLASS(RemoteTransform3D);
