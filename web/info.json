@@ -1,0 +1,1 @@
+{"file": "godot.web.template_release.wasm32.nothreads.zip", "sha256": "af449f2552e8dc2ffdaf51b60efb3d9e91649cb4bb9909a56e4080007b7e9074", "engine_commit": "1300d7ad8", "engine_version": "4.8.beta", "emscripten": "7.0.0", "build": "scons platform=web target=template_release threads=no", "built": "2026-11-17"}
