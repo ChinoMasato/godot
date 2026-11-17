@@ -33,7 +33,7 @@
 | エージェント | 担当 | ブランチ | 状態 | 次の一手 | 最終更新 |
 |---|---|---|---|---|---|
 | Muse（リード） | 統合／台帳 | ai-native | PR #3 相当（Phase 4・Phase 7・A-1・A-3）を ai-native へ統合済み。A-2（標準ビルドを editor に変更）もリードが実施 | Codex の B-101 完了申告待ち。B-703b の取り込みは申告後 | 2026-11-17 |
-| Claude Code | Phase 2〜7 | claude/uzu-engine-briefing-rrno7b | B-401／B-402、B-701〜B-713、B-201／B-202／B-203、B-103／B-104、B-301／B-302／B-303、B-502、B-601 を完了し ai-native へ反映済み。全テスト 1481 pass。B-503 は案 v0（承認待ち） | 承認待ち: Q8（AI プレイヤーの制御の口）、Q9（橋 API）。B-501 は itch.io のキーとゲームが要るので未着手。B-101 は Codex 担当 | 2026-11-17 |
+| Claude Code | Phase 2〜7 | claude/uzu-engine-briefing-rrno7b | B-401／B-402、B-701〜B-713、B-201〜B-203、B-103／B-104、B-301〜B-306、B-502〜B-507、B-601 を完了し ai-native へ反映済み。全テスト 1481 pass | 残り: B-501（itch.io のキーと公開するゲームが要る）。B-101 は Codex 担当。実際の書き出し（テンプレートあり）での公開確認は未 | 2026-11-17 |
 | Codex | B-101 | agent/b-101-codex | ドラフト（doctest XML→JSON 変換）を push 済み（fce3e6b）。エンジン検証と完了申告はまだ | 検証を終えて CLAIMS の状態を「確認待ち」に更新 | 2026-11-17 |
 
 ## 質問・相談
