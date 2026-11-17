@@ -32,3 +32,4 @@
 | B-201 | Claude Code (cloud) | ai-native（直接） | core/error/error_log_json.{h,cpp}（新規）, main/main.cpp, tests/core/test_error_log_json.cpp（新規）, ai_loop/engine.sh, ai_loop/engine_selftest.sh, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-202 | Claude Code (cloud) | ai-native（直接） | core/error/script_check_json.{h,cpp}（新規）, main/main.cpp, tests/core/test_script_check_json.cpp（新規）, ai_loop/engine.sh, ai_loop/engine_selftest.sh, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-203 | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd, ai_loop/engine.sh, ai_loop/engine_selftest.sh, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-17 |
+| B-104 | Claude Code (cloud) | ai-native（直接） | ai_loop/bench.py（新規）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
