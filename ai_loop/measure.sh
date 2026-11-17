@@ -33,7 +33,8 @@ if [ -z "${SCONS:-}" ]; then
 fi
 JOBS="${JOBS:-3}"
 LEDGER="${LEDGER:-ai_loop/LEDGER.md}"
-BIN="bin/godot.linuxbsd.template_release.x86_64"
+TARGET="${TARGET:-editor}"
+BIN="bin/godot.linuxbsd.${TARGET}.x86_64"
 TEST_LOG="$(mktemp)"
 trap 'rm -f "$TEST_LOG"' EXIT
 
@@ -44,7 +45,7 @@ flock 9
 echo "build lock acquired."
 
 t0=$(date +%s)
-"$SCONS" platform=linuxbsd target=template_release tests=yes accesskit=no arch=x86_64 -j"$JOBS"
+"$SCONS" platform=linuxbsd target="$TARGET" tests=yes accesskit=no arch=x86_64 -j"$JOBS"
 build_rc=$?
 t1=$(date +%s)
 

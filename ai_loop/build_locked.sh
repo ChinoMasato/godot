@@ -4,6 +4,9 @@
 #
 # Scons binary: set SCONS env var to override. Default: this VM's venv,
 # falling back to `scons` on PATH (e.g. the owner's local PC).
+# Target: the standard loop build is the editor (A-2, 2026-11-17: template
+# builds never compile editor/ code and cannot use --path). Override with
+# TARGET=template_release for runtime/export checks.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -23,5 +26,6 @@ echo "waiting for build lock ($LOCK) ..."
 flock 9
 echo "build lock acquired."
 
-"$SCONS" platform=linuxbsd target=template_release tests=yes accesskit=no arch=x86_64 -j3
-bin/godot.linuxbsd.template_release.x86_64 --test
+TARGET="${TARGET:-editor}"
+"$SCONS" platform=linuxbsd target="$TARGET" tests=yes accesskit=no arch=x86_64 -j3
+"bin/godot.linuxbsd.${TARGET}.x86_64" --test

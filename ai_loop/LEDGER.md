@@ -68,3 +68,11 @@
 ## 2026-11-17 — B-003 追随: website を U.ZU に変更（オーナー指示）
 - version.py の website を https://godotengine.org から https://u-zu.co.jp へ変更（起動ヘッダと About 表示に出る URL）。docs 欄（ドキュメントへの参照）は本家ドキュメントを指すため据え置き。
 - tests/core/test_version.cpp に website を固定するテストを1件追加（合計3件）。ヘッダ表示の再検証は次の増分ビルド（Claude Code のループ）で併せて確認する。
+
+## 2026-11-17 — リード統合: Phase 4・Phase 7・A-1・A-3 を ai-native へ（PR #3 相当）
+- Claude Code のブランチ（2584812）を ai-native へ fast-forward 統合。オーナーが Q4〜Q7 で直接承認した一連の作業: Phase 7 ルック（B-701〜B-713、B-703b を除く全部。UZULook クラスと look_preset_3d、エディタの U.ZU メニューと構図ガイド、look.sh／palette_check.py／サンプルシーン）、Phase 4（B-401 engine.sh、B-402 MCP サーバー）、A-1（ヘッドレス描画スクリーンショット＋画像差分）、A-4（クラウド環境セットアップ）。
+- A-3（= B-102 として完走）: core/io/ip.cpp に RFC 6761 の localhost フォールバック（システム解決が空返しのときだけ loopback を返す。オーナーが案a を選択）。tests/core/io/test_ip.cpp にテスト追加。これでベースライン以来の既知 fail は解消方向。
+- 検証状態: Claude Code の申告で全テスト 1476 件 pass（従来 1433＋新規 43）。エディタ側コードは Claude の環境で editor ビルド＋起動確認済み（従来の標準ビルド=template では editor/ がコンパイル対象外だった点が A-2 の動機）。
+- A-2 をリードが実施: 標準ループビルドを editor に変更（build_locked.sh／measure.sh は TARGET 環境変数、既定 editor。template_release は実行時・書き出し確認用に温存）。AGENTS.md の Build／Test 節も更新。
+- Codex の B-101 はドラフト（fce3e6b）のまま未完（エンジン検証と完了申告待ち）。統合対象外。
+- 残: B-703b（UZUPostEffect）が Phase 7 の最後の1件。Phase 2 の Wave 1（B-201〜B-203）と B-104、B-303 は未着手。

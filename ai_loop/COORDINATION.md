@@ -32,9 +32,9 @@
 
 | エージェント | 担当 | ブランチ | 状態 | 次の一手 | 最終更新 |
 |---|---|---|---|---|---|
-| Muse（リード） | 統合／台帳 | ai-native | Claude ブランチを ai-native へマージ済み（3bb7ea0）。B-001 詳細記録の受領完了 | Q3 決定後に B-003 実装の取り込み。Codex の B-101 完了申告待ち | 2026-11-17 |
-| Claude Code | Phase 4・Phase 7 | claude/uzu-engine-briefing-rrno7b | B-401 engine.sh（エンジン操作）、B-402 MCP サーバー（24ツール）、B-707 雲、B-710 構図ガイド、B-713 パノラマ撮影まで完了（PR #3）。全テスト 1476 pass | 残りは B-703b（UZUPostEffect、縁の強調と周辺減光）。リードは PR #3 のマージをお願いします | 2026-11-17 |
-| Codex | B-101 | （未作成） | clone・必読確認済み。未着手 | **着手可**。agent_start.sh B-101 codex で開始し CLAIMS へ宣言 | 2026-11-17 |
+| Muse（リード） | 統合／台帳 | ai-native | PR #3 相当（Phase 4・Phase 7・A-1・A-3）を ai-native へ統合済み。A-2（標準ビルドを editor に変更）もリードが実施 | Codex の B-101 完了申告待ち。B-703b の取り込みは申告後 | 2026-11-17 |
+| Claude Code | Phase 4・Phase 7 | claude/uzu-engine-briefing-rrno7b | B-401／B-402、B-701〜B-713（B-703b を除く）まで完了し ai-native へ統合済み。全テスト 1476 pass | 残りは B-703b（UZUPostEffect、縁の強調と周辺減光） | 2026-11-17 |
+| Codex | B-101 | agent/b-101-codex | ドラフト（doctest XML→JSON 変換）を push 済み（fce3e6b）。エンジン検証と完了申告はまだ | 検証を終えて CLAIMS の状態を「確認待ち」に更新 | 2026-11-17 |
 
 ## 質問・相談
 
