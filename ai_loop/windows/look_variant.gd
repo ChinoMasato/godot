@@ -1,7 +1,7 @@
 extends SceneTree
 ## High-quality U.ZU look with one change, to see what each setting costs and how it looks.
 ##   godot --path <sample> --rendering-driver vulkan --resolution 1920x1080 --script look_variant.gd -- --variant <name> [--frames 300] [--shot out.png]
-## Variants: base, no_ssil, no_ssr, no_pcss, no_blend, no_ssao, shadow_filter_high, shadow_filter_ultra, pcss_025, shadow_blur_2, shadow_atlas_8k, taa, pcss_025_filter_high, no_post
+## Variants: base, no_ssil, no_ssr, no_pcss, no_blend, no_ssao, shadow_filter_high, shadow_filter_ultra, pcss_025, shadow_blur_2, shadow_atlas_8k, taa, pcss_025_filter_high, no_post, pre_b714
 ## Prints "UZU_VARIANT {json}".
 
 const WARMUP := 60
@@ -43,6 +43,9 @@ func _initialize() -> void:
 		"shadow_atlas_8k": RenderingServer.directional_shadow_atlas_set_size(8192, true)
 		"taa": root.use_taa = true
 		"no_post": (scene.find_children("*", "WorldEnvironment", true, false)[0] as WorldEnvironment).compositor = null
+		"pre_b714":  # the high look as it was before B-714 (bigger sun, default soft filter)
+			sun.light_angular_distance = 0.5
+			RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_LOW)
 		"pcss_025_filter_high":
 			sun.light_angular_distance = 0.25
 			RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_HIGH)
