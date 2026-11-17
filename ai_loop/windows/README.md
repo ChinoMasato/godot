@@ -52,3 +52,14 @@ bin\godot.windows.editor.x86_64.console.exe --path <見本のコピー> --render
 - エディタを開いたままだと、次のビルドの最後（exe の書き込み）が「アクセスが拒否されました」で失敗する。ビルド前にエディタを閉じる。
 - **Web への書き出し:** このフォーク用の Web テンプレートは、リポジトリの `export-templates` ブランチにある。`uzu.bat engine my_game templates --fetch` で取り出し、`uzu.bat engine my_game export-preset --platform web --template auto` でプリセットに設定する。
 
+## 柔らかい影の粒の量（B-714）
+
+見本 street を高画質で描き、手前の地面（1920 幅の画像で 700〜1400 × 700〜870 px）の「隣り合う画素の明るさの差の平均」を出す。大きいほどザラザラ。
+
+```
+python ai_loop\look_samples\shadow_grain.py bin\godot.windows.editor.x86_64.console.exe --variants pre_b714,base,taa --frames 300
+python ai_loop\look_samples\shadow_grain.py --score a.png b.png   # 画像だけ採点
+```
+
+`pre_b714` は B-714 より前の高（太陽 0.5、フィルタ Low）、`base` は今の高。クラウドでは `--driver vulkan`（lavapipe）のまま回せる。値は同じ解像度・同じ描画方式どうしでだけ比べる。
+
