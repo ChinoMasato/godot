@@ -62,4 +62,11 @@ python ai_loop\look_samples\shadow_grain.py --score a.png b.png   # 画像だけ
 ```
 
 `pre_b714` は B-714 より前の高（太陽 0.5、フィルタ Low）、`base` は今の高。クラウドでは `--driver vulkan`（lavapipe）のまま回せる。値は同じ解像度・同じ描画方式どうしでだけ比べる。
+## HD-2D の GPU 撮影と重さ（B-715〜B-718、B-722）
+
+```
+python ai_loop\windows\hd2d_gpu.py <出力フォルダ> [--cases raw,look,hd2d,hd2d_no_tiltshift,hd2d_no_camera,hd2d_particles,hd2d_night_fireflies,hd2d_snow] [--frames 300]
+```
+
+見本 hd2d を写して `uzu.py look` のコマンドを当て、`scene_time.gd`（保存されたシーンをそのまま描いて GPU 時間を測る。`--drop UZUTiltShift` で効果を1つ外せる）で撮る。
 
