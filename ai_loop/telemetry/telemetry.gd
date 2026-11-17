@@ -8,6 +8,8 @@ extends Node
 ## Output: "--uzu-telemetry <file>" after "--" on the command line, else
 ## user://telemetry/<session>.jsonl.
 
+signal event_recorded(event: Dictionary)  # For live readers such as the lockstep control (B-306).
+
 const VERSION := 1
 const CELL_SIZE := 4.0
 const STALL_SECONDS := 10.0
@@ -87,6 +89,7 @@ func _emit(type: String, extra: Dictionary) -> void:
 	event.merge(extra)
 	_file.store_line(JSON.stringify(event))
 	_file.flush()
+	event_recorded.emit(event)
 
 
 func _physics_process(_delta: float) -> void:
