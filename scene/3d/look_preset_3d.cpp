@@ -71,10 +71,15 @@ struct AtmosphereValues {
 	float fog_height;
 	float fog_height_density;
 	float ambient_energy;
-	// Sun.
+	// Sun (the moon at night).
 	Vector3 sun_rotation_degrees;
 	Color sun_color;
 	float sun_energy;
+	float exposure;
+	float glow_intensity;
+	// Night uses a dark procedural sky: the physical sky would turn the moon
+	// light into a daytime sun.
+	bool night;
 };
 
 const AtmosphereValues &get_atmosphere_values(Atmosphere p_atmosphere) {
@@ -82,25 +87,39 @@ const AtmosphereValues &get_atmosphere_values(Atmosphere p_atmosphere) {
 		2.0, 0.003, 0.8, 8.0,
 		Color(0.5, 0.62, 0.8), 0.0015, 0.85, 0.25,
 		0.0, 0.0, 0.5,
-		Vector3(-50.0, 150.0, 0.0), Color(1.0, 0.96, 0.9), 1.0
+		Vector3(-50.0, 150.0, 0.0), Color(1.0, 0.96, 0.9), 1.0,
+		0.8, 0.6, false
 	};
 	static const AtmosphereValues humid = {
 		1.2, 0.02, 0.75, 18.0,
 		Color(0.82, 0.84, 0.86), 0.0022, 0.2, 0.5,
 		5.0, 0.004, 0.5,
-		Vector3(-40.0, 150.0, 0.0), Color(1.0, 0.97, 0.93), 1.0
+		Vector3(-40.0, 150.0, 0.0), Color(1.0, 0.97, 0.93), 1.0,
+		0.8, 0.6, false
 	};
 	static const AtmosphereValues golden_hour = {
 		2.0, 0.005, 0.8, 10.0,
 		Color(0.92, 0.66, 0.46), 0.0018, 0.75, 0.3,
 		0.0, 0.0, 0.8,
-		Vector3(-12.0, 200.0, 0.0), Color(1.0, 0.72, 0.48), 1.6
+		Vector3(-12.0, 200.0, 0.0), Color(1.0, 0.72, 0.48), 1.6,
+		0.8, 0.6, false
+	};
+	// Night: weak, cool moonlight and dark blue air. Light comes mostly from
+	// lamps, so glow is stronger and only what the lamps reach is bright.
+	static const AtmosphereValues night = {
+		2.0, 0.003, 0.8, 8.0,
+		Color(0.06, 0.08, 0.13), 0.004, 0.3, 0.6,
+		0.0, 0.0, 0.25,
+		Vector3(-40.0, 120.0, 0.0), Color(0.6, 0.7, 1.0), 0.2,
+		1.3, 1.0, true
 	};
 	switch (p_atmosphere) {
 		case ATMOSPHERE_HUMID:
 			return humid;
 		case ATMOSPHERE_GOLDEN_HOUR:
 			return golden_hour;
+		case ATMOSPHERE_NIGHT:
+			return night;
 		case ATMOSPHERE_CLEAR:
 		default:
 			return clear;
@@ -165,18 +184,27 @@ Ref<ImageTexture3D> create_color_grade() {
 Ref<Environment> create_environment(Quality p_quality, Atmosphere p_atmosphere) {
 	const AtmosphereValues &values = get_atmosphere_values(p_atmosphere);
 
-	Ref<PhysicalSkyMaterial> sky_material;
-	sky_material.instantiate();
-	sky_material->set_rayleigh_coefficient(values.rayleigh);
-	sky_material->set_mie_coefficient(values.mie);
-	sky_material->set_mie_eccentricity(values.mie_eccentricity);
-	sky_material->set_turbidity(values.turbidity);
-	sky_material->set_ground_color(Color(0.3, 0.32, 0.25));
-	sky_material->set_energy_multiplier(2.5);
-
 	Ref<Sky> sky;
 	sky.instantiate();
-	sky->set_material(sky_material);
+	if (values.night) {
+		Ref<ProceduralSkyMaterial> sky_material;
+		sky_material.instantiate();
+		sky_material->set_sky_top_color(Color(0.01, 0.015, 0.04));
+		sky_material->set_sky_horizon_color(Color(0.05, 0.07, 0.12));
+		sky_material->set_ground_horizon_color(Color(0.05, 0.07, 0.12));
+		sky_material->set_ground_bottom_color(Color(0.01, 0.01, 0.015));
+		sky->set_material(sky_material);
+	} else {
+		Ref<PhysicalSkyMaterial> sky_material;
+		sky_material.instantiate();
+		sky_material->set_rayleigh_coefficient(values.rayleigh);
+		sky_material->set_mie_coefficient(values.mie);
+		sky_material->set_mie_eccentricity(values.mie_eccentricity);
+		sky_material->set_turbidity(values.turbidity);
+		sky_material->set_ground_color(Color(0.3, 0.32, 0.25));
+		sky_material->set_energy_multiplier(2.5);
+		sky->set_material(sky_material);
+	}
 
 	Ref<Environment> environment;
 	environment.instantiate();
@@ -191,11 +219,11 @@ Ref<Environment> create_environment(Quality p_quality, Atmosphere p_atmosphere) 
 	// Filmic tonemapping keeps bright highlights from clipping to white.
 	// Slightly lower exposure gives a calmer, higher-contrast image.
 	environment->set_tonemapper(Environment::TONE_MAPPER_ACES);
-	environment->set_tonemap_exposure(0.8);
+	environment->set_tonemap_exposure(values.exposure);
 
 	// Restrained bloom on bright areas only.
 	environment->set_glow_enabled(true);
-	environment->set_glow_intensity(0.6);
+	environment->set_glow_intensity(values.glow_intensity);
 	environment->set_glow_bloom(0.05);
 	environment->set_glow_hdr_bleed_threshold(1.0);
 
@@ -295,8 +323,50 @@ Ref<StandardMaterial3D> create_material(MaterialKind p_kind) {
 			material->set_roughness(0.04);
 			material->set_specular(0.6);
 			break;
+		case MATERIAL_LAMP:
+			// The light source itself carries color too; pure white looks flat.
+			material->set_albedo(Color(1.0, 0.85, 0.7));
+			material->set_feature(BaseMaterial3D::FEATURE_EMISSION, true);
+			material->set_emission(Color(1.0, 0.7, 0.4));
+			material->set_emission_energy_multiplier(3.0);
+			break;
 	}
 	return material;
+}
+
+void configure_fill_light(DirectionalLight3D *p_light, Atmosphere p_atmosphere) {
+	ERR_FAIL_NULL(p_light);
+	const AtmosphereValues &values = get_atmosphere_values(p_atmosphere);
+	// From the side, low, in the color of the sky: it lifts the shadows a little
+	// and makes them blue, like light from the sky. Kept weak: a directional
+	// light reaches the whole scene, and a strong one flattens the contrast.
+	p_light->set_rotation_degrees(Vector3(-25.0, values.sun_rotation_degrees.y + 90.0, 0.0));
+	p_light->set_color(values.night ? Color(0.3, 0.4, 0.7) : Color(0.65, 0.75, 1.0));
+	p_light->set_param(Light3D::PARAM_ENERGY, values.night ? 0.05 : 0.12);
+	p_light->set_shadow(false);
+	// Keep the sky driven by the key light (the sun) only.
+	p_light->set_sky_mode(DirectionalLight3D::SKY_MODE_LIGHT_ONLY);
+}
+
+void configure_rim_light(DirectionalLight3D *p_light, Atmosphere p_atmosphere) {
+	ERR_FAIL_NULL(p_light);
+	const AtmosphereValues &values = get_atmosphere_values(p_atmosphere);
+	// From behind, opposite the key light, to outline silhouettes.
+	p_light->set_rotation_degrees(Vector3(-35.0, values.sun_rotation_degrees.y + 180.0, 0.0));
+	p_light->set_color(values.sun_color);
+	p_light->set_param(Light3D::PARAM_ENERGY, values.night ? 0.1 : 0.3);
+	p_light->set_shadow(false);
+	p_light->set_sky_mode(DirectionalLight3D::SKY_MODE_LIGHT_ONLY);
+}
+
+void configure_lamp(OmniLight3D *p_lamp, Quality p_quality) {
+	ERR_FAIL_NULL(p_lamp);
+	// Warm, with a steep falloff so only what the light reaches is bright.
+	p_lamp->set_color(Color(1.0, 0.72, 0.42));
+	p_lamp->set_param(Light3D::PARAM_ENERGY, 1.5);
+	p_lamp->set_param(Light3D::PARAM_RANGE, 8.0);
+	p_lamp->set_param(Light3D::PARAM_ATTENUATION, 2.0);
+	p_lamp->set_shadow(p_quality != QUALITY_LOW);
 }
 
 } // namespace LookPreset3D

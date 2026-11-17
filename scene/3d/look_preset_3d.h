@@ -33,6 +33,7 @@
 #include "core/object/ref_counted.h"
 
 class DirectionalLight3D;
+class OmniLight3D;
 class Environment;
 class ImageTexture3D;
 class StandardMaterial3D;
@@ -62,6 +63,7 @@ enum Atmosphere {
 	ATMOSPHERE_CLEAR, // Dry, clear air: the distance turns blue.
 	ATMOSPHERE_HUMID, // Humid air: the distance fades into a white haze.
 	ATMOSPHERE_GOLDEN_HOUR, // Low, warm sun near sunrise or sunset.
+	ATMOSPHERE_NIGHT, // Weak, cool moonlight; light comes from lamps.
 };
 
 // Returns the quality that suits the given rendering method name
@@ -83,8 +85,17 @@ enum MaterialKind {
 	MATERIAL_FOLIAGE, // Backlight through thin leaves, double-sided.
 	MATERIAL_GLASS, // Transparent, glossy.
 	MATERIAL_WATER, // Transparent water color with glossy reflections.
+	MATERIAL_LAMP, // Emissive, warm-colored light source.
 };
 
 Ref<StandardMaterial3D> create_material(MaterialKind p_kind);
+
+// Three-point lighting with the sun as the key light: a fill light from the
+// side in the color of the sky, and a rim light from behind. Neither casts
+// shadows nor affects the sky.
+void configure_fill_light(DirectionalLight3D *p_light, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
+void configure_rim_light(DirectionalLight3D *p_light, Atmosphere p_atmosphere = ATMOSPHERE_CLEAR);
+// A warm lamp whose light only reaches nearby.
+void configure_lamp(OmniLight3D *p_lamp, Quality p_quality);
 
 } // namespace LookPreset3D

@@ -4157,10 +4157,11 @@ void fragment() {
 		look_hb->add_child(look_quality);
 		look_atmosphere = memnew(OptionButton);
 		look_atmosphere->set_accessibility_name(TTRC("U.ZU Look Atmosphere"));
-		look_atmosphere->set_tooltip_text(TTRC("Clear: dry air, the distance turns blue.\nHumid: the distance fades into a white haze.\nGolden Hour: low, warm sun near sunrise or sunset."));
+		look_atmosphere->set_tooltip_text(TTRC("Clear: dry air, the distance turns blue.\nHumid: the distance fades into a white haze.\nGolden Hour: low, warm sun near sunrise or sunset.\nNight: weak, cool moonlight; add lamps for light."));
 		look_atmosphere->add_item(TTRC("Clear"), LookPreset3D::ATMOSPHERE_CLEAR);
 		look_atmosphere->add_item(TTRC("Humid"), LookPreset3D::ATMOSPHERE_HUMID);
 		look_atmosphere->add_item(TTRC("Golden Hour"), LookPreset3D::ATMOSPHERE_GOLDEN_HOUR);
+		look_atmosphere->add_item(TTRC("Night"), LookPreset3D::ATMOSPHERE_NIGHT);
 		look_hb->add_child(look_atmosphere);
 		look_add_to_scene = memnew(Button);
 		look_add_to_scene->set_text(TTRC("Add U.ZU Look to Scene"));

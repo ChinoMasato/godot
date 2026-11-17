@@ -236,6 +236,58 @@ TEST_CASE("[SceneTree][LookPreset3D] Materials for light that passes through") {
 	CHECK_FALSE(LookPreset3D::create_environment(LookPreset3D::QUALITY_STANDARD)->is_ssr_enabled());
 }
 
+TEST_CASE("[SceneTree][LookPreset3D] Night, three-point lighting and lamps") {
+	// Night: a dark sky that the moon light does not turn into daytime, more exposure and glow.
+	Ref<Environment> night = LookPreset3D::create_environment(LookPreset3D::QUALITY_HIGH, LookPreset3D::ATMOSPHERE_NIGHT);
+	Ref<Environment> clear = LookPreset3D::create_environment(LookPreset3D::QUALITY_HIGH, LookPreset3D::ATMOSPHERE_CLEAR);
+	Ref<ProceduralSkyMaterial> night_sky = night->get_sky()->get_material();
+	REQUIRE(night_sky.is_valid());
+	CHECK(night_sky->get_sky_top_color().get_v() < 0.1);
+	CHECK(night->get_tonemap_exposure() > clear->get_tonemap_exposure());
+	CHECK(night->get_glow_intensity() > clear->get_glow_intensity());
+	CHECK(night->get_fog_light_color().get_v() < 0.2);
+
+	DirectionalLight3D *moon = memnew(DirectionalLight3D);
+	LookPreset3D::configure_sun(moon, LookPreset3D::QUALITY_HIGH, LookPreset3D::ATMOSPHERE_NIGHT);
+	CHECK(moon->get_param(Light3D::PARAM_ENERGY) < 0.5);
+	CHECK(moon->get_color().b > moon->get_color().r);
+	memdelete(moon);
+
+	// Fill light: from the side, in the color of the sky (blue shadows), no shadows, sky unaffected.
+	DirectionalLight3D *sun = memnew(DirectionalLight3D);
+	DirectionalLight3D *fill = memnew(DirectionalLight3D);
+	DirectionalLight3D *rim = memnew(DirectionalLight3D);
+	LookPreset3D::configure_sun(sun, LookPreset3D::QUALITY_HIGH);
+	LookPreset3D::configure_fill_light(fill);
+	LookPreset3D::configure_rim_light(rim);
+	CHECK_FALSE(fill->has_shadow());
+	CHECK_FALSE(rim->has_shadow());
+	CHECK(fill->get_sky_mode() == DirectionalLight3D::SKY_MODE_LIGHT_ONLY);
+	CHECK(rim->get_sky_mode() == DirectionalLight3D::SKY_MODE_LIGHT_ONLY);
+	CHECK(fill->get_color().b > fill->get_color().r);
+	CHECK(fill->get_param(Light3D::PARAM_ENERGY) < sun->get_param(Light3D::PARAM_ENERGY));
+	// Rim light comes from behind: opposite the key light.
+	CHECK(rim->get_rotation_degrees().y == doctest::Approx(sun->get_rotation_degrees().y + 180.0));
+	memdelete(sun);
+	memdelete(fill);
+	memdelete(rim);
+
+	// Lamp: warm, light that falls off quickly, shadows except at low quality.
+	OmniLight3D *lamp = memnew(OmniLight3D);
+	LookPreset3D::configure_lamp(lamp, LookPreset3D::QUALITY_HIGH);
+	CHECK(lamp->get_color().r > lamp->get_color().b);
+	CHECK(lamp->get_param(Light3D::PARAM_ATTENUATION) > 1.0);
+	CHECK(lamp->has_shadow());
+	LookPreset3D::configure_lamp(lamp, LookPreset3D::QUALITY_LOW);
+	CHECK_FALSE(lamp->has_shadow());
+	memdelete(lamp);
+
+	// The lamp itself is colored, not pure white.
+	Ref<StandardMaterial3D> bulb = LookPreset3D::create_material(LookPreset3D::MATERIAL_LAMP);
+	CHECK(bulb->get_feature(BaseMaterial3D::FEATURE_EMISSION));
+	CHECK(bulb->get_emission().r > bulb->get_emission().b);
+}
+
 TEST_CASE("[SceneTree][LookPreset3D] Class defaults stay unchanged") {
 	// Existing scenes do not store default values, so changing them would change how those scenes look.
 	Ref<Environment> environment;
