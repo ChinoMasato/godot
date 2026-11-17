@@ -1,0 +1,5 @@
+{
+	"depth": "python my_depth_model.py {in} {out}",
+	"normal": "python my_normal_model.py {in} {out}",
+	"_note": "Copy to estimators.json and point at your own model (e.g. Depth Anything). {in}/{out} become absolute paths."
+}
