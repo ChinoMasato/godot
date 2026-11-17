@@ -8,6 +8,10 @@
 # 2. Creates the development folder, clones ChinoMasato/godot and checks out ai-native
 #    (or updates an existing clone).
 # 3. Installs SCons and zstandard, builds the editor with unit tests and runs them.
+#    Direct3D 12 and AccessKit (screen readers) are off by default, because they
+#    need extra SDK downloads (misc/scripts/install_d3d12_sdk_windows.py and
+#    misc/scripts/install_accesskit.py); pass -WithD3D12 / -WithAccessKit after
+#    running those scripts. The editor then renders with Vulkan.
 #
 # The agent scripts in ai_loop/ (look.sh, engine.sh, screenshot.sh) are bash
 # scripts for Linux; on Windows use them from WSL2 (Ubuntu), or use the cloud
@@ -16,7 +20,9 @@
 param(
 	[string]$Path = (Join-Path $HOME "engine work\uzu開発"),
 	[switch]$SkipInstall,
-	[switch]$SkipBuild
+	[switch]$SkipBuild,
+	[switch]$WithD3D12,
+	[switch]$WithAccessKit
 )
 
 $ErrorActionPreference = "Stop"
@@ -70,7 +76,10 @@ if (-not $SkipBuild) {
 	try {
 		$jobs = [Math]::Max(1, [Environment]::ProcessorCount - 1)
 		Write-Host "Building the editor with unit tests (-j$jobs). The first build takes a while..."
-		python -m SCons platform=windows target=editor tests=yes -j $jobs
+		$options = @("platform=windows", "target=editor", "tests=yes", "-j", $jobs)
+		if (-not $WithD3D12) { $options += "d3d12=no" }
+		if (-not $WithAccessKit) { $options += "accesskit=no" }
+		python -m SCons @options
 		if ($LASTEXITCODE -ne 0) { throw "Build failed." }
 		$exe = Get-ChildItem bin -Filter "godot.windows.editor*.console.exe" | Select-Object -First 1
 		if ($exe) {
