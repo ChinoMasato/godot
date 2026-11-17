@@ -31,6 +31,7 @@ Environment:
 """
 
 import glob
+import hashlib
 import json
 import os
 import platform
@@ -186,7 +187,10 @@ def engine(project, args):
     if command == "export":
         return export(project, opt(args, "preset"), opt(args, "out"), "--debug" in args)
     if command == "templates":
-        return templates(project)
+        return fetch_templates() if "--fetch" in args else templates(project)
+    if command == "export-preset" and opt(args, "template") == "auto":
+        path = shared_template(opt(args, "platform", "web"))
+        args = [path if (i > 0 and args[i - 1] == "--template") else a for i, a in enumerate(args)]
     result, _ = gd_tool(project, "engine_tool.gd", args, "ENGINE_RESULT ")
     if command == "import-set" and result.get("ok"):
         imported = import_assets(project)  # The new setting takes effect only once the file is reimported.
@@ -220,6 +224,45 @@ def export(project, preset, out="", debug=False):
     return result
 
 
+TEMPLATES_BRANCH = "export-templates"
+SHARED_TEMPLATES = os.path.join(ROOT, "bin", "templates")
+
+
+def fetch_templates():
+    """Gets this fork's export templates from the repository's export-templates branch
+    (kept out of the main history) into bin/templates/, checking each sha256."""
+    rc, out = run(["git", "-C", ROOT, "fetch", "origin", TEMPLATES_BRANCH], timeout=600)
+    if rc != 0:
+        raise ToolError("could not fetch the export-templates branch: " + tail(out, 3))
+    fetched = []
+    rc, listing = run(["git", "-C", ROOT, "ls-tree", "-r", "--name-only", "FETCH_HEAD"], timeout=60)
+    for info_path in [l for l in listing.splitlines() if l.endswith("info.json")]:
+        info = json.loads(subprocess.run(["git", "-C", ROOT, "show", "FETCH_HEAD:" + info_path], capture_output=True, check=True).stdout)
+        folder = os.path.dirname(info_path)
+        data = subprocess.run(["git", "-C", ROOT, "show", f"FETCH_HEAD:{folder}/{info['file']}"], capture_output=True, check=True).stdout
+        if hashlib.sha256(data).hexdigest() != info["sha256"]:
+            raise ToolError(f"{info['file']}: sha256 does not match info.json")
+        os.makedirs(os.path.join(SHARED_TEMPLATES, folder), exist_ok=True)
+        with open(os.path.join(SHARED_TEMPLATES, folder, info["file"]), "wb") as f:
+            f.write(data)
+        with open(os.path.join(SHARED_TEMPLATES, folder, "info.json"), "w", encoding="utf-8") as f:
+            json.dump(info, f)
+        fetched.append(dict(info, platform=folder, path=os.path.join(SHARED_TEMPLATES, folder, info["file"])))
+    return {"ok": bool(fetched), "command": "templates", "fetched": fetched}
+
+
+def shared_template(platform_name):
+    """The path of the shared template for a platform, fetching it when missing (--template auto)."""
+    folder = os.path.join(SHARED_TEMPLATES, platform_name)
+    info_path = os.path.join(folder, "info.json")
+    if not os.path.exists(info_path):
+        fetch_templates()
+    if not os.path.exists(info_path):
+        raise ToolError(f"no shared export template for '{platform_name}' on the {TEMPLATES_BRANCH} branch")
+    with open(info_path, encoding="utf-8") as f:
+        return os.path.join(folder, json.load(f)["file"])
+
+
 def templates(project):
     """Where the editor looks for export templates, which are there, and the presets' own templates."""
     rc, out = run([find_godot(), "--version"], timeout=60)
@@ -236,7 +279,8 @@ def templates(project):
     presets = gd_tool(project, "engine_tool.gd", ["presets"], "ENGINE_RESULT ")[0]["presets"]
     for p in presets:
         p["custom_template_exists"] = bool(p["custom_template"]) and os.path.exists(p["custom_template"])
-    return {"ok": True, "command": "templates", "engine_version": version, "templates_dir": folder, "installed": installed, "presets": presets}
+    shared = sorted(os.listdir(SHARED_TEMPLATES)) if os.path.isdir(SHARED_TEMPLATES) else []
+    return {"ok": True, "command": "templates", "engine_version": version, "templates_dir": folder, "installed": installed, "shared": shared, "presets": presets}
 
 
 def project_files(project, extensions):
