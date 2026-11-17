@@ -33,6 +33,7 @@
 TEST_FORCE_LINK(test_ip)
 
 #include "core/io/ip.h"
+#include "core/os/os.h"
 
 namespace TestIP {
 
@@ -43,6 +44,29 @@ TEST_CASE("[IP] resolve_hostname") {
 		IPAddress IPV6 = IP::get_singleton()->resolve_hostname("localhost", IP::TYPE_IPV6);
 		CHECK("0:0:0:0:0:0:0:1" == String(IPV6));
 	}
+}
+
+TEST_CASE("[IP] Localhost names resolve to loopback") {
+	// RFC 6761, section 6.3. Must hold even where the system resolver has no
+	// IPv6 entry for localhost (for example, no "::1 localhost" in /etc/hosts).
+	// Name resolution is case-insensitive; each spelling is cached separately.
+	CHECK("127.0.0.1" == String(IP::get_singleton()->resolve_hostname("LocalHost", IP::TYPE_IPV4)));
+	CHECK("0:0:0:0:0:0:0:1" == String(IP::get_singleton()->resolve_hostname("LocalHost", IP::TYPE_IPV6)));
+
+	const String any = String(IP::get_singleton()->resolve_hostname("localhost", IP::TYPE_ANY));
+	CHECK_MESSAGE((any == "127.0.0.1" || any == "0:0:0:0:0:0:0:1"), any);
+}
+
+TEST_CASE("[IP] Queued localhost resolution") {
+	// A spelling not used elsewhere, so the result comes from the resolver queue and not from the cache.
+	IP::ResolverID id = IP::get_singleton()->resolve_hostname_queue_item("LOCALHOST", IP::TYPE_IPV6);
+	REQUIRE(id != IP::RESOLVER_INVALID_ID);
+	for (int i = 0; i < 500 && IP::get_singleton()->get_resolve_item_status(id) == IP::RESOLVER_STATUS_WAITING; i++) {
+		OS::get_singleton()->delay_usec(10000);
+	}
+	CHECK(IP::get_singleton()->get_resolve_item_status(id) == IP::RESOLVER_STATUS_DONE);
+	CHECK("0:0:0:0:0:0:0:1" == String(IP::get_singleton()->get_resolve_item_address(id)));
+	IP::get_singleton()->erase_resolve_item(id);
 }
 
 } // namespace TestIP
