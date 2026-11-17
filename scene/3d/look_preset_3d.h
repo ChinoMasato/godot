@@ -1,0 +1,63 @@
+/**************************************************************************/
+/*  look_preset_3d.h                                                      */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
+
+#pragma once
+
+#include "core/object/ref_counted.h"
+
+class DirectionalLight3D;
+class Environment;
+
+// Ready-to-use 3D "look" for new scenes (U.ZU Engine, BACKLOG B-701).
+//
+// Builds an Environment and configures a DirectionalLight3D with tuned values:
+// filmic tonemapping, sky-based ambient and reflected light, ambient occlusion,
+// glow, distance fog and split shadows. Godot's class defaults leave all of these
+// off, which is why a fresh 3D scene looks flat.
+//
+// This is engine-internal (not registered with ClassDB). Class defaults are not
+// changed, so existing scenes keep their look; the editor uses this to add a
+// WorldEnvironment and a sun on request.
+namespace LookPreset3D {
+
+enum Quality {
+	QUALITY_HIGH, // Forward+ on a dedicated GPU.
+	QUALITY_STANDARD, // Forward+ on integrated GPUs, or Mobile.
+	QUALITY_LOW, // Compatibility (Web) renderer: only features it supports.
+};
+
+// Returns the quality that suits the given rendering method name
+// ("forward_plus", "mobile", "gl_compatibility").
+Quality get_default_quality(const String &p_rendering_method);
+
+Ref<Environment> create_environment(Quality p_quality);
+void configure_sun(DirectionalLight3D *p_sun, Quality p_quality);
+
+} // namespace LookPreset3D
