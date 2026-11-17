@@ -7,6 +7,16 @@ E="$HERE/engine.sh"
 P="$(mktemp -d)"
 trap 'rm -rf "$P"' EXIT
 printf 'config_version=5\n\n[application]\n\nconfig/name="engine selftest"\nrun/main_scene="res://main.tscn"\n' >"$P/project.godot"
+cat >>"$P/project.godot" <<'CFG'
+
+[input]
+
+jump={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":32,"key_label":0,"unicode":32,"location":0,"echo":false,"script":null)
+]
+}
+CFG
 cat >"$P/hello.gd" <<'GD'
 extends Node3D
 signal poked
@@ -51,6 +61,7 @@ printf '[gd_resource type="Resource" load_steps=2 format=3]\n\n[ext_resource typ
 expect "validate broken" 'not r["ok"] and {("script_error", "res://broken.gd"), ("missing_dependency", "res://ref.tres")} <= {(i["kind"], i["file"]) for i in r["issues"]} and any(e["line"] == 2 for i in r["issues"] for e in i.get("errors", []))' "$("$E" "$P" validate || true)"
 rm "$P/broken.gd" "$P/ref.tres"
 expect "validate clean" 'r["ok"] and r["issues"] == [] and r["checked"] >= 2' "$("$E" "$P" validate)"
+expect "actions"    'r["ok"] and [a["name"] for a in r["actions"]] == ["jump"] and r["actions"][0]["events"][0]["class"] == "InputEventKey" and "Space" in r["actions"][0]["events"][0]["text"]' "$("$E" "$P" actions)"
 expect "remove"     'r["ok"] and r["removed"] == "Group/Box"' "$("$E" "$P" remove $S --node Group/Box)"
 expect "bad node"   'not r["ok"]' "$("$E" "$P" get $S --node Nope --property position || true)"
 expect "bad scene"  'not r["ok"]' "$("$E" "$P" tree --scene res://nope.tscn || true)"

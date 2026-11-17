@@ -48,6 +48,7 @@ TOOLS = {
     "class_list": ("engine", "classes", "List engine classes, optionally only those inheriting a class.", {"inherits": _str("Base class (optional)")}, []),
     "class_describe": ("engine", "describe", "Describe a class: properties, methods, signals and constants.", {"class": _str("Class name")}, ["class"]),
     "project_run": ("engine", "run", "Run the project headless for some frames; returns errors and the log tail.", {"frames": _str("Frames to run (default 120)")}, []),
+    "input_actions": ("engine", "actions", "List the project's input actions (InputMap) and their key/button events.", {}, []),
     "project_validate": ("engine", "validate", "Load every scene, resource and script of the project; list problems (missing files, broken scripts with errors, missing main scene or autoloads).", {}, []),
     "screenshot": ("look", "shot", "Render the main scene without a GPU and save a PNG.", {"out": _str("Output PNG path"), "frames": _str("Frames before capture (default 8)")}, ["out"]),
     "panorama": ("look", "panorama", "Capture a 360-degree equirectangular panorama around the main camera and save a PNG.", {"out": _str("Output PNG path"), "width": _str("Width in pixels (default 1024)")}, ["out"]),

@@ -22,6 +22,7 @@ extends SceneTree
 ##   describe   --class Light3D                                   properties, methods, signals, constants
 ## Project:
 ##   validate                                                     loads every scene, resource and script; lists problems (B-203)
+##   actions                                                      the project's input actions and their events (B-304)
 ## Prints one line "ENGINE_RESULT {json}"; exits 0 on success, 1 on error.
 
 
@@ -105,6 +106,8 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 	match command:
 		"validate":
 			return _validate()
+		"actions":
+			return _actions()
 		"classes":
 			var base := _option(args, "inherits")
 			var names: Array = Array(ClassDB.get_inheriters_from_class(base) if not base.is_empty() else ClassDB.get_class_list())
@@ -314,3 +317,24 @@ func _validate() -> Dictionary:
 			if not _exists(_dependency_path(target)):
 				issues.append({"kind": "missing_autoload", "file": "res://project.godot", "target": target, "message": "the autoload %s points to %s, which does not exist" % [name.trim_prefix("autoload/"), target]})
 	return {"ok": issues.is_empty(), "command": "validate", "checked": checked, "issues": issues}
+
+
+# The project's own input actions (not the built-in ui_* ones), with their events.
+func _actions() -> Dictionary:
+	var actions := []
+	for prop in ProjectSettings.get_property_list():
+		var name: String = prop.name
+		if not name.begins_with("input/"):
+			continue
+		var action := name.trim_prefix("input/")
+		var setting = ProjectSettings.get_setting(name)
+		var events := []
+		if typeof(setting) == TYPE_DICTIONARY:
+			for e in setting.get("events", []):
+				if e is InputEvent:
+					events.append({"class": e.get_class(), "text": e.as_text()})
+		actions.append({"name": action, "builtin": action.begins_with("ui_"), "deadzone": setting.get("deadzone", 0.5) if typeof(setting) == TYPE_DICTIONARY else 0.5, "events": events})
+	actions = actions.filter(func(a): return not a.builtin)
+	for a in actions:
+		a.erase("builtin")
+	return {"ok": true, "command": "actions", "actions": actions}

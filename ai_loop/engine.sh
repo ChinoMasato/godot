@@ -5,7 +5,8 @@
 # line; exit 0 on success.
 #
 # Scene and class commands are in ai_loop/engine_tool.gd (tree, props, get, set,
-# add, instance, remove, reparent, call, connect, script, new, classes, describe).
+# add, instance, remove, reparent, call, connect, script, new, classes, describe,
+# actions).
 # This wrapper adds:
 #   run    [--frames 120] [--scene res://x.tscn]   runs the project headless; returns structured errors (B-201) and the log tail
 #   check  --path res://a.gd                       checks a script; returns errors and warnings with line, column and code (B-202)

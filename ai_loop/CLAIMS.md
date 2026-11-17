@@ -40,3 +40,4 @@
 | B-601 | Claude Code (cloud) | ai-native（直接） | ai_loop/feedback/（新規: FORMAT.md, to_backlog.py, sample_feedback.json）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-302 | Claude Code (cloud) | ai-native（直接） | ai_loop/phase3_ai_player_requirements.md（新規）, ai_loop/COORDINATION.md（Q8）, ai_loop/iterations/ | 反映済み | 2026-11-17 |
 | B-503（案） | Claude Code (cloud) | ai-native（直接） | ai_loop/bridge_api.md（新規）, ai_loop/COORDINATION.md（Q9）, ai_loop/iterations/ | 案を反映、承認待ち | 2026-11-17 |
+| B-304 | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd, ai_loop/engine.sh, ai_loop/engine_selftest.sh, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-17 |
