@@ -83,3 +83,7 @@
 - 影の判断（オーナーから委任、WIN-GPU の RTX 4050 実測に基づく）: 「高」の light_angular_distance 0.5→0.25＋影フィルタ High を採用（粒 4.93→1.37、+0.74 ms）。TAA は不採用。B-703b は変更なし。実施は B-714 として BACKLOG に登録（値のテスト更新＋GPU 再計測が判定）。
 - 申し送り: テスト総数が環境で異なる（クラウド 1477／Windows 1475／Codex 1481）。Windows との差2件は未特定（全件一覧はオーナー PC の gpu_shots/out/test_cases_windows.txt）。--headless --import の segfault が1回だけ発生（6回再試行で再現せず）。いずれも監視事項。
 - 状態メモ: ai-native は Claude Code（クラウド）の直接 push で前進している（B-306、B-504〜B-507、B-801、B-802 を含む）。その運用方針の記録はブランチ側の転記で届いたため、オーナー本人への確認を別途行う。
+
+## 2026-11-18 — 運用方針の確定: 検証済み作業は ai-native へ直接反映
+- オーナーがリードとのチャットで明示的に確認: Claude Code は検証（ビルド＋全テスト pass）を通した作業を ai-native へ直接反映してよい（PR・リード統合を待たない）。記録（iterations／CLAIMS）は従来どおり。
+- リード（Muse）の役割は、事後レビュー、台帳（LEDGER／BACKLOG／COORDINATION）の整合、判断事項（例: B-714 の影対策）に移る。ブランチ経由で届いた作業（Codex の B-101、ローカルの GPU 確認）は従来どおりリードが統合する。
