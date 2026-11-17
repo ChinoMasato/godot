@@ -172,7 +172,7 @@ func _run(args: PackedStringArray) -> Dictionary:
 				if args.has("--snap"):
 					s.position = (s.position / texel).round() * texel
 			ProjectSettings.set_setting("rendering/textures/canvas_textures/default_texture_filter", 0)  # Nearest.
-			done = {"texel": texel, "sprites": sprites.map(func(s): return str(root.get_path_to(s))), "snapped": args.has("--snap"), "texels": _texels(root, 0.05)}
+			done = {"texel": snappedf(texel, 0.0001), "sprites": sprites.map(func(s): return str(root.get_path_to(s))), "snapped": args.has("--snap"), "texels": _texels(root, 0.05)}
 		_:
 			root.free()
 			return _error("unknown command '%s'" % command)

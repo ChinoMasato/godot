@@ -635,7 +635,7 @@ def selftest_engine():
         r = _call(look, p, ["texels", "--scene", "res://sprites.tscn"])
         c.expect("texels warns", not r["ok"] and {(w["kind"], w["node"]) for w in r["warnings"]} == {("texel_density", "B"), ("blurry_filter", "C")}, r)
         r = _call(look, p, ["pixel", "--scene", "res://sprites.tscn", "--snap"])
-        c.expect("pixel preset", r["ok"] and r["texels"]["ok"] and r["texel"] == 0.05, r)
+        c.expect("pixel preset", r["ok"] and r["texels"]["ok"] and abs(r["texel"] - 0.05) < 1e-6, r)
         r = _call(look, p, ["texels", "--scene", "res://sprites.tscn"])
         c.expect("texels clean", r["ok"] and r["warnings"] == [], r)
         r = _call(look, p, ["info"])
