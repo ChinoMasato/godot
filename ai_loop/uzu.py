@@ -626,6 +626,18 @@ def selftest_engine():
         c.expect("templates", r["ok"] and r["engine_version"] and r["presets"][0]["custom_template"] == "/nonexistent/web.zip" and not r["presets"][0]["custom_template_exists"], r)
         r = e("export", "--preset", "Nope")
         c.expect("export unknown preset", not r["ok"] and r.get("presets") == ["Web", "Desk"], r)
+        # B-717: texel density of sprites, and the pixel discipline preset.
+        with open(os.path.join(p, "sprites.tscn"), "w", encoding="utf-8") as f:
+            f.write('[gd_scene format=3]\n\n[node name="S" type="Node3D"]\n\n'
+                    '[node name="A" type="Sprite3D" parent="."]\npixel_size = 0.05\ntexture_filter = 0\n\n'
+                    '[node name="B" type="Sprite3D" parent="."]\npixel_size = 0.05\ntexture_filter = 0\nscale = Vector3(1.5, 1.5, 1.5)\n\n'
+                    '[node name="C" type="Sprite3D" parent="."]\npixel_size = 0.05\n')
+        r = _call(look, p, ["texels", "--scene", "res://sprites.tscn"])
+        c.expect("texels warns", not r["ok"] and {(w["kind"], w["node"]) for w in r["warnings"]} == {("texel_density", "B"), ("blurry_filter", "C")}, r)
+        r = _call(look, p, ["pixel", "--scene", "res://sprites.tscn", "--snap"])
+        c.expect("pixel preset", r["ok"] and r["texels"]["ok"] and r["texel"] == 0.05, r)
+        r = _call(look, p, ["texels", "--scene", "res://sprites.tscn"])
+        c.expect("texels clean", r["ok"] and r["warnings"] == [], r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))

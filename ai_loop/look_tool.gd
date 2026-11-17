@@ -10,6 +10,10 @@ extends SceneTree
 ##   material --kind water --scene res://main.tscn --node Path/To/MeshInstance3D   assigns it as the material override
 ##   sprite   --scene res://main.tscn [--node Path/To/Sprite3D] [--normal res://n.png] [--outline 1] [--blob 0.4]
 ##            makes Sprite3D nodes lit pixel-art sprites (all of them without --node), with an optional blob shadow (B-716)
+##   texels   --scene res://main.tscn [--tolerance 0.05]   texel density check of the sprites (B-717): warns on sprites
+##            whose world texel size differs from the others' (median) and on blurry (non-nearest) filtering
+##   pixel    --scene res://main.tscn [--texel 0.06] [--snap]   pixel discipline preset (B-717): one texel size for all
+##            sprites, nearest filtering (also the project default), --snap puts sprites on the texel grid
 ##   info     lists the options
 ## Prints one line "UZU_RESULT {json}" with {"ok": bool, ...}; exits 0 on success, 1 on error.
 
@@ -60,7 +64,7 @@ func _save_scene(root: Node, path: String) -> Error:
 
 func _run(args: PackedStringArray) -> Dictionary:
 	if args.is_empty() or args[0] == "info":
-		return {"ok": true, "commands": ["apply", "rig", "lamp", "camera", "material", "sprite", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
+		return {"ok": true, "commands": ["apply", "rig", "lamp", "camera", "material", "sprite", "texels", "pixel", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys(), "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
 	var command := args[0]
 
 	if command == "material" and _option(args, "scene").is_empty():
@@ -76,6 +80,13 @@ func _run(args: PackedStringArray) -> Dictionary:
 	var root := _load_scene(scene_path)
 	if root == null:
 		return _error("could not load --scene '%s'" % scene_path)
+	if command == "texels":
+		var report := _texels(root, _option(args, "tolerance", "0.05").to_float())
+		root.free()
+		report["command"] = command
+		report["scene"] = scene_path
+		return report
+
 	var quality = _pick(QUALITIES, args, "quality", "high")
 	var atmosphere = _pick(ATMOSPHERES, args, "atmosphere", "clear")
 	if quality == null or atmosphere == null:
@@ -145,13 +156,30 @@ func _run(args: PackedStringArray) -> Dictionary:
 					UZULook.add_blob_shadow(s, blob)
 				names.append(str(root.get_path_to(s)))
 			done = {"sprites": names, "outline": _option(args, "outline", "0").to_float(), "blob": blob, "normal": normal_path}
+		"pixel":
+			var sprites := _sprites(root)
+			if sprites.is_empty():
+				root.free()
+				return _error("pixel needs sprites (Sprite3D or AnimatedSprite3D) in the scene")
+			var texel := _option(args, "texel", "0").to_float()
+			if texel <= 0.0:
+				texel = _median(sprites.map(func(s): return _texel_size(s)))
+			for s in sprites:
+				# One texel size everywhere: the node's scale is folded into pixel_size.
+				s.pixel_size = texel
+				s.scale = Vector3.ONE
+				s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+				if args.has("--snap"):
+					s.position = (s.position / texel).round() * texel
+			ProjectSettings.set_setting("rendering/textures/canvas_textures/default_texture_filter", 0)  # Nearest.
+			done = {"texel": texel, "sprites": sprites.map(func(s): return str(root.get_path_to(s))), "snapped": args.has("--snap"), "texels": _texels(root, 0.05)}
 		_:
 			root.free()
 			return _error("unknown command '%s'" % command)
 
 	var err := _save_scene(root, scene_path)
 	root.free()
-	if err == OK and command == "apply":
+	if err == OK and command in ["apply", "pixel"]:
 		err = ProjectSettings.save()  # The sun's shadow filter quality is a project setting (B-714).
 	if err != OK:
 		return _error("could not save '%s': %s" % [scene_path, error_string(err)])
@@ -159,3 +187,44 @@ func _run(args: PackedStringArray) -> Dictionary:
 	done["command"] = command
 	done["scene"] = scene_path
 	return done
+
+
+func _sprites(root: Node) -> Array:
+	var found := []
+	for type in ["Sprite3D", "AnimatedSprite3D"]:
+		found.append_array(root.find_children("*", type, true, false))
+	if root is SpriteBase3D:
+		found.push_front(root)
+	return found
+
+
+# The world size of one texel: pixel_size times the node's own scale (largest axis).
+func _texel_size(sprite: SpriteBase3D) -> float:
+	var s := sprite.scale.abs()
+	return sprite.pixel_size * max(s.x, s.y, s.z)
+
+
+func _median(values: Array) -> float:
+	var sorted := values.duplicate()
+	sorted.sort()
+	return sorted[sorted.size() / 2] if not sorted.is_empty() else 0.0
+
+
+func _texels(root: Node, tolerance: float) -> Dictionary:
+	var sprites := _sprites(root)
+	var sizes := sprites.map(func(s): return _texel_size(s))
+	var reference := _median(sizes)
+	var items := []
+	var warnings := []
+	for i in sprites.size():
+		var sprite: SpriteBase3D = sprites[i]
+		var path := str(root.get_path_to(sprite))
+		var ratio: float = sizes[i] / reference if reference > 0.0 else 1.0
+		var filter := sprite.texture_filter
+		var nearest := filter in [BaseMaterial3D.TEXTURE_FILTER_NEAREST, BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS, BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS_ANISOTROPIC]
+		items.append({"node": path, "texel": snappedf(sizes[i], 0.0001), "ratio": snappedf(ratio, 0.001), "nearest": nearest})
+		if absf(ratio - 1.0) > tolerance:
+			warnings.append({"kind": "texel_density", "node": path, "message": "%s has texels %.2fx the size of the others (%.4f vs %.4f): its pixels look %s" % [path, ratio, sizes[i], reference, "bigger" if ratio > 1.0 else "smaller"]})
+		if not nearest:
+			warnings.append({"kind": "blurry_filter", "node": path, "message": "%s uses smooth texture filtering: pixel art blurs (use nearest)" % path})
+	return {"ok": warnings.is_empty(), "reference_texel": snappedf(reference, 0.0001), "sprites": items, "warnings": warnings}
