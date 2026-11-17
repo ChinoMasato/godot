@@ -7,7 +7,7 @@
 # Scene and class commands are in ai_loop/engine_tool.gd (tree, props, get, set,
 # add, instance, remove, reparent, call, connect, script, new, classes, describe).
 # This wrapper adds:
-#   run    [--frames 120] [--scene res://x.tscn]   runs the project headless; returns errors and the log tail
+#   run    [--frames 120] [--scene res://x.tscn]   runs the project headless; returns structured errors (B-201) and the log tail
 #   check  --path res://a.gd                       parses and compiles a script; returns errors with lines
 #   shot   --out x.png [--frames 8]                renders without a GPU (ai_loop/screenshot.sh)
 #
@@ -48,14 +48,28 @@ case "${1:-}" in
   run)
     FRAMES="$(opt frames 120 "$@")"
     SCENE="$(opt scene "" "$@")"
+    JSONL="$(mktemp)"
     set +e
     # shellcheck disable=SC2086
-    timeout 300 "$GODOT" --headless --path "$PROJECT" --quit-after "$FRAMES" $SCENE >"$LOG" 2>&1
+    timeout 300 "$GODOT" --headless --path "$PROJECT" --log-json "$JSONL" --quit-after "$FRAMES" $SCENE >"$LOG" 2>&1
     RC=$?
     set -e
-    TAIL="$(tail -n 20 "$LOG" | python3 -I -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
-    printf '{"ok": %s, "command": "run", "exit_code": %d, "frames": %s, "errors": %s, "log_tail": %s}\n' \
-      "$([ $RC -eq 0 ] && echo true || echo false)" "$RC" "$FRAMES" "$(errors_json "$LOG")" "$TAIL"
+    # Errors come from the engine's structured log (--log-json, B-201): level, code, file, line, function, message.
+    python3 -I - "$JSONL" "$LOG" "$RC" "$FRAMES" <<'PY'
+import json, sys
+jsonl, log, rc, frames = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+errors = []
+for line in open(jsonl, encoding="utf-8", errors="replace"):
+    line = line.strip()
+    if line:
+        try:
+            errors.append(json.loads(line))
+        except ValueError:
+            pass
+tail = "".join(open(log, encoding="utf-8", errors="replace").readlines()[-20:])
+print(json.dumps({"ok": rc == 0, "command": "run", "exit_code": rc, "frames": frames, "errors": errors, "log_tail": tail}))
+PY
+    rm -f "$JSONL"
     exit $(( RC == 0 ? 0 : 1 ))
     ;;
   check)

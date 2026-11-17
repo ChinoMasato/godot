@@ -35,6 +35,7 @@
 #include "core/core_globals.h"
 #include "core/crypto/crypto.h"
 #include "core/debugger/engine_debugger.h"
+#include "core/error/error_log_json.h"
 #include "core/extension/extension_api_dump.h"
 #include "core/extension/gdextension_interface_dump.gen.h"
 #include "core/extension/gdextension_interface_header_generator.h"
@@ -213,6 +214,7 @@ static bool project_manager = false;
 static bool cmdline_tool = false;
 static String locale;
 static String log_file;
+static String log_json_file;
 static bool show_help = false;
 static uint64_t quit_after = 0;
 #ifdef TOOLS_ENABLED
@@ -572,6 +574,7 @@ void Main::print_help(const char *p_binary) {
 	print_help_option("--tablet-driver <driver>", "Pen tablet input driver.\n");
 	print_help_option("--headless", "Enable headless mode (--display-driver headless --audio-driver Dummy). Useful for servers and with --script.\n");
 	print_help_option("--log-file <file>", "Write output/error log to the specified path instead of the default location defined by the project.\n");
+	print_help_option("--log-json <file>", "Also write every error and warning to <file> as JSON Lines (level, code, file, line, function, message), for tools and agents.\n");
 	print_help_option("", "<file> path should be absolute or relative to the project directory.\n");
 	print_help_option("--write-movie <file>", "Write a video to the specified path (usually with .avi or .png extension).\n");
 	print_help_option("", "--fixed-fps is forced when enabled, but it can be used to change movie FPS.\n");
@@ -846,6 +849,8 @@ void Main::test_cleanup() {
 	ERR_FAIL_COND(!_start_success);
 
 	Thread::make_main_thread();
+
+	ErrorLogJSON::stop();
 
 	// Printing in the usual way can become problematic during/after cleanup.
 	CoreGlobals::print_ready = false;
@@ -1475,6 +1480,14 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 			OS::get_singleton()->print("--embedded is only supported on macOS, aborting.\n");
 			goto error;
 #endif
+		} else if (arg == "--log-json") { // write errors as JSON Lines
+			if (N) {
+				log_json_file = N->get();
+				N = N->next();
+			} else {
+				OS::get_singleton()->print("Missing JSON log file path argument, aborting.\n");
+				goto error;
+			}
 		} else if (arg == "--log-file") { // write to log file
 
 			if (N) {
@@ -2318,6 +2331,13 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	GLOBAL_DEF("debug/file_logging/enable_file_logging.pc", true);
 	GLOBAL_DEF("debug/file_logging/log_path", "user://logs/godot.log");
 	GLOBAL_DEF(PropertyInfo(Variant::INT, "debug/file_logging/max_log_files", PROPERTY_HINT_RANGE, "0,20,1,or_greater"), 5);
+
+	if (!log_json_file.is_empty()) {
+		const Error json_err = ErrorLogJSON::start(log_json_file);
+		if (json_err != OK) {
+			OS::get_singleton()->printerr(vformat("Could not open JSON log file \"%s\": %s\n", log_json_file, error_names[json_err]).utf8().get_data());
+		}
+	}
 
 	// If `--log-file` is used to override the log path, allow creating logs for the project manager or editor
 	// and even if file logging is disabled in the Project Settings.
@@ -5271,6 +5291,8 @@ void Main::cleanup(bool p_force) {
 	if (!p_force) {
 		ERR_FAIL_COND(!_start_success);
 	}
+
+	ErrorLogJSON::stop();
 
 	// Printing in the usual way can become problematic during/after cleanup.
 	CoreGlobals::print_ready = false;
