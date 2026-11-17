@@ -64,3 +64,7 @@
 - 検証（Claude Code の最終検証をリードが確認）: 最小プロジェクトで `--headless --quit` の起動ヘッダが "U.ZU Engine v4.8.beta..." と表示され exit 0。全テスト 1433 件中 1432 pass（fail は既知の環境起因 [IP] resolve_hostname のみ。::1 追加時は全件 pass）。変更前は新規テストが fail することも確認済み（red→green）。
 - BACKLOG の B-001／B-002／B-003 を完了に更新。Phase 0 は完了。
 - 申し送り: 起動ヘッダの website（version.py の website = godotengine.org）の扱いは未決定。必要なら別項目としてオーナー判断。
+
+## 2026-11-17 — B-003 追随: website を U.ZU に変更（オーナー指示）
+- version.py の website を https://godotengine.org から https://u-zu.co.jp へ変更（起動ヘッダと About 表示に出る URL）。docs 欄（ドキュメントへの参照）は本家ドキュメントを指すため据え置き。
+- tests/core/test_version.cpp に website を固定するテストを1件追加（合計3件）。ヘッダ表示の再検証は次の増分ビルド（Claude Code のループ）で併せて確認する。

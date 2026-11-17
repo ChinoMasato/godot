@@ -43,6 +43,13 @@ TEST_CASE("[Version] Engine display name") {
 			"The engine display name (version.py `name`) should be U.ZU Engine.");
 }
 
+TEST_CASE("[Version] Website points to U.ZU") {
+	// Shown in the startup header and about dialogs (owner decision, 2026-11-17).
+	CHECK_MESSAGE(
+			String(GODOT_VERSION_WEBSITE) == "https://u-zu.co.jp",
+			"The engine website (version.py `website`) should be the U.ZU site.");
+}
+
 TEST_CASE("[Version] Short name is kept for compatibility") {
 	// `short_name` determines the user data, editor settings and export template
 	// directories, so it must stay "godot" to keep existing data reachable.
