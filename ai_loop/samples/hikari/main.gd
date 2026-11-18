@@ -51,6 +51,7 @@ var stage_current := {}
 var stage_target := {}
 
 func _ready() -> void:
+	add_to_group("uzu_state")
 	InputSetup.setup()
 	_build_world()
 	var report := UZULook.apply_hd2d(self, UZULook.ATMOSPHERE_GOLDEN_HOUR, false)
@@ -62,6 +63,15 @@ func _ready() -> void:
 	_apply_stage(stage_current, 1.0)
 	UZUTelemetry.checkpoint("start")
 	_set_objective("村に落ちた灯りの欠片を集めよう（0/3）")
+
+## Declared state for the engine's state hash (B-307): what "the same game
+## state" means for this game. The AI player / self-play tooling hashes this
+## to judge a playthrough mechanically.
+func uzu_state() -> Dictionary:
+	var p: Array = []
+	if player:
+		p = [snappedf(player.global_position.x, 0.01), snappedf(player.global_position.z, 0.01)]
+	return {"shards": shards, "cleared": cleared, "player": p}
 
 func _process(delta: float) -> void:
 	if not cleared:
