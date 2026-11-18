@@ -23,6 +23,8 @@ extends SceneTree
 ## Project:
 ##   validate                                                     loads every scene, resource and script; lists problems (B-203)
 ##   actions                                                      the project's input actions and their events (B-304)
+##   map-import   --kind normal|depth --in res://model.png --for res://picture.png --out res://x.png
+##                [--depth-kind auto|disparity|linear] [--no-align]   bring in an outside normal/depth map (B-903)
 ##   map                                                          static index of the project (B-204): files by kind, dependencies
 ##                                                                both ways, scenes (root, nodes, scripts, instances, signal
 ##                                                                connections), autoloads, global classes, main scene
@@ -127,6 +129,16 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 			return _actions()
 		"map":
 			return _map()
+		"map-import":
+			var kinds := {"normal": UZUMapImport.MAP_NORMAL, "depth": UZUMapImport.MAP_DEPTH}
+			var depth_kinds := {"auto": UZUMapImport.DEPTH_AUTO, "disparity": UZUMapImport.DEPTH_DISPARITY, "linear": UZUMapImport.DEPTH_LINEAR}
+			var kind := _option(args, "kind")
+			var depth_kind := _option(args, "depth-kind", "auto")
+			if not kinds.has(kind) or not depth_kinds.has(depth_kind):
+				return _error("map-import needs --kind normal|depth (and --depth-kind auto|disparity|linear)")
+			var result := UZUMapImport.import_file(_option(args, "in"), _option(args, "for"), _option(args, "out"), kinds[kind], depth_kinds[depth_kind], not args.has("--no-align"))
+			result["command"] = command
+			return result
 		"res-new", "res-props", "res-get", "res-set":
 			return _resource_command(command, args)
 		"setting-get", "setting-set":

@@ -73,3 +73,4 @@
 | B-806 | Claude Code (cloud) | ai-native（直接） | editor/file_system/editor_file_system.{h,cpp}, editor/doc/editor_help.cpp, tests/editor/test_editor_file_system_exit.cpp（新規）, ai_loop/uzu.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-107 | Claude Code (cloud) | ai-native（直接） | .github/workflows/uzu_verify.yml（新規）, ai_loop/COORDINATION.md（Q14）, ai_loop/iterations/ | ワークフローは反映済み、Actions の有効化待ち | 2026-11-18 |
 | B-106 | Claude Code (cloud) | rehearsal/upstream-2026-11-18（予行）＋ ai-native（記録のみ） | ai_loop/upstream_watchlist.md（新規）, ai_loop/bench.py（self-test のやり直し）, ai_loop/iterations/ | 予行完了（競合 0、1498 pass）、LEDGER 転記はリード | 2026-11-18 |
+| B-903 | Claude Code (cloud) | ai-native（直接） | scene/resources/uzu_map_import.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUMapImport.xml（新規）, tests/scene/test_uzu_map_import.cpp（新規）, ai_loop/engine_tool.gd, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |

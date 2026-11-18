@@ -15,7 +15,8 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
-engine commands: run, check, validate, shot, import, export, templates, uids [--fix] (B-205), and every command of ai_loop/engine_tool.gd
+engine commands: run, check, validate, shot, import, export, templates, uids [--fix] (B-205),
+map-estimate (B-903: an outside model, then map-import), and every command of ai_loop/engine_tool.gd
 (tree, props, get, set, add, instance, remove, reparent, call, connect, script, new,
 classes, describe, actions, res-new, res-props, res-get, res-set, setting-get,
 setting-set, action-add, action-remove, import-get, import-set, export-preset, presets);
@@ -186,6 +187,8 @@ def engine(project, args):
         return look(project, args)
     if command == "import":
         return import_assets(project)
+    if command == "map-estimate":
+        return estimate_map(project, args)
     if command == "uids":
         return check_uids(project, fix="--fix" in args)
     if command == "export":
@@ -285,6 +288,51 @@ def templates(project):
         p["custom_template_exists"] = bool(p["custom_template"]) and os.path.exists(p["custom_template"])
     shared = sorted(os.listdir(SHARED_TEMPLATES)) if os.path.isdir(SHARED_TEMPLATES) else []
     return {"ok": True, "command": "templates", "engine_version": version, "templates_dir": folder, "installed": installed, "shared": shared, "presets": presets}
+
+
+# ---------------------------------------------------------------- outside maps (B-903)
+
+
+def estimate_map(project, args):
+    """Runs the outside model configured for --kind (no model ships with the engine), then
+    brings its output in with map-import. The config (default res://estimators.json) is
+    {"depth": "python my_depth.py {in} {out}", "normal": "..."}; {in} and {out} become
+    quoted absolute paths."""
+    kind, src, out = opt(args, "kind"), opt(args, "in"), opt(args, "out")
+    config = opt(args, "config", "res://estimators.json")
+    if kind not in ("normal", "depth") or not src.startswith("res://") or not out.startswith("res://"):
+        raise ToolError("map-estimate needs --kind normal|depth --in res://picture.png --out res://map.png [--config res://estimators.json]")
+    config_path = os.path.join(project, config[len("res://"):]) if config.startswith("res://") else config
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            commands = json.load(f)
+    except (OSError, ValueError):
+        commands = {}
+    if kind not in commands:
+        raise ToolError(f'no estimator for "{kind}" in {config}; add e.g. {{"{kind}": "python my_model.py {{in}} {{out}}"}}')
+    src_abs = os.path.join(project, src[len("res://"):])
+    raw_res = out[: -len(".png")] + "_raw.png" if out.endswith(".png") else out + "_raw.png"
+    raw_abs = os.path.join(project, raw_res[len("res://"):])
+    os.makedirs(os.path.dirname(raw_abs), exist_ok=True)
+    command = commands[kind].replace("{in}", '"%s"' % src_abs).replace("{out}", '"%s"' % raw_abs)
+    try:
+        p = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=1800, cwd=project)
+        rc, log = p.returncode, p.stdout.decode("utf-8", errors="replace")
+    except subprocess.TimeoutExpired:
+        rc, log = 124, "(timed out)"
+    if rc != 0 or not os.path.exists(raw_abs):
+        return {"ok": False, "command": "map-estimate", "error": f"the estimator failed (exit {rc})", "estimator": command, "log_tail": tail(log, 15)}
+    rest = ["map-import", "--kind", kind, "--in", raw_res, "--for", src, "--out", out]
+    for name in ("depth-kind",):
+        if opt(args, name):
+            rest += ["--" + name, opt(args, name)]
+    if "--no-align" in args:
+        rest.append("--no-align")
+    result = engine(project, rest)
+    result["command"] = "map-estimate"
+    result["estimator"] = command
+    result["raw"] = raw_res
+    return result
 
 
 # ---------------------------------------------------------------- UIDs (B-205)
@@ -811,6 +859,31 @@ def _call(fn, *a):
         return dict({"ok": False, "error": e.message}, **e.extra)
 
 
+# A stand-in for an outside model in the self-test (B-903): writes a picture of a bumpy
+# surface, or a DirectX normal map of it at half size. Standard library only.
+FAKE_MODEL = r"""
+import math, struct, sys, zlib
+def png(path, w, h, pixel):
+    raw = b"".join(b"\x00" + b"".join(bytes(pixel(x, y)) for x in range(w)) for y in range(h))
+    c = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    open(path, "wb").write(b"\x89PNG\r\n\x1a\n" + c(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)) + c(b"IDAT", zlib.compress(raw)) + c(b"IEND", b""))
+def height(u, v):
+    return 0.5 + 0.25 * math.sin(u * 19) * math.cos(v * 13) + 0.15 * math.sin(u * 7 + v * 5)
+if sys.argv[1] == "picture":
+    png(sys.argv[2], 256, 192, lambda x, y: [int(255 * min(max(height(x / 256, y / 192), 0), 1))] * 3)
+else:
+    W, H = 128, 96
+    def normal(x, y):
+        e = 1.0 / W
+        dx = (height(x / W + e, y / H) - height(x / W - e, y / H)) / (2 * e) / W * 40
+        dy = (height(x / W, y / H + e) - height(x / W, y / H - e)) / (2 * e) / H * 40
+        n = [-dx, -dy, 1.0]  # DirectX: green is the other way.
+        l = math.sqrt(sum(a * a for a in n))
+        return [int(255 * (a / l * 0.5 + 0.5)) for a in n]
+    png(sys.argv[3], W, H, normal)
+"""
+
+
 def selftest_engine():
     """The engine.sh self-test, in Python so it also runs on Windows."""
     c = Checks()
@@ -983,6 +1056,22 @@ def selftest_engine():
                 c.expect("uid restored from references", f.read().strip() == u["main_gd"])
             r = _call(engine, q, ["validate"])
             c.expect("validate clean after uids --fix", r["ok"] and r["issues"] == [], r)
+        # B-903: an outside "model" (a small script standing in for one) writes a DirectX normal
+        # map at another size; map-estimate runs it and map-import fixes it.
+        with tempfile.TemporaryDirectory() as q:
+            with open(os.path.join(q, "project.godot"), "w", encoding="utf-8") as f:
+                f.write("config_version=5\n")
+            make_png = os.path.join(q, "fake_model.py")
+            with open(make_png, "w", encoding="utf-8") as f:
+                f.write(FAKE_MODEL)
+            run([sys.executable, make_png, "picture", os.path.join(q, "pic.png")])
+            with open(os.path.join(q, "estimators.json"), "w", encoding="utf-8") as f:
+                json.dump({"normal": '"%s" "%s" normal {in} {out}' % (sys.executable, make_png)}, f)
+            r = _call(engine, q, ["map-estimate", "--kind", "normal", "--in", "res://pic.png", "--out", "res://maps/normal.png", "--no-align"])
+            found = r.get("found", {})
+            c.expect("map-estimate", r.get("ok") and found.get("convention") == "directx" and any("resized" in x for x in r["changed"]) and os.path.exists(os.path.join(q, "maps", "normal.png")), r)
+            r = _call(engine, q, ["map-estimate", "--kind", "depth", "--in", "res://pic.png", "--out", "res://maps/depth.png"])
+            c.expect("map-estimate without a model", not r["ok"] and "no estimator" in r["error"], r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))
