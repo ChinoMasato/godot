@@ -19,6 +19,9 @@ extends SceneTree
 ##   particles --scene res://main.tscn --kind dust|fireflies|snow|embers [--position x,y,z] [--extents x,y,z]   sparkle particles (B-718)
 ##   godrays  --scene res://main.tscn --position x,y,z [--width 3] [--length 8]   fake god rays along the sun's light (B-719)
 ##   palette  --scene res://main.tscn [--levels 6] [--strength 1] [--scale 1]   palette quantization with ordered dithering (B-721)
+##   water    --scene res://main.tscn [--position x,y,z] [--size 10,10] [--shallow #339e94] [--deep #04182a] [--clarity 2]
+##            [--waves 0.6] [--wave-scale 1.5] [--wave-speed 1] [--swell 0.04] [--foam 0.3] [--refraction 0.03] [--reflection 1]
+##            a water surface (B-727): color and see-through by depth, waves, refraction, shore foam, reflections
 ##   info     lists the options
 ## Prints one line "UZU_RESULT {json}" with {"ok": bool, ...}; exits 0 on success, 1 on error.
 
@@ -77,7 +80,7 @@ func _save_scene(root: Node, path: String) -> Error:
 
 func _run(args: PackedStringArray) -> Dictionary:
 	if args.is_empty() or args[0] == "info":
-		return {"ok": true, "particle": PARTICLES.keys(), "commands": ["apply", "hd2d", "particles", "godrays", "palette", "rig", "lamp", "camera", "material", "sprite", "texels", "pixel", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys() + ["foliage_wind"], "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
+		return {"ok": true, "particle": PARTICLES.keys(), "commands": ["apply", "hd2d", "particles", "godrays", "water", "palette", "rig", "lamp", "camera", "material", "sprite", "texels", "pixel", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys() + ["foliage_wind"], "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
 	var command := args[0]
 
 	if command == "material" and _option(args, "scene").is_empty():
@@ -134,6 +137,30 @@ func _run(args: PackedStringArray) -> Dictionary:
 				return _error("godrays needs --position x,y,z")
 			var rays: MeshInstance3D = UZULook.add_god_rays(root, Vector3(gp[0].to_float(), gp[1].to_float(), gp[2].to_float()), _option(args, "width", "3").to_float(), _option(args, "length", "8").to_float())
 			done = {"node": str(root.get_path_to(rays))}
+		"water":
+			var wp := _option(args, "position", "0,0,0").split(",")
+			var ws := _option(args, "size", "10,10").split(",")
+			if wp.size() != 3 or ws.size() != 2:
+				root.free()
+				return _error("water needs --position x,y,z and --size x,z")
+			var options := {}
+			for flag in ["shallow", "deep"]:
+				var text := _option(args, flag)
+				if not text.is_empty():
+					if not Color.html_is_valid(text):
+						root.free()
+						return _error("--%s needs a color like #339e94" % flag)
+					options[flag + "_color"] = Color.html(text)
+			var numbers := {"clarity": "clarity", "waves": "wave_strength", "wave-scale": "wave_scale", "wave-speed": "wave_speed", "swell": "wave_height", "foam": "foam_width", "refraction": "refraction", "reflection": "reflection"}
+			for flag in numbers:
+				var value := _option(args, flag)
+				if not value.is_empty():
+					if not value.is_valid_float():
+						root.free()
+						return _error("--%s needs a number" % flag)
+					options[numbers[flag]] = value.to_float()
+			var water: MeshInstance3D = UZULook.add_water(root, Vector3(wp[0].to_float(), wp[1].to_float(), wp[2].to_float()), Vector2(ws[0].to_float(), ws[1].to_float()), options)
+			done = {"node": str(root.get_path_to(water)), "size": [water.mesh.size.x, water.mesh.size.y], "options": options.keys()}
 		"palette":
 			var envs := root.find_children("*", "WorldEnvironment", true, false)
 			if envs.is_empty():

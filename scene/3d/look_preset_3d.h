@@ -184,6 +184,17 @@ GPUParticles3D *create_particles(ParticleKind p_kind, const Vector3 &p_extents =
 // the node (bright at the source, fading out at the far end).
 MeshInstance3D *create_god_rays(float p_width = 3.0, float p_length = 8.0, const Color &p_color = Color(1.0, 0.86, 0.62));
 
+// Water (B-727): one shader material for a horizontal water surface. Its color
+// and how much of the bottom shows depend on how deep the water is (from the
+// depth buffer), waves come from moving normals and a small swell, the bottom is
+// refracted (never things in front of the water), foam gathers where the water is
+// shallow, and the scene is reflected at grazing angles (its own screen-space
+// pass: transparent materials get no SSR). Works in Forward+, Mobile and
+// Compatibility. MATERIAL_WATER (a plain material) stays as it was.
+Ref<ShaderMaterial> create_water_material();
+// A subdivided plane of p_size (x, z) with the water material, facing up.
+MeshInstance3D *create_water(const Vector2 &p_size = Vector2(10, 10));
+
 // Post effects for the WorldEnvironment: edge contrast and vignette
 // (UZUPostEffect) at high and standard quality; none at low quality, where the
 // Compatibility renderer does not run compositor effects.

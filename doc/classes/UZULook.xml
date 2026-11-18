@@ -135,6 +135,16 @@
 				Adds fake god rays under [param root] and returns them: one additive card, [param width] by [param length], that turns around its long axis to face the camera, bright toward the sun and fading out at the far end, with faint streaks. The shaft follows the light of the scene's sun (straight down without one) and passes through [param position]; its color is the sun's, softened toward white. A cheap stand-in for volumetric light in windows, forests and ruins.
 			</description>
 		</method>
+		<method name="add_water" qualifiers="static">
+			<return type="MeshInstance3D" />
+			<param index="0" name="root" type="Node" />
+			<param index="1" name="position" type="Vector3" />
+			<param index="2" name="size" type="Vector2" default="Vector2(10, 10)" />
+			<param index="3" name="options" type="Dictionary" default="{}" />
+			<description>
+				Adds a horizontal water surface named [code]Water[/code] under [param root], centered at [param position], [param size] meters wide (x) and deep (z), and returns it. It uses the material from [method create_water_material]. [param options] sets its parameters: [code]shallow_color[/code], [code]deep_color[/code], [code]clarity[/code], [code]refraction[/code], [code]wave_strength[/code], [code]wave_scale[/code], [code]wave_speed[/code], [code]wave_height[/code], [code]foam_width[/code], [code]foam_color[/code], [code]reflection[/code] and [code]surface_roughness[/code]. An unknown option is an error, and nothing is added.
+			</description>
+		</method>
 		<method name="add_blob_shadow" qualifiers="static">
 			<return type="Decal" />
 			<param index="0" name="node" type="Node3D" />
@@ -159,6 +169,18 @@
 			<param index="2" name="outline_width" type="float" default="0.0" />
 			<description>
 				Makes [param sprite] a lit pixel-art sprite: the material of [method create_lit_sprite_material] as its [member GeometryInstance3D.material_override], shadow casting on, nearest filtering, alpha cut, and the sprite's own billboard off (the material faces the camera). The sprite is placed exclusively on 3D render layer 20 so that blob shadows do not project onto it. Include that layer in any custom camera and light masks that should affect the sprite.
+			</description>
+		</method>
+		<method name="create_water_material" qualifiers="static">
+			<return type="ShaderMaterial" />
+			<description>
+				Returns a new water material for a horizontal surface:
+				- Depth: the water's color goes from [code]shallow_color[/code] to [code]deep_color[/code], and the bottom shows through less, the more water there is in front of it ([code]clarity[/code] is how many meters it stays visible through). The depth is measured against the depth buffer, so it follows whatever lies under the water.
+				- Waves: moving normals ([code]wave_strength[/code], [code]wave_scale[/code] in meters, [code]wave_speed[/code]) and a small swell of the surface itself ([code]wave_height[/code]; the mesh needs vertices for it).
+				- Refraction: the bottom is bent by the waves ([code]refraction[/code]); things in front of the water are never pulled into it.
+				- Foam: where the water is shallower than [code]foam_width[/code] meters, at shores and around rocks (0 turns it off).
+				- Reflection: reflects little looking down and almost everything at grazing angles (Fresnel). The scene is reflected with the material's own screen-space pass ([code]reflection[/code]), because transparent materials get no SSR from the [Environment]; elsewhere the sky and reflection probes show.
+				It works with the Forward+, Mobile and Compatibility renderers. The plain [constant MATERIAL_WATER] material of [method create_material] is unchanged.
 			</description>
 		</method>
 		<method name="create_wind_foliage_material" qualifiers="static">

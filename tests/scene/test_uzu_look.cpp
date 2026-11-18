@@ -101,6 +101,64 @@ TEST_CASE("[SceneTree][UZULook] God rays follow the sun") {
 	memdelete(root);
 }
 
+TEST_CASE("[SceneTree][UZULook] Water surface") {
+	Node3D *root = memnew(Node3D);
+	Dictionary options;
+	options["deep_color"] = Color(0.0, 0.05, 0.2);
+	options["clarity"] = 4.0;
+	options["foam_width"] = 0.0;
+	MeshInstance3D *water = UZULook::add_water(root, Vector3(1, -0.5, 2), Vector2(12, 6), options);
+	REQUIRE(water != nullptr);
+	CHECK(water->get_parent() == root);
+	CHECK(water->get_owner() == root);
+	CHECK(water->get_position().is_equal_approx(Vector3(1, -0.5, 2)));
+	CHECK(water->get_cast_shadows_setting() == GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
+	Ref<PlaneMesh> plane = water->get_mesh();
+	REQUIRE(plane.is_valid());
+	CHECK(plane->get_size().is_equal_approx(Vector2(12, 6)));
+	// Enough vertices for the swell (about two per meter).
+	CHECK(plane->get_subdivide_width() == 24);
+	CHECK(plane->get_subdivide_depth() == 12);
+	Ref<ShaderMaterial> material = plane->get_material();
+	REQUIRE(material.is_valid());
+	// The options reach the material.
+	CHECK(Color(material->get_shader_parameter("deep_color")).is_equal_approx(Color(0.0, 0.05, 0.2)));
+	CHECK(float(material->get_shader_parameter("clarity")) == doctest::Approx(4.0));
+	CHECK(float(material->get_shader_parameter("foam_width")) == doctest::Approx(0.0));
+
+	// What the shader does: depth from the depth buffer, refraction from the screen,
+	// guarded against things in front of the water, its own reflection, foam, and the
+	// depth convention of each renderer.
+	const String code = material->get_shader()->get_code();
+	CHECK(code.contains("hint_depth_texture"));
+	CHECK(code.contains("hint_screen_texture"));
+	CHECK(code.contains("thick_r < 0.0")); // A refracted look-up that lands in front of the water is not used.
+	CHECK(code.contains("fresnel"));
+	CHECK(code.contains("reflect("));
+	CHECK(code.contains("foam"));
+	CHECK(code.contains("CURRENT_RENDERER == RENDERER_COMPATIBILITY"));
+	CHECK(code.contains("VERTEX.y +=")); // The swell.
+
+	// A new material on its own; the plain water preset is unchanged (compatibility).
+	CHECK(UZULook::create_water_material()->get_shader()->get_code() == code);
+	Ref<StandardMaterial3D> plain = UZULook::create_material(UZULook::MATERIAL_WATER);
+	CHECK(plain->get_transparency() == BaseMaterial3D::TRANSPARENCY_ALPHA);
+	CHECK(plain->get_roughness() == doctest::Approx(0.04));
+
+	// A wrong option is an error and adds nothing; a tiny size is kept usable.
+	Dictionary wrong;
+	wrong["colour"] = Color(1, 0, 0);
+	ERR_PRINT_OFF;
+	CHECK(UZULook::add_water(root, Vector3(), Vector2(4, 4), wrong) == nullptr);
+	ERR_PRINT_ON;
+	CHECK(root->get_child_count() == 1);
+	MeshInstance3D *tiny = UZULook::add_water(root, Vector3(), Vector2(0, 0));
+	REQUIRE(tiny != nullptr);
+	CHECK(Ref<PlaneMesh>(tiny->get_mesh())->get_size().is_equal_approx(Vector2(0.1, 0.1)));
+	CHECK(Ref<PlaneMesh>(tiny->get_mesh())->get_subdivide_width() == 1);
+	memdelete(root);
+}
+
 TEST_CASE("[SceneTree][UZULook] HD-2D in one call") {
 	Node3D *root = memnew(Node3D);
 	Camera3D *camera = memnew(Camera3D);

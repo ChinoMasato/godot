@@ -167,6 +167,32 @@ MeshInstance3D *UZULook::add_god_rays(Node *p_root, const Vector3 &p_position, f
 	return rays;
 }
 
+Ref<ShaderMaterial> UZULook::create_water_material() {
+	return LookPreset3D::create_water_material();
+}
+
+MeshInstance3D *UZULook::add_water(Node *p_root, const Vector3 &p_position, const Vector2 &p_size, const Dictionary &p_options) {
+	ERR_FAIL_NULL_V(p_root, nullptr);
+	static const char *OPTIONS[] = { "shallow_color", "deep_color", "clarity", "refraction", "wave_strength", "wave_scale", "wave_speed", "wave_height", "foam_width", "foam_color", "reflection", "surface_roughness" };
+	for (const Variant &key : p_options.keys()) {
+		bool known = false;
+		for (const char *name : OPTIONS) {
+			known = known || String(key) == name;
+		}
+		ERR_FAIL_COND_V_MSG(!known, nullptr, vformat("Unknown water option \"%s\".", String(key)));
+	}
+	MeshInstance3D *water = LookPreset3D::create_water(p_size);
+	Ref<PlaneMesh> plane = water->get_mesh();
+	Ref<ShaderMaterial> material = plane->get_material();
+	for (const Variant &key : p_options.keys()) {
+		material->set_shader_parameter(StringName(String(key)), p_options[key]);
+	}
+	water->set_position(p_position);
+	p_root->add_child(water, true);
+	water->set_owner(p_root->get_owner() ? p_root->get_owner() : p_root);
+	return water;
+}
+
 // HD-2D (B-722): pixel-art sprites in a lit 3D diorama, in one call.
 Dictionary UZULook::apply_hd2d(Node *p_root, Atmosphere p_atmosphere, bool p_camera) {
 	Dictionary result;
@@ -409,6 +435,8 @@ void UZULook::_bind_methods() {
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_wind_foliage_material", "strength", "speed"), &UZULook::create_wind_foliage_material, DEFVAL(0.12), DEFVAL(1.2));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_particles", "kind", "extents"), &UZULook::create_particles, DEFVAL(Vector3(4, 2, 4)));
 	ClassDB::bind_static_method("UZULook", D_METHOD("add_god_rays", "root", "position", "width", "length"), &UZULook::add_god_rays, DEFVAL(3.0), DEFVAL(8.0));
+	ClassDB::bind_static_method("UZULook", D_METHOD("create_water_material"), &UZULook::create_water_material);
+	ClassDB::bind_static_method("UZULook", D_METHOD("add_water", "root", "position", "size", "options"), &UZULook::add_water, DEFVAL(Vector2(10, 10)), DEFVAL(Dictionary()));
 	ClassDB::bind_static_method("UZULook", D_METHOD("apply_hd2d", "root", "atmosphere", "camera"), &UZULook::apply_hd2d, DEFVAL(ATMOSPHERE_GOLDEN_HOUR), DEFVAL(true));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_environment", "quality", "atmosphere", "clouds"), &UZULook::create_environment, DEFVAL(QUALITY_HIGH), DEFVAL(ATMOSPHERE_CLEAR), DEFVAL(false));
 	ClassDB::bind_static_method("UZULook", D_METHOD("create_camera_attributes", "quality"), &UZULook::create_camera_attributes, DEFVAL(QUALITY_HIGH));

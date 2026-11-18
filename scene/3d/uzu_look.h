@@ -117,6 +117,12 @@ public:
 	static Ref<ShaderMaterial> create_wind_foliage_material(float p_strength, float p_speed);
 	static GPUParticles3D *create_particles(ParticleKind p_kind, const Vector3 &p_extents);
 	static MeshInstance3D *add_god_rays(Node *p_root, const Vector3 &p_position, float p_width, float p_length);
+	static Ref<ShaderMaterial> create_water_material();
+	// Adds a water surface (B-727) of p_size (x, z) at p_position. p_options sets the
+	// material: shallow_color, deep_color, clarity, refraction, wave_strength,
+	// wave_scale, wave_speed, wave_height, foam_width, foam_color, reflection,
+	// surface_roughness. An unknown option is an error and adds nothing.
+	static MeshInstance3D *add_water(Node *p_root, const Vector3 &p_position, const Vector2 &p_size = Vector2(10, 10), const Dictionary &p_options = Dictionary());
 	static Dictionary apply_hd2d(Node *p_root, Atmosphere p_atmosphere = ATMOSPHERE_GOLDEN_HOUR, bool p_camera = true);
 
 	// Scene helpers. New nodes are owned by p_root, so they are saved with it.

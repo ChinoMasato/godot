@@ -49,5 +49,9 @@ shot street_telephoto street "apply $S;camera $S --lens telephoto --eye standing
 shot materials_default materials
 shot materials_presets materials "apply $S --atmosphere golden_hour;material $S --node Skin --kind skin;material $S --node Glass --kind glass;material $S --node Water --kind water;material $S --node Leaf0 --kind foliage;material $S --node Leaf1 --kind foliage;material $S --node Leaf2 --kind foliage;material $S --node Leaf3 --kind foliage;material $S --node Leaf4 --kind foliage"
 
+shot water_default water "apply $S"
+shot water_surface water "apply $S;water $S --position 0,0,-7.5 --size 16,21"
+shot water_golden water "apply $S --atmosphere golden_hour;water $S --position 0,0,-7.5 --size 16,21"
+
 echo "]" >>"$SUMMARY"
 echo "summary: $SUMMARY"
