@@ -8,6 +8,7 @@
 | 項目 | 担当 | ブランチ | 触るパス | 状態 | 開始日 |
 |---|---|---|---|---|---|
 | B-904 試作CLIの信頼性補完 | Codex local | agent/b-904-codex-cli | ai_loop/prototypes/picture/picture.py・test_picture_cli.py・README.md, ai_loop/iterations/ | 16回帰試験・6実機コマンド成功、統合待ち | 2026-11-18 |
+| B-005 Windows アイコン補完（オーナー依頼） | Codex local | agent/b-005-codex-windows | platform/windows/*.ico・SCsub, misc/logo/uzu/windows_icons.py・README.md, ai_loop/iterations/ | バイナリ資源検証済み、統合待ち | 2026-11-18 |
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
 | B-001 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/LEDGER.md, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-002 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/measure.sh（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
@@ -68,3 +69,9 @@
 | B-307 | Claude Code (cloud) | ai-native（直接） | ai_loop/selfplay/state_hash.gd（新規）, ai_loop/uzu.py, ai_loop/selfplay/sample_game/main.tscn, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-309 | Claude Code (cloud) | ai-native（直接） | ai_loop/selfplay/state_hash.gd, ai_loop/selfplay/control.gd, ai_loop/aiplayer.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-308 | Claude Code (cloud) | ai-native（直接） | core/error/error_log_json.{h,cpp}, tests/core/test_error_log_json.cpp, ai_loop/uzu.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
+| B-204 | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
+| B-205 | Claude Code (cloud) | ai-native（直接） | ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
+| B-806 | Claude Code (cloud) | ai-native（直接） | editor/file_system/editor_file_system.{h,cpp}, editor/doc/editor_help.cpp, tests/editor/test_editor_file_system_exit.cpp（新規）, ai_loop/uzu.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
+| B-107 | Claude Code (cloud) | ai-native（直接） | .github/workflows/uzu_verify.yml（新規）, ai_loop/COORDINATION.md（Q14）, ai_loop/iterations/ | ワークフローは反映済み、Actions の有効化待ち | 2026-11-18 |
+| B-106 | Claude Code (cloud) | rehearsal/upstream-2026-11-18（予行）＋ ai-native（記録のみ） | ai_loop/upstream_watchlist.md（新規）, ai_loop/bench.py（self-test のやり直し）, ai_loop/iterations/ | 予行完了（競合 0、1498 pass）、LEDGER 転記はリード | 2026-11-18 |
+| B-903 | Claude Code (cloud) | ai-native（直接） | scene/resources/uzu_map_import.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUMapImport.xml（新規）, tests/scene/test_uzu_map_import.cpp（新規）, ai_loop/engine_tool.gd, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |

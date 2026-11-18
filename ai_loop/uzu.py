@@ -15,7 +15,8 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
-engine commands: run, check, validate, shot, import, and every command of ai_loop/engine_tool.gd
+engine commands: run, check, validate, shot, import, export, templates, uids [--fix] (B-205),
+map-estimate (B-903: an outside model, then map-import), and every command of ai_loop/engine_tool.gd
 (tree, props, get, set, add, instance, remove, reparent, call, connect, script, new,
 classes, describe, actions, res-new, res-props, res-get, res-set, setting-get,
 setting-set, action-add, action-remove, import-get, import-set, export-preset, presets);
@@ -186,6 +187,10 @@ def engine(project, args):
         return look(project, args)
     if command == "import":
         return import_assets(project)
+    if command == "map-estimate":
+        return estimate_map(project, args)
+    if command == "uids":
+        return check_uids(project, fix="--fix" in args)
     if command == "export":
         return export(project, opt(args, "preset"), opt(args, "out"), "--debug" in args)
     if command == "templates":
@@ -285,6 +290,218 @@ def templates(project):
     return {"ok": True, "command": "templates", "engine_version": version, "templates_dir": folder, "installed": installed, "shared": shared, "presets": presets}
 
 
+# ---------------------------------------------------------------- outside maps (B-903)
+
+
+def estimate_map(project, args):
+    """Runs the outside model configured for --kind (no model ships with the engine), then
+    brings its output in with map-import. The config (default res://estimators.json) is
+    {"depth": "python my_depth.py {in} {out}", "normal": "..."}; {in} and {out} become
+    quoted absolute paths."""
+    kind, src, out = opt(args, "kind"), opt(args, "in"), opt(args, "out")
+    config = opt(args, "config", "res://estimators.json")
+    if kind not in ("normal", "depth") or not src.startswith("res://") or not out.startswith("res://"):
+        raise ToolError("map-estimate needs --kind normal|depth --in res://picture.png --out res://map.png [--config res://estimators.json]")
+    config_path = os.path.join(project, config[len("res://"):]) if config.startswith("res://") else config
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            commands = json.load(f)
+    except (OSError, ValueError):
+        commands = {}
+    if kind not in commands:
+        raise ToolError(f'no estimator for "{kind}" in {config}; add e.g. {{"{kind}": "python my_model.py {{in}} {{out}}"}}')
+    src_abs = os.path.join(project, src[len("res://"):])
+    raw_res = out[: -len(".png")] + "_raw.png" if out.endswith(".png") else out + "_raw.png"
+    raw_abs = os.path.join(project, raw_res[len("res://"):])
+    os.makedirs(os.path.dirname(raw_abs), exist_ok=True)
+    command = commands[kind].replace("{in}", '"%s"' % src_abs).replace("{out}", '"%s"' % raw_abs)
+    try:
+        p = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=1800, cwd=project)
+        rc, log = p.returncode, p.stdout.decode("utf-8", errors="replace")
+    except subprocess.TimeoutExpired:
+        rc, log = 124, "(timed out)"
+    if rc != 0 or not os.path.exists(raw_abs):
+        return {"ok": False, "command": "map-estimate", "error": f"the estimator failed (exit {rc})", "estimator": command, "log_tail": tail(log, 15)}
+    rest = ["map-import", "--kind", kind, "--in", raw_res, "--for", src, "--out", out]
+    for name in ("depth-kind",):
+        if opt(args, name):
+            rest += ["--" + name, opt(args, name)]
+    if "--no-align" in args:
+        rest.append("--no-align")
+    result = engine(project, rest)
+    result["command"] = "map-estimate"
+    result["estimator"] = command
+    result["raw"] = raw_res
+    return result
+
+
+# ---------------------------------------------------------------- UIDs (B-205)
+
+UID_CHARS = "abcdefghijklmnopqrstuvwxy012345678"  # As core/io/resource_uid.cpp.
+UID_OWNER_EXTENSIONS = (".gd", ".gdshader", ".gdshaderinc")  # Files whose UID lives in a .uid file next to them.
+HEADER_UID = re.compile(r'^(\[gd_(?:scene|resource)\b[^\]]*?\buid=")(uid://[a-y0-8]+)(")')
+EXT_RESOURCE = re.compile(r'^\[ext_resource\b([^\]]*)\]', re.M)
+ATTR = re.compile(r'(\w+)="([^"]*)"')
+
+
+def new_uid(taken):
+    import secrets
+
+    while True:
+        n = secrets.randbits(63)
+        text = ""
+        while True:
+            text = UID_CHARS[n % 34] + text
+            n //= 34
+            if n == 0:
+                break
+        uid = "uid://" + text
+        if uid not in taken:
+            taken.add(uid)
+            return uid
+
+
+def _res_path(project, absolute):
+    return "res://" + os.path.relpath(absolute, project).replace(os.sep, "/")
+
+
+def _abs(project, res):
+    return os.path.join(project, res[len("res://"):].replace("/", os.sep)) if res.startswith("res://") else None
+
+
+def _scan_uids(project):
+    owners = {}  # uid -> [res paths]
+    uid_of = {}  # res path -> uid
+    issues = []
+    texts = {}  # .tscn/.tres res path -> text
+    for dirpath, dirs, files in os.walk(project):
+        dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+        for name in sorted(files):
+            absolute = os.path.join(dirpath, name)
+            res = _res_path(project, absolute)
+            uid, owner = None, None
+            if name.endswith((".tscn", ".tres")):
+                with open(absolute, encoding="utf-8", errors="replace") as f:
+                    texts[res] = f.read()
+                m = HEADER_UID.match(texts[res])
+                uid, owner = (m.group(2) if m else None), res
+            elif name.endswith(".uid"):
+                owner = res[: -len(".uid")]
+                with open(absolute, encoding="utf-8", errors="replace") as f:
+                    uid = f.read().strip()
+                if not os.path.exists(absolute[: -len(".uid")]):
+                    issues.append({"kind": "orphan_uid_file", "file": res, "uid": uid, "fix": "delete it (its file is gone)"})
+                    continue
+            elif name.endswith(".import"):
+                owner = res[: -len(".import")]
+                with open(absolute, encoding="utf-8", errors="replace") as f:
+                    m = re.search(r'^uid="(uid://[a-y0-8]+)"', f.read(), re.M)
+                uid = m.group(1) if m else None
+            elif name.endswith(UID_OWNER_EXTENSIONS) and not os.path.exists(absolute + ".uid"):
+                issues.append({"kind": "missing_uid_file", "file": res, "fix": "create %s.uid with a new UID" % res})
+            if uid and owner:
+                owners.setdefault(uid, []).append(owner)
+                uid_of[owner] = uid
+    return owners, uid_of, issues, texts
+
+
+def check_uids(project, fix=False):
+    """Checks UIDs against the files (B-205): duplicates, missing and orphan .uid files,
+    and ext_resource references whose UID is stale or whose path moved. Proposes a fix
+    for each; --fix applies them (new UIDs for duplicates and missing .uid files, the
+    owner's UID or path in references, orphan .uid files deleted)."""
+    fixed = []
+    for _ in range(2):  # Duplicates first: renaming them can make references stale.
+        owners, uid_of, issues, texts = _scan_uids(project)
+        taken = set(owners)
+        # A missing .uid file is best recreated with the UID its references already use.
+        referenced = {}
+        for text in texts.values():
+            for m in EXT_RESOURCE.finditer(text):
+                attrs = dict(ATTR.findall(m.group(1)))
+                if attrs.get("uid") and attrs.get("path"):
+                    referenced.setdefault(attrs["path"], attrs["uid"])
+        for issue in issues:
+            ref_uid = referenced.get(issue["file"]) if issue["kind"] == "missing_uid_file" else None
+            if ref_uid and ref_uid not in owners:
+                issue["uid"] = ref_uid
+                issue["fix"] = "recreate %s.uid with %s, the UID its references use" % (issue["file"], ref_uid)
+                owners[ref_uid] = [issue["file"]]
+                uid_of[issue["file"]] = ref_uid
+                taken.add(ref_uid)
+        for uid, files in sorted(owners.items()):
+            if len(files) > 1:
+                keep = files[0]
+                for other in files[1:]:
+                    issues.append({"kind": "duplicate_uid", "file": other, "uid": uid, "also": keep, "fix": "give %s a new UID (keep %s on %s)" % (other, uid, keep)})
+        for res, text in texts.items():
+            for m in EXT_RESOURCE.finditer(text):
+                attrs = dict(ATTR.findall(m.group(1)))
+                uid, path = attrs.get("uid"), attrs.get("path", "")
+                path_ok = bool(path) and _abs(project, path) is not None and os.path.exists(_abs(project, path))
+                owner = (owners.get(uid) or [None])[0] if uid else None
+                if path_ok and (not uid or owner == path):
+                    continue
+                if path_ok:
+                    right = uid_of.get(path)
+                    issues.append({"kind": "stale_uid", "file": res, "path": path, "uid": uid, "fix": ("use %s, the UID of %s" % (right, path)) if right else "remove the UID (the path is right)", "new_uid": right})
+                elif owner and os.path.exists(_abs(project, owner)):
+                    issues.append({"kind": "moved_path", "file": res, "path": path, "uid": uid, "fix": "use the path %s (where %s is now)" % (owner, uid), "new_path": owner})
+                else:
+                    issues.append({"kind": "broken_reference", "file": res, "path": path, "uid": uid, "fix": "none: neither the path nor the UID leads to a file"})
+        if not fix or not any(i["kind"] in ("duplicate_uid", "missing_uid_file", "orphan_uid_file", "stale_uid", "moved_path") for i in issues):
+            break
+        dup = [i for i in issues if i["kind"] == "duplicate_uid"]
+        for issue in dup:
+            absolute = _abs(project, issue["file"])
+            new = new_uid(taken)
+            if issue["file"].endswith((".tscn", ".tres")):
+                with open(absolute, encoding="utf-8") as f:
+                    text = f.read()
+                with open(absolute, "w", encoding="utf-8") as f:
+                    f.write(HEADER_UID.sub(lambda m: m.group(1) + new + m.group(3), text, count=1))
+            else:
+                with open(absolute + ".uid", "w", encoding="utf-8") as f:
+                    f.write(new + "\n")
+            fixed.append(dict(issue, applied=new))
+        if dup:
+            continue  # Rescan: references to the renamed files are judged again.
+        for issue in issues:
+            kind = issue["kind"]
+            if kind == "missing_uid_file":
+                new = issue.get("uid") or new_uid(taken)
+                with open(_abs(project, issue["file"]) + ".uid", "w", encoding="utf-8") as f:
+                    f.write(new + "\n")
+                fixed.append(dict(issue, applied=new))
+            elif kind == "orphan_uid_file":
+                os.remove(_abs(project, issue["file"]))
+                fixed.append(dict(issue, applied="deleted"))
+            elif kind in ("stale_uid", "moved_path"):
+                absolute = _abs(project, issue["file"])
+                with open(absolute, encoding="utf-8") as f:
+                    text = f.read()
+
+                def repair(m, issue=issue):
+                    attrs = m.group(1)
+                    if 'path="%s"' % issue["path"] not in attrs or (issue["uid"] and 'uid="%s"' % issue["uid"] not in attrs):
+                        return m.group(0)
+                    if kind == "moved_path":
+                        attrs = attrs.replace('path="%s"' % issue["path"], 'path="%s"' % issue["new_path"])
+                    elif issue.get("new_uid"):
+                        attrs = attrs.replace('uid="%s"' % issue["uid"], 'uid="%s"' % issue["new_uid"]) if issue["uid"] else attrs.replace(' path=', ' uid="%s" path=' % issue["new_uid"], 1)
+                    else:
+                        attrs = attrs.replace(' uid="%s"' % issue["uid"], "")
+                    return "[ext_resource" + attrs + "]"
+
+                with open(absolute, "w", encoding="utf-8") as f:
+                    f.write(EXT_RESOURCE.sub(repair, text))
+                fixed.append(dict(issue, applied=issue.get("new_path") or issue.get("new_uid") or "removed"))
+    owners, uid_of, remaining, texts = _scan_uids(project) if fixed else (None, None, issues, None)
+    if fixed:
+        remaining = check_uids(project, fix=False)["issues"]
+    return {"ok": not remaining, "command": "uids", "issues": remaining, "fixed": fixed}
+
+
 def project_files(project, extensions):
     """res:// paths of the project's files with these extensions (hidden directories skipped)."""
     found = []
@@ -304,9 +521,9 @@ def import_assets(project):
             jsonl = os.path.join(tmp, "errors.jsonl")
             rc, out = run([find_godot(), "--headless", "--path", project, "--import", "--log-json", jsonl], timeout=1800)
             errors = [e for e in read_jsonl(jsonl) if e.get("level") != "warning"]
-        # Known engine race (upstream): the editor's file system can run a deferred update after
-        # the editor has gone at exit ("Parameter singleton is null" in is_cmdline_mode) and
-        # abort. The import itself has finished by then, so a crash on exit is retried once.
+        # An engine race at exit (upstream; fixed in this fork by B-806: late updates reached the
+        # freed editor, "Parameter singleton is null" in is_cmdline_mode, and aborted). The import
+        # has finished by then, so a crash on exit is still retried once, as a safety net.
         crashed_on_exit = rc < 0 and all("is_cmdline_mode" in e.get("function", "") or "singleton" in e.get("message", "") for e in errors)
         if not crashed_on_exit or attempt == 1:
             break
@@ -642,6 +859,31 @@ def _call(fn, *a):
         return dict({"ok": False, "error": e.message}, **e.extra)
 
 
+# A stand-in for an outside model in the self-test (B-903): writes a picture of a bumpy
+# surface, or a DirectX normal map of it at half size. Standard library only.
+FAKE_MODEL = r"""
+import math, struct, sys, zlib
+def png(path, w, h, pixel):
+    raw = b"".join(b"\x00" + b"".join(bytes(pixel(x, y)) for x in range(w)) for y in range(h))
+    c = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    open(path, "wb").write(b"\x89PNG\r\n\x1a\n" + c(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)) + c(b"IDAT", zlib.compress(raw)) + c(b"IEND", b""))
+def height(u, v):
+    return 0.5 + 0.25 * math.sin(u * 19) * math.cos(v * 13) + 0.15 * math.sin(u * 7 + v * 5)
+if sys.argv[1] == "picture":
+    png(sys.argv[2], 256, 192, lambda x, y: [int(255 * min(max(height(x / 256, y / 192), 0), 1))] * 3)
+else:
+    W, H = 128, 96
+    def normal(x, y):
+        e = 1.0 / W
+        dx = (height(x / W + e, y / H) - height(x / W - e, y / H)) / (2 * e) / W * 40
+        dy = (height(x / W, y / H + e) - height(x / W, y / H - e)) / (2 * e) / H * 40
+        n = [-dx, -dy, 1.0]  # DirectX: green is the other way.
+        l = math.sqrt(sum(a * a for a in n))
+        return [int(255 * (a / l * 0.5 + 0.5)) for a in n]
+    png(sys.argv[3], W, H, normal)
+"""
+
+
 def selftest_engine():
     """The engine.sh self-test, in Python so it also runs on Windows."""
     c = Checks()
@@ -765,6 +1007,71 @@ def selftest_engine():
         c.expect("pixel preset", r["ok"] and r["texels"]["ok"] and abs(r["texel"] - 0.05) < 1e-6, r)
         r = _call(look, p, ["texels", "--scene", "res://sprites.tscn"])
         c.expect("texels clean", r["ok"] and r["warnings"] == [], r)
+        # B-204: the project map (a separate small project: scenes, an instanced scene, a
+        # script with preload and class_name, signal connections, an autoload).
+        with tempfile.TemporaryDirectory() as m:
+            files = {
+                "project.godot": 'config_version=5\n\n[application]\n\nrun/main_scene="res://main.tscn"\n\n[autoload]\n\nGame="*res://game.gd"\n',
+                "game.gd": "extends Node\n",
+                "coin.gd": 'class_name Coin\nextends Area3D\nconst SPARK = preload("res://spark.tres")\nsignal picked\n',
+                "spark.tres": '[gd_resource type="StandardMaterial3D" format=3]\n\n[resource]\n',
+                "coin.tscn": '[gd_scene load_steps=2 format=3]\n\n[ext_resource type="Script" path="res://coin.gd" id="1"]\n\n[node name="Coin" type="Area3D"]\nscript = ExtResource("1")\n',
+                "main.tscn": '[gd_scene load_steps=2 format=3]\n\n[ext_resource type="PackedScene" path="res://coin.tscn" id="1"]\n\n[node name="Main" type="Node3D"]\n\n[node name="Coin1" parent="." instance=ExtResource("1")]\n\n[connection signal="picked" from="Coin1" to="." method="_on_coin_picked"]\n',
+            }
+            for name, text in files.items():
+                with open(os.path.join(m, name), "w", encoding="utf-8") as f:
+                    f.write(text)
+            r = _call(engine, m, ["map"])
+            ok = r.get("ok") and r["depends_on"]["res://main.tscn"] == ["res://coin.tscn"] and r["depends_on"]["res://coin.gd"] == ["res://spark.tres"]
+            ok = ok and r["used_by"]["res://coin.tscn"] == ["res://main.tscn"] and r["main_scene"] == "res://main.tscn"
+            ok = ok and r["scenes"]["res://main.tscn"]["connections"] == [{"from": "Coin1", "signal": "picked", "to": ".", "method": "_on_coin_picked"}]
+            ok = ok and r["scenes"]["res://main.tscn"]["instances"] == [{"node": "Coin1", "scene": "res://coin.tscn"}]
+            ok = ok and r["scenes"]["res://coin.tscn"]["scripts"] == [{"node": ".", "script": "res://coin.gd"}]
+            ok = ok and {"class": "Coin", "base": "Area3D", "path": "res://coin.gd"} in r["classes"] and r["autoloads"] == [{"name": "Game", "path": "res://game.gd", "singleton": True}]
+            c.expect("map", ok, r)
+        # B-205: UID problems are found, fixed, and validate (B-203) is clean afterwards.
+        with tempfile.TemporaryDirectory() as q:
+            os.makedirs(os.path.join(q, "sub"))
+            taken = set()
+            u = {k: new_uid(taken) for k in ("main", "child", "coin_gd", "main_gd")}
+            files = {
+                "project.godot": 'config_version=5\n\n[application]\n\nrun/main_scene="res://main.tscn"\n',
+                "coin.gd": "extends Node3D\n", "coin.gd.uid": u["coin_gd"] + "\n",
+                "main.gd": "extends Node3D\n",  # Its .uid file is missing.
+                "ghost.gd.uid": "uid://abcdefg\n",  # An orphan.
+                "sub/child.tscn": '[gd_scene load_steps=2 format=3 uid="%s"]\n\n[ext_resource type="Script" uid="uid://b2xstale" path="res://coin.gd" id="1"]\n\n[node name="Child" type="Node3D"]\nscript = ExtResource("1")\n' % u["child"],
+                "main.tscn": '[gd_scene load_steps=3 format=3 uid="%s"]\n\n[ext_resource type="Script" uid="%s" path="res://main.gd" id="1"]\n[ext_resource type="PackedScene" uid="%s" path="res://child.tscn" id="2"]\n\n[node name="Main" type="Node3D"]\nscript = ExtResource("1")\n\n[node name="Coin" parent="." instance=ExtResource("2")]\n' % (u["main"], u["main_gd"], u["child"]),
+            }
+            files["main_copy.tscn"] = files["main.tscn"]  # A duplicate UID.
+            for name, text in files.items():
+                with open(os.path.join(q, name), "w", encoding="utf-8") as f:
+                    f.write(text)
+            r = _call(engine, q, ["uids"])
+            kinds = sorted(i["kind"] for i in r.get("issues", []))
+            c.expect("uids found", not r["ok"] and kinds == ["duplicate_uid", "missing_uid_file", "moved_path", "moved_path", "orphan_uid_file", "stale_uid"], kinds)
+            c.expect("validate sees the breakage", not _call(engine, q, ["validate"])["ok"])
+            r = _call(engine, q, ["uids", "--fix"])
+            c.expect("uids fixed", r["ok"] and len(r["fixed"]) == 6, r)
+            with open(os.path.join(q, "main.gd.uid"), encoding="utf-8") as f:
+                c.expect("uid restored from references", f.read().strip() == u["main_gd"])
+            r = _call(engine, q, ["validate"])
+            c.expect("validate clean after uids --fix", r["ok"] and r["issues"] == [], r)
+        # B-903: an outside "model" (a small script standing in for one) writes a DirectX normal
+        # map at another size; map-estimate runs it and map-import fixes it.
+        with tempfile.TemporaryDirectory() as q:
+            with open(os.path.join(q, "project.godot"), "w", encoding="utf-8") as f:
+                f.write("config_version=5\n")
+            make_png = os.path.join(q, "fake_model.py")
+            with open(make_png, "w", encoding="utf-8") as f:
+                f.write(FAKE_MODEL)
+            run([sys.executable, make_png, "picture", os.path.join(q, "pic.png")])
+            with open(os.path.join(q, "estimators.json"), "w", encoding="utf-8") as f:
+                json.dump({"normal": '"%s" "%s" normal {in} {out}' % (sys.executable, make_png)}, f)
+            r = _call(engine, q, ["map-estimate", "--kind", "normal", "--in", "res://pic.png", "--out", "res://maps/normal.png", "--no-align"])
+            found = r.get("found", {})
+            c.expect("map-estimate", r.get("ok") and found.get("convention") == "directx" and any("resized" in x for x in r["changed"]) and os.path.exists(os.path.join(q, "maps", "normal.png")), r)
+            r = _call(engine, q, ["map-estimate", "--kind", "depth", "--in", "res://pic.png", "--out", "res://maps/depth.png"])
+            c.expect("map-estimate without a model", not r["ok"] and "no estimator" in r["error"], r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))

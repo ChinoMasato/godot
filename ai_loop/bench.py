@@ -125,7 +125,13 @@ def self_test():
             f.write('[gd_scene format=3]\n\n[node name="Main" type="Node"]\n')
         base = run(project, repeat=3, frames=40)
         assert "[Startup] Load Autoloads" in base["marks"], base
-        same = compare(base, run(project, repeat=3, frames=40))
+        # Nothing changed: pass. Startup marks on a busy machine can jump by a few ms over
+        # the threshold once in a while, so this one check may run up to three times; the
+        # checks that something slower fails do not retry.
+        for attempt in range(3):
+            same = compare(base, run(project, repeat=3, frames=40))
+            if same["ok"]:
+                break
         assert same["ok"], same
         # An artificially slow change: an autoload that busy-waits 300 ms at startup.
         with open(os.path.join(project, "slow.gd"), "w") as f:

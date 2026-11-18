@@ -71,6 +71,14 @@ Only the lead merges into `ai-native` and appends to `ai_loop/LEDGER.md`.
 - Do not modify `thirdparty/` except for a version bump approved by the owner.
 - Do not break project-format compatibility (.tscn/.gd/.tres/project.godot).
 - Design decisions (architecture, public API shape) need the owner's approval.
+- Editor GUI policy (owner decision, 2026-11-18): the editor GUI is not a
+  product surface — this engine is operated by AI agents, not by humans in a
+  GUI. Do not build new editor UI features (panels, inspector menus, viewport
+  widgets). Expose everything through CLI / MCP / structured output instead.
+  The editor binary stays, but only as headless infrastructure (import, bake,
+  export, tool-script execution). Existing UI work stays as is. Do not delete
+  editor code either: upstream changes span editor and core, and deleting it
+  would explode the upstream-merge surface.
 - Never submit anything to the upstream Godot repository. This fork's work
   stays in this fork (upstream contribution policy prohibits AI-generated code).
 - Follow upstream code style: clang-format config in repo root, GDScript

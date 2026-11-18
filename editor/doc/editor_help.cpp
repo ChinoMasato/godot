@@ -3173,7 +3173,9 @@ void EditorHelp::load_script_doc_cache() {
 		return;
 	}
 
-	if (EditorNode::is_cmdline_mode()) {
+	// U.ZU Engine (B-806): also when the editor node is gone (at the exit of --import);
+	// is_cmdline_mode() alone answers false then, and the cache was rebuilt on a thread.
+	if (!EditorFileSystem::can_update_editor_data()) {
 		return;
 	}
 
