@@ -103,7 +103,12 @@ Decal *UZULook::add_blob_shadow(Node3D *p_node, float p_radius) {
 	Decal *decal = LookPreset3D::create_blob_shadow(p_radius);
 	// At the feet: the bottom of the node's visual bounds (a centered sprite's lower edge).
 	VisualInstance3D *visual = Object::cast_to<VisualInstance3D>(p_node);
-	const float bottom = visual ? visual->get_aabb().position.y : 0.0f;
+	float bottom = visual ? visual->get_aabb().position.y : 0.0f;
+	// The scene tool configures sprites before their deferred mesh update.
+	const SpriteBase3D *sprite = Object::cast_to<SpriteBase3D>(p_node);
+	if (sprite) {
+		bottom = sprite->get_axis() == Vector3::AXIS_Y ? 0.0f : sprite->get_item_rect().position.y * sprite->get_pixel_size();
+	}
 	decal->set_position(Vector3(0.0, bottom, 0.0));
 	p_node->add_child(decal, true);
 	Node *owner = p_node->get_owner() ? p_node->get_owner() : p_node;
@@ -213,9 +218,13 @@ Dictionary UZULook::apply_hd2d(Node *p_root, Atmosphere p_atmosphere, bool p_cam
 			sprite->set_texture_filter(StandardMaterial3D::TEXTURE_FILTER_NEAREST);
 			sprite->set_draw_flag(SpriteBase3D::FLAG_SHADED, true);
 			sprite->set_alpha_cut_mode(SpriteBase3D::ALPHA_CUT_DISCARD);
+			sprite->set_layer_mask(LookPreset3D::LIT_SPRITE_LAYER_MASK);
 		}
-		if (!sprite->has_node(NodePath("BlobShadow"))) {
-			add_blob_shadow(sprite, MAX(sprite->get_aabb().size.x * 0.4f, 0.1f));
+		Node *blob = sprite->get_node_or_null(NodePath("BlobShadow"));
+		if (!blob) {
+			add_blob_shadow(sprite, MAX(sprite->get_item_rect().size.x * sprite->get_pixel_size() * 0.4f, 0.1f));
+		} else if (Decal *decal = Object::cast_to<Decal>(blob)) {
+			decal->set_cull_mask(decal->get_cull_mask() & ~LookPreset3D::LIT_SPRITE_LAYER_MASK);
 		}
 		sprite_paths.push_back(String(p_root->get_path_to(sprite)));
 	}
