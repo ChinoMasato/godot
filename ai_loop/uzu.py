@@ -9,6 +9,7 @@ or through ai_loop\\windows\\uzu.bat.
 
   uzu.py engine   <project> <command> [options]   scene, class and project operations (B-401, B-201..B-203, B-304)
   uzu.py look     <project> <command> [options]   the U.ZU look (B-7xx), shot / check / panorama
+  uzu.py picture  <project> <command> [options]   Picture prototype: doctor, schema, analyze, snap, adopt, validate, shot, map, pbr
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
                   [--packet DIR] [--expect-clear]   on failure, a diagnosis packet in DIR (B-308)
@@ -1251,6 +1252,10 @@ def main(argv):
     tool, rest = argv[0], argv[1:]
     if tool == "selftest":
         return selftest(rest[0] if rest else "all")
+    if tool == "picture":
+        from prototypes.picture import picture
+
+        return picture.main(rest)
     if tool == "publish":
         sys.path.insert(0, os.path.join(HERE, "bridge"))
         import client

@@ -7,6 +7,8 @@
 
 ## エージェントの手順
 
+リポジトリのルートからは共通 CLI の `python ai_loop/uzu.py picture <project> <command>` を使える。以下の `python picture.py <project> <command>` と同じ引数・JSON 出力・終了コードで動く。
+
 ```sh
 python picture.py <project> doctor                 # 実行ファイル・スクリプト・Pillow・バージョンを診断（GPU不要）
 python picture.py <project> schema                 # 書けるキーの説明
