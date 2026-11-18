@@ -226,7 +226,9 @@ TEST_CASE("[UZUJuice] impact presets fire their parts and reject unknown kinds")
 	Node3D *parent = memnew(Node3D);
 	Node3D *node = memnew(Node3D);
 	parent->add_child(node);
-	SceneTree::get_singleton()->get_root()->add_child(parent);
+	// Tree-less on purpose (like the other juice tests): deleting an in-tree
+	// node mid-test crashes the harness. In-tree firing is covered by the
+	// sample-game run (B-1107).
 
 	CHECK(UZUJuice::impact(node, "hit"));
 	CHECK(UZUJuice::is_time_effect_active()); // hitstop engaged.
