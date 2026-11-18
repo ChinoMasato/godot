@@ -135,7 +135,11 @@ TEST_CASE("[SceneTree][UZULook] Water surface") {
 	CHECK(code.contains("thick_r < 0.0")); // A refracted look-up that lands in front of the water is not used.
 	CHECK(code.contains("fresnel"));
 	CHECK(code.contains("reflect("));
-	CHECK(code.contains("foam"));
+	CHECK(code.contains("f * f * f * (f * (f * 6.0 - 15.0) + 10.0)")); // Smooth cell boundaries.
+	CHECK(code.contains("WAVE_ROTATION * foam_uv")); // Foam breaks up across two grid orientations.
+	CHECK(code.contains("previous_gap <= 0.0")); // Refine a bracketed reflection hit.
+	CHECK(code.contains("refinement < 3")); // Bound the extra depth samples per hit.
+	CHECK(code.contains("uv = mid_uv")); // Sample the refined hit, not the coarse step.
 	CHECK(code.contains("CURRENT_RENDERER == RENDERER_COMPATIBILITY"));
 	CHECK(code.contains("VERTEX.y +=")); // The swell.
 
