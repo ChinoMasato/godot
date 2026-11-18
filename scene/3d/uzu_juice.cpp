@@ -498,11 +498,9 @@ CPUParticles3D *UZUJuice::burst3d(Node *p_parent, const Vector3 &p_global_positi
 	return particles;
 }
 
+// Built fresh for each burst on purpose: a function-static Ref would be
+// destroyed at process exit, after the RenderingServer is already gone.
 static Ref<ImageTexture> _dot_texture() {
-	static Ref<ImageTexture> texture;
-	if (texture.is_valid()) {
-		return texture;
-	}
 	Ref<Image> img = Image::create_empty(12, 12, false, Image::FORMAT_RGBA8);
 	img->fill(Color(0, 0, 0, 0));
 	for (int y = 0; y < 12; y++) {
@@ -513,8 +511,7 @@ static Ref<ImageTexture> _dot_texture() {
 			}
 		}
 	}
-	texture = ImageTexture::create_from_image(img);
-	return texture;
+	return ImageTexture::create_from_image(img);
 }
 
 CPUParticles2D *UZUJuice::burst2d(Node *p_parent, const Vector2 &p_global_position, const Color &p_color, int p_count, double p_power) {
@@ -539,7 +536,11 @@ CPUParticles2D *UZUJuice::burst2d(Node *p_parent, const Vector2 &p_global_positi
 	particles->set_texture(_dot_texture());
 	particles->set_color(p_color);
 	p_parent->add_child(particles);
-	particles->set_global_position(p_global_position);
+	if (particles->is_inside_tree()) {
+		particles->set_global_position(p_global_position);
+	} else {
+		particles->set_position(p_global_position);
+	}
 	particles->set_emitting(true);
 	_burst_entries.push_back({ particles->get_instance_id(), _now_msec() + uint64_t(lifetime * 1000.0) + 250 });
 	ensure_runtime();
