@@ -99,7 +99,38 @@ Vector<float> image_to_buf(const Ref<Image> &p_img) {
 	return out;
 }
 
-// Blur by shrinking and growing again (native and fast), like the prototype.
+// Shrink by averaging each block of pixels. Image::resize with BILINEAR only
+// point-samples when shrinking, which can lock onto a regular pattern's lines
+// (brick courses, cobble joints) and skew the estimate; an average cannot.
+// (Found by the cloud session's duplicate B-902 work, 2026-11-18; measured
+// against true normals: 10.00 -> 9.54 degrees mean error.)
+Ref<Image> shrink_average(const Ref<Image> &p_img, int p_small_w, int p_small_h) {
+	const int w = p_img->get_width();
+	const int h = p_img->get_height();
+	const PackedByteArray src = p_img->get_data();
+	const float *src_px = reinterpret_cast<const float *>(src.ptr());
+	PackedByteArray bytes;
+	bytes.resize(p_small_w * p_small_h * (int)sizeof(float));
+	float *out = reinterpret_cast<float *>(bytes.ptrw());
+	for (int sy = 0; sy < p_small_h; sy++) {
+		const int y0 = sy * h / p_small_h;
+		const int y1 = MAX((sy + 1) * h / p_small_h, y0 + 1);
+		for (int sx = 0; sx < p_small_w; sx++) {
+			const int x0 = sx * w / p_small_w;
+			const int x1 = MAX((sx + 1) * w / p_small_w, x0 + 1);
+			double sum = 0.0;
+			for (int y = y0; y < y1; y++) {
+				for (int x = x0; x < x1; x++) {
+					sum += src_px[y * w + x];
+				}
+			}
+			out[sy * p_small_w + sx] = float(sum / double((y1 - y0) * (x1 - x0)));
+		}
+	}
+	return Image::create_from_data(p_small_w, p_small_h, false, Image::FORMAT_RF, bytes);
+}
+
+// Blur by shrinking (block average) and growing again (cubic).
 Vector<float> blur_buf(const Vector<float> &p_buf, int p_w, int p_h, int p_factor, bool p_tile) {
 	Ref<Image> img = buf_to_image(p_buf, p_w, p_h);
 	if (p_tile) {
@@ -110,11 +141,11 @@ Vector<float> blur_buf(const Vector<float> &p_buf, int p_w, int p_h, int p_facto
 				big->blit_rect(img, Rect2i(0, 0, p_w, p_h), Vector2i(i * p_w, j * p_h));
 			}
 		}
-		big->resize(MAX(3, p_w * 3 / p_factor), MAX(3, p_h * 3 / p_factor), Image::INTERPOLATE_BILINEAR);
+		big = shrink_average(big, MAX(3, p_w * 3 / p_factor), MAX(3, p_h * 3 / p_factor));
 		big->resize(p_w * 3, p_h * 3, Image::INTERPOLATE_CUBIC);
 		img = big->get_region(Rect2i(p_w, p_h, p_w, p_h));
 	} else {
-		img->resize(MAX(2, p_w / p_factor), MAX(2, p_h / p_factor), Image::INTERPOLATE_BILINEAR);
+		img = shrink_average(img, MAX(2, p_w / p_factor), MAX(2, p_h / p_factor));
 		img->resize(p_w, p_h, Image::INTERPOLATE_CUBIC);
 	}
 	return image_to_buf(img);

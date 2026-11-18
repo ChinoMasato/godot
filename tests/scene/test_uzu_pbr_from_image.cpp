@@ -157,6 +157,36 @@ TEST_CASE("[UZUPBRFromImage] Delight removes a lighting ramp from the albedo") {
 	CHECK(flat_diff < lit_diff * 0.5f);
 }
 
+TEST_CASE("[UZUPBRFromImage] Delight does not mistake a coarse pattern for light") {
+	// Vertical stripes with a 32 px period sit below the 64 px light scale,
+	// so they are albedo, not light. A point-sampling shrink reads them as
+	// light and distorts their ratio; the block average must keep it.
+	Ref<Image> image = Image::create_empty(64, 64, false, Image::FORMAT_RGB8);
+	for (int y = 0; y < 64; y++) {
+		for (int x = 0; x < 64; x++) {
+			const float v = x < 32 ? 0.2f : 0.8f;
+			image->set_pixel(x, y, Color(v, v, v));
+		}
+	}
+	const Dictionary result = UZUPBRFromImage::make(image, "stone", 1.0f, 1.0f);
+	REQUIRE(bool(result["ok"]));
+	Ref<Image> albedo = result["albedo"];
+	auto window_mean = [](const Ref<Image> &p_img, int p_x0, int p_x1) {
+		double sum = 0.0;
+		int n = 0;
+		for (int y = 0; y < p_img->get_height(); y++) {
+			for (int x = p_x0; x < p_x1; x++) {
+				sum += p_img->get_pixel(x, y).r;
+				n++;
+			}
+		}
+		return float(sum / n);
+	};
+	const float ratio = window_mean(albedo, 40, 56) / window_mean(albedo, 8, 24);
+	CHECK(ratio > 3.2f);
+	CHECK(ratio < 4.8f);
+}
+
 TEST_CASE("[UZUPBRFromImage] Compare measures known angles") {
 	Ref<Image> flat = flat_image(64, 64, Color(0.5, 0.5, 1.0));
 	Ref<Image> tilt = flat_image(64, 64, Color(0.5, 0.8536, 0.8536)); // 45 degrees in +y.

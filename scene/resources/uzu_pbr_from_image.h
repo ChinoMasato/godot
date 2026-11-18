@@ -39,7 +39,9 @@
 // occlusion in cavities, roughness per material kind, metallic) and a height
 // map. The per-kind values were fitted against Poly Haven scans in the
 // prototype (ai_loop/prototypes/picture/pbr_tool.gd); this class is its C++
-// port with the same math. Be honest about the premise: a normal map estimated
+// port with the same math, except the blur's shrink averages each block of
+// pixels (the prototype's resize point-samples, which can lock onto a regular
+// pattern's lines and skew the light estimate). Be honest about the premise: a normal map estimated
 // from one image measures about as close to a real scan as a flat normal does,
 // so treat the output as a starting point, not a scan. An externally estimated
 // normal map can replace the brightness-based one (p_normal_from), ideally
