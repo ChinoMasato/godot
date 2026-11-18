@@ -153,10 +153,10 @@ TEST_CASE("[SceneTree][UZULook] HD-2D in one call") {
 		CHECK((blob->get_cull_mask() & sprite->get_layer_mask()) == 0);
 		CHECK((blob->get_cull_mask() & 1u) != 0); // Ground on the default layer still receives the decal.
 		CHECK(sprite->get_cast_shadows_setting() == GeometryInstance3D::SHADOW_CASTING_SETTING_ON);
-		if (blob != saved_blob) {
-			CHECK(blob->get_position().y == doctest::Approx(-0.72));
-			CHECK(blob->get_size().x == doctest::Approx(0.768));
-		}
+		// B-726: a saved blob's stale geometry is repaired on re-apply too,
+		// so these checks cover saved_blob as well.
+		CHECK(blob->get_position().y == doctest::Approx(-0.72));
+		CHECK(blob->get_size().x == doctest::Approx(0.768));
 		CHECK(sprite->get_pixel_size() == doctest::Approx(0.06));
 		CHECK(sprite->get_scale().is_equal_approx(Vector3(1, 1, 1)));
 	}
@@ -184,6 +184,28 @@ TEST_CASE("[SceneTree][UZULook] HD-2D in one call") {
 	CHECK(sun->get_rotation_degrees().x < -10.0); // Still above the horizon.
 
 	memdelete(root);
+}
+
+TEST_CASE("[SceneTree][UZULook] Blob shadow refreshes instead of stacking") {
+	// B-726: a second add (as a re-apply makes) must reuse the saved decal
+	// and repair its size and position, not stack a fresh one beside it.
+	Ref<Image> image = Image::create_empty(16, 24, false, Image::FORMAT_RGBA8);
+	image->fill(Color(1, 1, 1, 1));
+	Ref<ImageTexture> texture = ImageTexture::create_from_image(image);
+	Sprite3D *sprite = memnew(Sprite3D);
+	sprite->set_texture(texture);
+	sprite->set_pixel_size(0.06);
+
+	Decal *first = UZULook::add_blob_shadow(sprite, 0.1);
+	REQUIRE(first != nullptr);
+	CHECK(first->get_size().x == doctest::Approx(0.2));
+	Decal *second = UZULook::add_blob_shadow(sprite, 0.384);
+	CHECK(second == first);
+	CHECK(sprite->get_child_count() == 1);
+	CHECK(first->get_size().x == doctest::Approx(0.768));
+	CHECK(first->get_position().y == doctest::Approx(-0.72));
+
+	memdelete(sprite);
 }
 
 TEST_CASE("[SceneTree][UZULook] HD-2D turns the sun to the camera even without the rig") {
