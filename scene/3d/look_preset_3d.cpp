@@ -610,8 +610,8 @@ static const char *LIT_SPRITE_SHADER = R"(
 shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque;
 
-uniform sampler2D sprite_texture : source_color, filter_nearest;
-uniform sampler2D normal_texture : hint_normal, filter_nearest;
+uniform sampler2D sprite_texture : source_color, filter_nearest, repeat_disable; // No wrap: the outline must not see the other edge.
+uniform sampler2D normal_texture : hint_normal, filter_nearest, repeat_disable;
 uniform bool use_normal_map = false;
 uniform float alpha_scissor : hint_range(0.0, 1.0) = 0.5;
 uniform float outline_width : hint_range(0.0, 4.0) = 0.0;

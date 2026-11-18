@@ -190,6 +190,9 @@ TEST_CASE("[SceneTree][LookPreset3D] Lit sprites take the scene's light, shadows
 	CHECK_FALSE(code.contains("unshaded")); // Lit: light, shadows and fog apply.
 	CHECK(code.contains("MAIN_CAM_INV_VIEW_MATRIX")); // Faces the camera also in shadow passes.
 	CHECK(code.contains("filter_nearest")); // Crisp texels.
+	// B-723: no wrap, or the outline test sees the opposite edge (feet above the head).
+	CHECK(code.contains("sprite_texture : source_color, filter_nearest, repeat_disable"));
+	CHECK(code.contains("normal_texture : hint_normal, filter_nearest, repeat_disable"));
 	CHECK(Ref<Texture2D>(plain->get_shader_parameter("sprite_texture")) == texture);
 	CHECK_FALSE(bool(plain->get_shader_parameter("use_normal_map")));
 	CHECK(float(plain->get_shader_parameter("alpha_scissor")) == doctest::Approx(0.5));

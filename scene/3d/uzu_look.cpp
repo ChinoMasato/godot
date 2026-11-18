@@ -225,55 +225,61 @@ Dictionary UZULook::apply_hd2d(Node *p_root, Atmosphere p_atmosphere, bool p_cam
 
 	// 4. Camera rig: a telephoto lens looking down at 30 degrees, keeping the point
 	// the camera looked at (on the ground, or 10 m ahead) and its framing size.
-	if (p_camera) {
-		Camera3D *camera = nullptr;
-		TypedArray<Node> cameras = p_root->find_children("*", "Camera3D", true, false);
-		for (const Variant &v : cameras) {
-			Camera3D *c = Object::cast_to<Camera3D>(v);
-			if (!camera || c->is_current()) {
-				camera = c;
-			}
-		}
-		if (camera) {
-			const Transform3D old_transform = camera->get_transform();
-			const Vector3 forward = -old_transform.basis.get_column(2).normalized();
-			float distance = 10.0;
-			if (forward.y < -0.01f && old_transform.origin.y > 0.0f) {
-				distance = old_transform.origin.y / -forward.y; // Where the view meets the ground (y = 0).
-			}
-			const Vector3 target = old_transform.origin + forward * distance;
-			const float old_fov = camera->get_fov();
-			const float fov = get_lens_fov(LENS_TELEPHOTO);
-			// Same framing: the view width at the target stays the same with the narrower lens.
-			const float new_distance = distance * Math::tan(Math::deg_to_rad(old_fov) * 0.5f) / Math::tan(Math::deg_to_rad(fov) * 0.5f);
-			const float yaw = Math::atan2(-forward.x, -forward.z);
-			const float pitch = Math::deg_to_rad(-30.0f);
-			const Vector3 direction = Vector3(-Math::sin(yaw) * Math::cos(pitch), Math::sin(pitch), -Math::cos(yaw) * Math::cos(pitch));
-			Transform3D transform;
-			transform.origin = target - direction * new_distance;
-			transform = transform.looking_at(target, Vector3(0, 1, 0));
-			camera->set_transform(transform);
-			configure_camera(camera, LENS_TELEPHOTO);
-			// Sprites are cards facing the camera, so the key light comes from behind the
-			// camera, 40 degrees to the side; the sun keeps the atmosphere's elevation.
-			TypedArray<Node> lights = p_root->find_children("*", "DirectionalLight3D", true, false);
-			for (const Variant &v : lights) {
-				DirectionalLight3D *sun = Object::cast_to<DirectionalLight3D>(v);
-				if (sun && sun->has_shadow() && sun->get_sky_mode() != DirectionalLight3D::SKY_MODE_LIGHT_ONLY) {
-					const Vector3 rotation = sun->get_rotation_degrees();
-					sun->set_rotation_degrees(Vector3(rotation.x, camera->get_rotation_degrees().y + 40.0, rotation.z));
-					result["sun"] = "behind the camera, 40 degrees to the side";
-					break;
-				}
-			}
-			Dictionary rig;
-			rig["camera"] = String(p_root->get_path_to(camera));
-			rig["fov"] = fov;
-			rig["pitch"] = -30.0;
-			rig["target"] = target;
-			result["camera"] = rig;
+	Camera3D *camera = nullptr;
+	TypedArray<Node> cameras = p_root->find_children("*", "Camera3D", true, false);
+	for (const Variant &v : cameras) {
+		Camera3D *c = Object::cast_to<Camera3D>(v);
+		if (!camera || c->is_current()) {
+			camera = c;
 		}
 	}
+	if (camera && p_camera) {
+		const Transform3D old_transform = camera->get_transform();
+		const Vector3 forward = -old_transform.basis.get_column(2).normalized();
+		float distance = 10.0;
+		if (forward.y < -0.01f && old_transform.origin.y > 0.0f) {
+			distance = old_transform.origin.y / -forward.y; // Where the view meets the ground (y = 0).
+		}
+		const Vector3 target = old_transform.origin + forward * distance;
+		const float old_fov = camera->get_fov();
+		const float fov = get_lens_fov(LENS_TELEPHOTO);
+		// Same framing: the view width at the target stays the same with the narrower lens.
+		const float new_distance = distance * Math::tan(Math::deg_to_rad(old_fov) * 0.5f) / Math::tan(Math::deg_to_rad(fov) * 0.5f);
+		const float yaw = Math::atan2(-forward.x, -forward.z);
+		const float pitch = Math::deg_to_rad(-30.0f);
+		const Vector3 direction = Vector3(-Math::sin(yaw) * Math::cos(pitch), Math::sin(pitch), -Math::cos(yaw) * Math::cos(pitch));
+		Transform3D transform;
+		transform.origin = target - direction * new_distance;
+		transform = transform.looking_at(target, Vector3(0, 1, 0));
+		camera->set_transform(transform);
+		configure_camera(camera, LENS_TELEPHOTO);
+		Dictionary rig;
+		rig["camera"] = String(p_root->get_path_to(camera));
+		rig["fov"] = fov;
+		rig["pitch"] = -30.0;
+		rig["target"] = target;
+		result["camera"] = rig;
+	}
+
+	// 5. Key light: sprites are cards facing the camera, so the sun comes from behind
+	// the camera, 40 degrees to the side, with the atmosphere's elevation. This uses the
+	// scene's camera whether or not the rig moved it (B-724); without a camera the sun
+	// stays as the atmosphere set it.
+	bool sun_rotated = false;
+	if (camera) {
+		const float camera_yaw = camera->get_rotation_degrees().y;
+		TypedArray<Node> lights = p_root->find_children("*", "DirectionalLight3D", true, false);
+		for (const Variant &v : lights) {
+			DirectionalLight3D *sun = Object::cast_to<DirectionalLight3D>(v);
+			if (sun && sun->has_shadow() && sun->get_sky_mode() != DirectionalLight3D::SKY_MODE_LIGHT_ONLY) {
+				const Vector3 rotation = sun->get_rotation_degrees();
+				sun->set_rotation_degrees(Vector3(rotation.x, camera_yaw + 40.0, rotation.z));
+				sun_rotated = true;
+				break;
+			}
+		}
+	}
+	result["sun_rotated"] = sun_rotated;
 	return result;
 }
 

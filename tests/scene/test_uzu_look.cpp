@@ -163,9 +163,33 @@ TEST_CASE("[SceneTree][UZULook] HD-2D in one call") {
 	REQUIRE(suns.size() == 1);
 	DirectionalLight3D *sun = Object::cast_to<DirectionalLight3D>(suns[0]);
 	CHECK(Math::fposmod(sun->get_rotation_degrees().y - camera->get_rotation_degrees().y, 360.0f) == doctest::Approx(40.0).epsilon(0.001));
+	CHECK(bool(result["sun_rotated"]));
 	CHECK(sun->get_rotation_degrees().x < -10.0); // Still above the horizon.
 
 	memdelete(root);
+}
+
+TEST_CASE("[SceneTree][UZULook] HD-2D turns the sun to the camera even without the rig") {
+	// B-724: without the camera rig, the scene's own camera still sets the key light,
+	// so backlit sprites do not turn black.
+	Node3D *root = memnew(Node3D);
+	Camera3D *camera = memnew(Camera3D);
+	camera->set_rotation_degrees(Vector3(-20, 70, 0));
+	root->add_child(camera);
+	const Dictionary result = UZULook::apply_hd2d(root, UZULook::ATMOSPHERE_GOLDEN_HOUR, false);
+	CHECK(bool(result["sun_rotated"]));
+	CHECK_FALSE(result.has("camera")); // The camera was not moved.
+	CHECK(camera->get_rotation_degrees().is_equal_approx(Vector3(-20, 70, 0)));
+	TypedArray<Node> suns = root->find_children("Sun", "DirectionalLight3D", true, false);
+	REQUIRE(suns.size() == 1);
+	const float yaw = Object::cast_to<DirectionalLight3D>(suns[0])->get_rotation_degrees().y;
+	CHECK(Math::fposmod(yaw - 70.0f, 360.0f) == doctest::Approx(40.0).epsilon(0.001));
+	memdelete(root);
+
+	// Without any camera the sun stays as the atmosphere set it, and the result says so.
+	Node3D *empty = memnew(Node3D);
+	CHECK_FALSE(bool(UZULook::apply_hd2d(empty)["sun_rotated"]));
+	memdelete(empty);
 }
 
 TEST_CASE("[SceneTree][UZULook] Apply the look to a scene") {
