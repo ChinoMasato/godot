@@ -1,0 +1,66 @@
+{
+ "_about": "Old stones in humid air: many stones and rubble, sparse grass, dust.",
+ "look": {
+  "quality": "standard",
+  "atmosphere": "humid",
+  "clouds": false,
+  "rig": true
+ },
+ "scatter": [
+  {
+   "name": "Stones",
+   "mesh": "blob",
+   "density": 1.0,
+   "seed": 31,
+   "scale": [
+    0.12,
+    0.35
+   ],
+   "color": "#8f8a80",
+   "sink": 0.05,
+   "min_distance": 0.35,
+   "avoid": 0.3,
+   "near_camera": 50
+  },
+  {
+   "name": "Rubble",
+   "mesh": "box",
+   "density": 0.5,
+   "seed": 32,
+   "scale": [
+    0.08,
+    0.3
+   ],
+   "color": "#9c968a",
+   "align": 0.0,
+   "sink": 0.04,
+   "avoid": 0.2,
+   "near_camera": 50
+  },
+  {
+   "name": "Grass",
+   "mesh": "prism",
+   "density": 1.5,
+   "seed": 33,
+   "scale": [
+    0.1,
+    0.28
+   ],
+   "color": "#6a8a46",
+   "avoid": 0.4,
+   "near_camera": 50,
+   "shadows": false
+  }
+ ],
+ "particles": [
+  {
+   "kind": "dust",
+   "position": "camera",
+   "extents": [
+    14,
+    2,
+    14
+   ]
+  }
+ ]
+}

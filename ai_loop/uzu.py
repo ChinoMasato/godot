@@ -11,6 +11,9 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py look     <project> <command> [options]   the U.ZU look (B-7xx), shot / check / panorama
   uzu.py build    <project> --spec spec.json [--shot out.png] [--budget JSON] [--no-render] [--no-report]
                   a whole scene from one JSON spec (B-1207, see ai_loop/build_tool.gd), with its richness report
+  uzu.py enrich   <project> --preset village_rich|meadow|ruins [--scene res://x.tscn] [--surface Ground] [--seed N]
+                  [--density-scale 1] [--shot out.png] [--no-render]   a richness preset in one call (B-1208), with the
+                  report before and after and the difference (presets: ai_loop/presets/rich/)
   uzu.py picture  <project> <command> [options]   Picture prototype: doctor, schema, analyze, snap, adopt, validate, shot, map, pbr
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
@@ -708,6 +711,65 @@ def build(project, args):
     return result
 
 
+PRESETS_DIR = os.path.join(HERE, "presets", "rich")
+
+
+def rich_presets():
+    out = {}
+    for f in sorted(glob.glob(os.path.join(PRESETS_DIR, "*.json"))):
+        with open(f, encoding="utf-8") as fh:
+            out[os.path.splitext(os.path.basename(f))[0]] = json.load(fh)
+    return out
+
+
+def enrich(project, args):
+    """Richness presets (B-1208): adds a preset's props, particles and look to an existing
+    scene in one call (ai_loop/presets/rich/*.json, through build_tool.gd with "base"), and
+    returns the richness report before and after with the difference. Applying again
+    replaces the preset's earlier props. --surface names the ground (default Ground),
+    --seed varies the layout, --density-scale multiplies every density."""
+    presets = rich_presets()
+    name = opt(args, "preset")
+    if name not in presets:
+        return {"ok": False, "command": "enrich", "error": f"--preset needs one of {sorted(presets)}", "presets": {k: v.get("_about", "") for k, v in presets.items()}}
+    scene = opt(args, "scene") or _main_scene(project)
+    if not scene:
+        raise ToolError("enrich needs --scene res://... (the project has no main scene)")
+    spec = {k: v for k, v in json.loads(json.dumps(presets[name])).items() if not k.startswith("_")}
+    spec["base"] = scene
+    seed_offset = int(opt(args, "seed", "0"))
+    scale = float(opt(args, "density-scale", "1"))
+    for item in spec.get("scatter", []):
+        item["on"] = opt(args, "surface", "Ground")
+        item["seed"] = int(item.get("seed", 1)) + seed_offset
+        item["density"] = float(item.get("density", 1)) * scale
+    report_args = ["rich", "--scene", scene] + (["--no-render"] if "--no-render" in args else [])
+    for key in ("budget", "budget-file", "frames"):
+        if opt(args, key):
+            report_args += ["--" + key, opt(args, key)]
+    before = rich(project, report_args)
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump(spec, f)
+        spec_path = f.name
+    try:
+        built, _ = gd_tool(project, "build_tool.gd", ["--spec", spec_path], "BUILD_RESULT ")
+    finally:
+        os.unlink(spec_path)
+    if not built or not built.get("ok"):
+        return {"ok": False, "command": "enrich", "preset": name, **(built or {"error": "the build tool printed no result"})}
+    after = rich(project, report_args)
+    def flat(r):
+        return {**(r.get("summary") or {}), **(r.get("frame") or {})}
+    b, a = flat(before), flat(after)
+    diff = {k: round(a[k] - b[k], 3) for k in a if k in b and isinstance(a[k], (int, float)) and a[k] != b[k]}
+    result = {"ok": after.get("ok", False), "command": "enrich", "preset": name, "scene": scene, "built": built.get("built"),
+              "diff": diff, "before": {"summary": before.get("summary"), "frame": before.get("frame")},
+              "after": {"summary": after.get("summary"), "frame": after.get("frame"), "failures": after.get("failures"), "hints": after.get("hints")}}
+    if opt(args, "shot"):
+        result["shot"] = screenshot(project, os.path.abspath(opt(args, "shot")), int(opt(args, "frames", "8")), scene=scene)["image"]
+    return result
+
+
 BAKE_PLUGIN = "res://addons/uzu_bake/plugin.cfg"
 
 
@@ -1245,6 +1307,17 @@ def selftest_engine():
             r = build(q, ["--spec", "res://spec.json", "--no-render"])
             problems = " | ".join(r.get("problems", []))
             c.expect("build spec mistakes", not r["ok"] and "models[0]: unknown key 'colour'" in problems and "scatter[0].on" in problems and "look.atmosphere" in problems, r)
+            # B-1208: a richness preset on that hut scene, applied twice (the second time replaces), and an unknown preset.
+            spec["models"][0].pop("colour"); spec["scatter"] = []; spec["look"] = {"quality": "low", "atmosphere": "clear"}
+            with open(os.path.join(q, "spec.json"), "w", encoding="utf-8") as f:
+                json.dump(spec, f)
+            build(q, ["--spec", "res://spec.json", "--no-report"])
+            r = enrich(q, ["--preset", "village_rich", "--scene", "res://built.tscn", "--no-render"])
+            c.expect("enrich", r.get("ok") and r["diff"].get("props", 0) > 1000 and r["after"]["summary"]["lights"] >= r["before"]["summary"]["lights"] + 2 and len(r["built"]["scatter"]) == 4, r)
+            r = enrich(q, ["--preset", "village_rich", "--scene", "res://built.tscn", "--no-render"])
+            c.expect("enrich again replaces", r.get("ok") and r["diff"] == {}, r)
+            r = enrich(q, ["--preset", "jungle", "--scene", "res://built.tscn", "--no-render"])
+            c.expect("enrich unknown preset", not r["ok"] and "meadow" in r["error"], r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))
@@ -1433,7 +1506,7 @@ def main(argv):
         import client
 
         return client.main(["publish"] + rest)
-    if tool not in ("engine", "look", "selfplay", "build") or not rest:
+    if tool not in ("engine", "look", "selfplay", "build", "enrich") or not rest:
         print(__doc__, file=sys.stderr)
         return 2
     project = os.path.abspath(rest[0])
@@ -1441,7 +1514,7 @@ def main(argv):
         print(json.dumps({"ok": False, "error": f"{rest[0]} is not a project (no project.godot)"}))
         return 2
     try:
-        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build}[tool](project, rest[1:])
+        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich}[tool](project, rest[1:])
     except ToolError as e:
         result = {"ok": False, "error": e.message, **e.extra}
         print(json.dumps(result, ensure_ascii=False))
