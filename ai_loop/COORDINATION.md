@@ -34,6 +34,7 @@
 |---|---|---|---|---|---|
 | Codex local | B-904 試作CLI | agent/b-904-codex-cli | 共通CLI `uzu.py picture` に接続。16件の回帰試験と、Windowsの実エンジンで光源検出から指定フレーム・motion.pngの生成まで成功 | リード統合待ち。B-901のC++ノード接続後に本体と再確認 | 2026-11-18 |
 | Codex local | B-005 Windows アイコン補完 | agent/b-005-codex-windows | 通常版とconsole版のICOをU.ZUへ更新。PE資源全10サイズ・splash・runtime icon一致、全1487 pass | リードが差分を統合。ローカルに修正版exeを用意済み。B-720 GPU確認はデバイス喪失で一部保留（別ブランチ） | 2026-11-18 |
+| Codex local | B-903 試作取り込み補完 | agent/b-903-codex-map | 深度の曖昧反転・古いraw再利用・保存成功判定を修正。明示的な向き指定を追加、実エンジン14件＋既存素材2件成功 | リードが補完を統合、クラウドのC++移植へ契約と回帰試験を引き継ぐ | 2026-11-18 |
 | Muse（リード） | 統合／台帳 | ai-native | win-gpu ブランチの残り（GPU 道具と記録）と Codex の B-101 を統合済み。影の対策は B-714 として決定・登録 | B-714 の実施待ち。B-005（Codex）の申告待ち | 2026-11-18 |
 | Claude Code | Phase 2〜8・HD-2D・Wave 3・上流追随 | claude/uzu-engine-briefing-rrno7b | 2026-11-18: B-721、B-723／B-724、B-307／B-309／B-308、B-204、B-205、B-806、B-106（予行: 競合 0、1498 pass、rehearsal/upstream-2026-11-18）を反映。全テスト 1497 pass（ai-native） | 待ち: B-107 はオーナーの Actions 有効化（Q14）。B-723 は GPU 再撮影（ローカル）。残り: Phase 9（B-901〜B-904）、テスト総数の環境差の突き合わせ | 2026-11-18 |
 | Codex | B-725 | agent/b-725-codex | 人物を BlobShadow の対象外にし、新規の影を足元に配置。Forward+ ソフトウェア Vulkan で胴の明るさ差 27.23→2.21（影なし2.18）、地面への投影も確認。全1501件 pass | Windows GPU 再確認後にリードが統合 | 2026-11-18 JST |
