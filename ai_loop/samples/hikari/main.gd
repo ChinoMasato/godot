@@ -86,7 +86,7 @@ func _box(name: String, pos: Vector3, size: Vector3, color: Color, obstacle_r :=
 	var mesh := BoxMesh.new()
 	mesh.size = size
 	mi.mesh = mesh
-	mi.surface_material_override(0, _mat(color))
+	mi.set_surface_override_material(0, _mat(color))
 	mi.position = pos
 	add_child(mi)
 	if obstacle_r > 0.0:
@@ -123,7 +123,7 @@ func _build_world() -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(34, 26)
 	ground.mesh = plane
-	ground.surface_material_override(0, _mat(Color(0.36, 0.47, 0.26)))
+	ground.set_surface_override_material(0, _mat(Color(0.36, 0.47, 0.26)))
 	add_child(ground)
 	_box("Path", Vector3(0, 0.02, 1.5), Vector3(2.2, 0.04, 19), Color(0.55, 0.45, 0.32))
 	_box("PathEW", Vector3(0, 0.02, -3.5), Vector3(24, 0.04, 2.0), Color(0.55, 0.45, 0.32))
@@ -136,7 +136,7 @@ func _build_world() -> void:
 	disc.bottom_radius = 2.4
 	disc.height = 0.08
 	pond.mesh = disc
-	pond.surface_material_override(0, _mat(Color(0.25, 0.42, 0.62)))
+	pond.set_surface_override_material(0, _mat(Color(0.25, 0.42, 0.62)))
 	pond.position = Vector3(9.5, 0.04, 4.5)
 	add_child(pond)
 	obstacles.append({"pos": Vector2(9.5, 4.5), "r": 2.3})
@@ -206,7 +206,7 @@ func _house(pos: Vector3, wall: Color) -> void:
 	prism.left_to_right = 0.5
 	prism.size = Vector3(4.2, 1.4, 3.6)
 	roof.mesh = prism
-	roof.surface_material_override(0, _mat(Color(0.5, 0.3, 0.24)))
+	roof.set_surface_override_material(0, _mat(Color(0.5, 0.3, 0.24)))
 	roof.position = pos + Vector3(0, 3.2, 0)
 	add_child(roof)
 	# A warm window that reads at dusk.
