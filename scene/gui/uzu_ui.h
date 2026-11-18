@@ -62,6 +62,31 @@ public:
 	static Ref<Theme> create_theme(const Dictionary &p_options = Dictionary());
 	static Dictionary get_theme_defaults();
 
+	// World UI (B-1307): textured game frames instead of plain app panels. A frame style:
+	// "material" (wood, metal, parchment, stone, glass, halftone, grime, flat), "shape"
+	// (rounded, chamfer, skew, pixel), "base" and "edge" colors, "accent" (ornaments and
+	// glow), "radius", "border_width", "shadow", "ornament" (none, rivets, nails, brackets,
+	// diamonds), "padding", "seed". The middle of the image repeats, so the texture keeps
+	// its scale at any size.
+	static Ref<Image> draw_frame(const Dictionary &p_style);
+	static Ref<StyleBox> create_frame_style(const Dictionary &p_style);
+	// World themes: fantasy, wafu, sf, horror, persona, pixel. One name switches the
+	// frames, colors and parts; p_overrides changes any option of the world.
+	static PackedStringArray get_world_names();
+	static Dictionary get_world_options(const String &p_world);
+	static Ref<Theme> create_world_theme(const String &p_world, const Dictionary &p_overrides = Dictionary());
+	// How the world moves (for open/hover animation): {"duration", "transition", "ease",
+	// "overshoot", "steps"}; read by UI motion (B-1304).
+	static Dictionary get_world_motion(const String &p_world);
+
+	// Game parts, styled by the theme's type variations (UZUGauge, UZUTalk, UZUNameTag,
+	// UZUSlot, UZURibbon, UZUSeparator), so they change with the world.
+	static Control *make_gauge(double p_value, double p_max = 100.0, int p_segments = 10);
+	static Control *make_talk_window(const String &p_speaker, const String &p_text);
+	static Control *make_item_slot(const String &p_label = String(), int p_count = 0);
+	static Control *make_ribbon(const String &p_text);
+	static Control *make_separator();
+
 	// Parts. Each returns a new Control, not yet added anywhere.
 	static Control *make_panel(Control *p_content = nullptr);
 	static Control *make_button(const String &p_text);

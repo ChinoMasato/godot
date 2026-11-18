@@ -7,7 +7,9 @@ extends SceneTree
 ##
 ## Spec (colors "#rrggbb" or "#rrggbbaa"; an unknown key is an error that names where it is):
 ##   {"scene": "res://ui/hud.tscn",
-##    "theme": {"font": "res://fonts/x.ttf", "font_fallback": "res://fonts/ja.woff2" (glyphs the font lacks),
+##    "theme": {"world": "fantasy" | "wafu" | "sf" | "horror" | "persona" | "pixel" (B-1307: textured game
+##              frames, colors and parts in one name; then panel/button/bar are not used),
+##              "font": "res://fonts/x.ttf", "font_fallback": "res://fonts/ja.woff2" (glyphs the font lacks),
 ##              "font_size": 20, "font_color": "#f4ead2", "accent": "#d9a441",
 ##              "panel": {"top": "#1d2740ee", "bottom": "#10162add", "radius": 12, "border": "#d9a441", "shadow": 8, "padding": 14},
 ##              "button": {"bg": "#2b3550", "hover": "#3a4870", "pressed": "#1d2438", "radius": 8, "padding": 10},
@@ -16,7 +18,10 @@ extends SceneTree
 ## A node: {"type": T, "name": "...", "children": [...], and the keys of its type}
 ##   types: Screen (full-screen root), Panel, VBox, HBox, Grid, Margin, Center, Scroll, Label,
 ##          RichText (BBCode), Button, Bar (progress), Image (TextureRect), Color (ColorRect), Spacer,
-##          Tabs (each child is a page; its name is the tab title), List (ItemList, "items": [...])
+##          Tabs (each child is a page; its name is the tab title), List (ItemList, "items": [...]),
+##          game parts (B-1307, styled by the world): Gauge ("value", "max", "segments"),
+##          Talk ("speaker", "text": a talk window with a name tag and a next mark),
+##          Slot ("text", "count"), Ribbon ("text"), Separator
 ##   placement (outside containers): "anchor": top_left | top | top_right | left | center | right |
 ##          bottom_left | bottom | bottom_right | full | top_wide | bottom_wide | left_wide | right_wide,
 ##          "offset": [x, y] (inset from the anchored edges; for centers, a shift), "size": [w, h]
@@ -35,12 +40,14 @@ const TYPES := {
 	"Label": "Label", "RichText": "RichTextLabel", "Button": "Button", "Bar": "ProgressBar",
 	"Image": "TextureRect", "Color": "ColorRect", "Spacer": "Control",
 	"Tabs": "TabContainer", "List": "ItemList",
+	"Gauge": "", "Talk": "", "Slot": "", "Ribbon": "", "Separator": "",
 }
 const COMMON := ["type", "name", "children", "anchor", "offset", "size", "min_size", "expand", "visible", "tooltip", "style", "font_size", "font_color", "align"]
 const EXTRA := {
 	"Label": ["text"], "RichText": ["text"], "Button": ["text"], "Bar": ["value", "max", "show_percent"],
 	"VBox": ["separation"], "HBox": ["separation"], "Grid": ["separation", "columns"], "Margin": ["padding"],
 	"Image": ["texture", "stretch"], "Color": ["color"], "List": ["items"],
+	"Gauge": ["value", "max", "segments"], "Talk": ["speaker", "text"], "Slot": ["text", "count"], "Ribbon": ["text"],
 }
 const ANCHORS := {
 	"top_left": Control.PRESET_TOP_LEFT, "top": Control.PRESET_CENTER_TOP, "top_right": Control.PRESET_TOP_RIGHT,
@@ -50,7 +57,7 @@ const ANCHORS := {
 	"left_wide": Control.PRESET_LEFT_WIDE, "right_wide": Control.PRESET_RIGHT_WIDE,
 }
 const STYLE_KEYS := ["bg", "top", "bottom", "radius", "border", "border_width", "shadow", "padding", "hover", "pressed", "fill"]
-const THEME_KEYS := ["font", "font_fallback", "font_size", "font_color", "accent", "panel", "button", "bar"]
+const THEME_KEYS := ["world", "font", "font_fallback", "font_size", "font_color", "accent", "panel", "button", "bar"]
 
 var errors := []
 var counts := {}
@@ -128,6 +135,18 @@ func _theme(d) -> Theme:
 		options["text"] = _color("theme.font_color", d.font_color)
 	if d.has("accent"):
 		options["accent"] = _color("theme.accent", d.accent)
+	if d.has("world"):
+		# A world (B-1307): textured frames, colors and game parts in one name.
+		if not UZUUI.get_world_names().has(d.world):
+			_err("theme.world", "needs one of %s" % ", ".join(UZUUI.get_world_names()))
+			return UZUUI.create_theme()
+		var world_overrides := {}
+		for key in ["font", "font_size", "accent"]:
+			if options.has(key):
+				world_overrides[key] = options[key]
+		if options.has("text"):
+			world_overrides["text"] = options["text"]
+		return UZUUI.create_world_theme(d.world, world_overrides)
 	for key in ["panel", "button", "bar"]:
 		if d.has(key):
 			_stylebox("theme." + key, d[key])  # Checks the keys and colors.
@@ -190,7 +209,20 @@ func _node(where: String, d, parent: Control, owner_root: Control) -> Control:
 	for key in d:
 		if not key in COMMON and not key in EXTRA.get(type, []):
 			_err(where, "unknown key '%s' for %s (allowed: %s)" % [key, type, ", ".join(COMMON + EXTRA.get(type, []))])
-	var c: Control = ClassDB.instantiate(TYPES[type])
+	var c: Control
+	match type:
+		"Gauge":
+			c = UZUUI.make_gauge(float(d.get("value", 50)), float(d.get("max", 100)), int(d.get("segments", 10)))
+		"Talk":
+			c = UZUUI.make_talk_window(str(d.get("speaker", "")), str(d.get("text", "")))
+		"Slot":
+			c = UZUUI.make_item_slot(str(d.get("text", "")), int(d.get("count", 0)))
+		"Ribbon":
+			c = UZUUI.make_ribbon(str(d.get("text", "")))
+		"Separator":
+			c = UZUUI.make_separator()
+		_:
+			c = ClassDB.instantiate(TYPES[type])
 	c.name = d.get("name", type)
 	counts[type] = counts.get(type, 0) + 1
 	match type:
@@ -272,6 +304,9 @@ func _node(where: String, d, parent: Control, owner_root: Control) -> Control:
 	if parent:
 		parent.add_child(c, true)
 		c.owner = owner_root
+		for inner in c.find_children("*", "", true, false):  # The inside of made parts (Talk, Slot, ...).
+			if inner.owner == null:
+				inner.owner = owner_root
 		if not parent is Container:
 			_place(c, where, d)
 		elif d.has("anchor") or d.has("offset") or d.has("size"):

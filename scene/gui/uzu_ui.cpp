@@ -35,9 +35,11 @@
 #include "scene/gui/button.h"
 #include "scene/gui/item_list.h"
 #include "scene/gui/label.h"
+#include "scene/gui/margin_container.h"
 #include "scene/gui/panel_container.h"
 #include "scene/gui/progress_bar.h"
 #include "scene/gui/tab_container.h"
+#include "scene/gui/texture_rect.h"
 #include "scene/resources/font.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/style_box_flat.h"
@@ -267,6 +269,491 @@ Ref<Theme> UZUUI::create_theme(const Dictionary &p_options) {
 	return theme;
 }
 
+namespace {
+
+const int FRAME_TILE = 32; // The repeating middle of a frame image.
+
+// Value noise that repeats every FRAME_TILE pixels (cells of p_cell px), so tiled frames have no seams.
+float tile_noise(float p_x, float p_y, int p_cell, uint32_t p_seed) {
+	const int n = MAX(1, FRAME_TILE / p_cell);
+	const float fx = p_x / p_cell;
+	const float fy = p_y / p_cell;
+	const int x0 = int(Math::floor(fx));
+	const int y0 = int(Math::floor(fy));
+	auto lattice = [&](int x, int y) {
+		const uint32_t h = (uint32_t(((x % n) + n) % n) * 73856093u) ^ (uint32_t(((y % n) + n) % n) * 19349663u) ^ (p_seed * 83492791u);
+		return float((h * 2654435761u) >> 8) / float(1 << 24);
+	};
+	const float tx = fx - x0;
+	const float ty = fy - y0;
+	const float sx = tx * tx * (3.0f - 2.0f * tx);
+	const float sy = ty * ty * (3.0f - 2.0f * ty);
+	return Math::lerp(Math::lerp(lattice(x0, y0), lattice(x0 + 1, y0), sx), Math::lerp(lattice(x0, y0 + 1), lattice(x0 + 1, y0 + 1), sx), sy);
+}
+
+float frame_distance(const String &p_shape, const Vector2 &p, const Vector2 &c, const Vector2 &h, float r) {
+	if (p_shape == "chamfer") {
+		const Vector2 q = (p - c).abs();
+		return MAX(MAX(q.x - h.x, q.y - h.y), (q.x + q.y - (h.x + h.y - r)) * 0.7071f);
+	}
+	if (p_shape == "skew") {
+		// A parallelogram leaning right: x shifts with height.
+		const Vector2 q(p.x - (p.y - c.y) * 0.25f, p.y);
+		return rounded_rect_distance(q, c, Vector2(h.x - h.y * 0.25f, h.y), 0.0f);
+	}
+	if (p_shape == "pixel") {
+		const Vector2 q = (p - c).abs() - h;
+		return MAX(q.x, q.y); // Hard corners (notched below).
+	}
+	return rounded_rect_distance(p, c, h, r);
+}
+
+Color material_color(const String &p_material, const Color &p_base, float x, float y, float d, uint32_t seed) {
+	const float n = tile_noise(x, y, 8, seed);
+	const float fine = tile_noise(x * 2.0f, y * 2.0f, 8, seed + 7);
+	Color c = p_base;
+	if (p_material == "wood") {
+		const float grain = 0.5f + 0.5f * Math::sin((y + n * 10.0f) * (Math::TAU / 8.0f));
+		c = c.darkened(0.25f * grain + 0.1f * fine);
+	} else if (p_material == "metal") {
+		const float streak = tile_noise(x * 0.25f, y * 4.0f, 8, seed + 3);
+		c = c.lightened(0.12f * streak).darkened(0.08f * fine);
+	} else if (p_material == "parchment") {
+		c = c.darkened(0.12f * n + 0.05f * fine);
+		c = c.darkened(0.35f * CLAMP(1.0f + d / 10.0f, 0.0f, 1.0f)); // Burnt edges.
+	} else if (p_material == "stone") {
+		c = c.darkened(0.25f * n).lightened(0.08f * fine);
+		if (Math::abs(n - 0.5f) < 0.025f) {
+			c = c.darkened(0.35f); // Cracks.
+		}
+	} else if (p_material == "glass") {
+		c.a *= (int(y) % 3 == 0) ? 0.8f : 1.0f; // Scan lines.
+	} else if (p_material == "halftone") {
+		// Dots on a grid, bigger toward the bottom.
+		const float cell = 6.0f;
+		const Vector2 g(Math::fposmod(x, cell) - cell * 0.5f, Math::fposmod(y, cell) - cell * 0.5f);
+		const float rad = 1.0f + 1.6f * CLAMP((y - 4.0f) / 40.0f, 0.0f, 1.0f);
+		if (g.length() < rad) {
+			c = c.darkened(0.3f);
+		}
+	} else if (p_material == "grime") {
+		c = c.darkened(0.5f * n * n + 0.15f * fine);
+		if (Math::abs(Math::fposmod(x * 0.7f + y * 0.3f + n * 9.0f, 23.0f) - 11.5f) < 0.4f) {
+			c = c.lightened(0.15f); // Scratches.
+		}
+	}
+	return c;
+}
+
+} // namespace
+
+Ref<Image> UZUUI::draw_frame(const Dictionary &p_style) {
+	const String material = p_style.get("material", "flat");
+	const String shape = p_style.get("shape", "rounded");
+	const Color base = color_of(p_style.get("base", Variant()), Color(0.12, 0.14, 0.22, 0.94));
+	const Color edge = color_of(p_style.get("edge", Variant()), base.darkened(0.5));
+	const Color accent = color_of(p_style.get("accent", Variant()), Color::html("#d9a441"));
+	const String ornament = p_style.get("ornament", "none");
+	const bool pixel = shape == "pixel";
+	const int radius = CLAMP(int(p_style.get("radius", pixel ? 0 : 8)), 0, 48);
+	const int bw = CLAMP(int(p_style.get("border_width", 3)), 0, 16);
+	const int shadow = CLAMP(int(p_style.get("shadow", 6)), 0, 32);
+	const uint32_t seed = uint32_t(int(p_style.get("seed", 1)));
+	const int orn = ornament == "none" ? 0 : 10;
+	const int corner = MAX(MAX(radius, bw * 2), orn) + 2 + (shape == "skew" ? 8 : 0);
+	const int w = 2 * (shadow + corner) + FRAME_TILE;
+	const int h = w;
+	const Vector2 center(w * 0.5f, h * 0.5f);
+	const Vector2 half(w * 0.5f - shadow, h * 0.5f - shadow);
+	const bool hard_shadow = material == "halftone" || pixel;
+	Ref<Image> img = Image::create_empty(w, h, false, Image::FORMAT_RGBA8);
+	for (int y = 0; y < h; y++) {
+		for (int x = 0; x < w; x++) {
+			const Vector2 p(x + 0.5f, y + 0.5f);
+			float d = frame_distance(shape, p, center, half, radius);
+			if (pixel) {
+				// A stepped corner: the one-pixel notch of pixel-art frames, no anti-aliasing.
+				const Vector2 q = (p - center).abs();
+				if (q.x > half.x - 2 && q.y > half.y - 2) {
+					d = 1.0f;
+				}
+			}
+			const float inside = pixel ? (d <= 0.0f ? 1.0f : 0.0f) : CLAMP(0.5f - d, 0.0f, 1.0f);
+			Color c = material_color(material, base, p.x, p.y, d, seed);
+			// Bevel: light from the top, dark at the bottom, just inside the border.
+			if (d > -(bw * 2.0f + 2.0f) && d < -bw && !pixel) {
+				c = (p.y < center.y) ? c.lightened(0.18f) : c.darkened(0.18f);
+			}
+			if (bw > 0) {
+				const float in_border = pixel ? (d > -bw ? 1.0f : 0.0f) : CLAMP(d + bw + 0.5f, 0.0f, 1.0f);
+				Color e = edge;
+				if (material == "glass") {
+					e = accent; // A lit edge.
+				}
+				c = c.lerp(e, in_border);
+			}
+			if (material == "glass" && d < 0.0f) {
+				c = c.lerp(accent, 0.35f * Math::exp(d / 3.0f)); // Glow just inside the edge.
+			}
+			// Corner ornaments, in the corner squares the 9-slice keeps.
+			if (orn > 0 && inside > 0.0f) {
+				const Vector2 q = (p - center).abs();
+				const Vector2 k = Vector2(half.x, half.y) - q; // Distance in from each side.
+				const float kx = k.x - bw - 3.0f;
+				const float ky = k.y - bw - 3.0f;
+				if (kx >= 0.0f && ky >= 0.0f && kx < orn && ky < orn) {
+					bool mark = false;
+					if (ornament == "rivets" || ornament == "nails") {
+						mark = Vector2(kx - 3.0f, ky - 3.0f).length() < (ornament == "rivets" ? 2.6f : 1.6f);
+					} else if (ornament == "brackets") {
+						mark = (kx < 2.0f && ky < orn) || (ky < 2.0f && kx < orn);
+					} else if (ornament == "diamonds") {
+						mark = Math::abs(kx - 4.0f) + Math::abs(ky - 4.0f) < 3.5f;
+					}
+					if (mark) {
+						c = ornament == "nails" ? Color(0.15, 0.12, 0.1) : accent.lightened(ornament == "rivets" ? 0.2f : 0.0f);
+						c.a = 1.0f;
+					}
+				}
+			}
+			c.a *= inside;
+			if (shadow > 0 && inside < 1.0f) {
+				float sa;
+				if (hard_shadow) {
+					// A solid offset block, the comic/pixel way.
+					sa = frame_distance(shape, p - Vector2(shadow * 0.6f, shadow * 0.6f), center, half, radius) <= 0.0f ? 0.85f : 0.0f;
+				} else {
+					const float ds = frame_distance(shape, p - Vector2(0, shadow * 0.35f), center, half, radius);
+					const float t = 1.0f - CLAMP(ds / shadow, 0.0f, 1.0f);
+					sa = 0.5f * t * t;
+				}
+				const float a = c.a + sa * (1.0f - c.a);
+				if (a > 0.0f) {
+					c = Color((c.r * c.a) / a, (c.g * c.a) / a, (c.b * c.a) / a, a);
+				}
+			}
+			img->set_pixel(x, y, c);
+		}
+	}
+	return img;
+}
+
+Ref<StyleBox> UZUUI::create_frame_style(const Dictionary &p_style) {
+	const Ref<Image> img = draw_frame(p_style);
+	Ref<StyleBoxTexture> sb;
+	sb.instantiate();
+	sb->set_texture(ImageTexture::create_from_image(img));
+	const int margin = (img->get_width() - FRAME_TILE) / 2;
+	const int shadow = CLAMP(int(p_style.get("shadow", 6)), 0, 32);
+	sb->set_texture_margin_all(margin);
+	sb->set_expand_margin_all(shadow);
+	// The middle repeats, so the texture keeps its scale.
+	sb->set_h_axis_stretch_mode(StyleBoxTexture::AXIS_STRETCH_MODE_TILE_FIT);
+	sb->set_v_axis_stretch_mode(StyleBoxTexture::AXIS_STRETCH_MODE_TILE_FIT);
+	sb->set_content_margin_all(float(p_style.get("padding", 14)));
+	if (String(p_style.get("shape", "")) == "pixel") {
+		sb->set_texture(ImageTexture::create_from_image(img));
+	}
+	return sb;
+}
+
+PackedStringArray UZUUI::get_world_names() {
+	return PackedStringArray({ "fantasy", "wafu", "sf", "horror", "persona", "pixel" });
+}
+
+Dictionary UZUUI::get_world_options(const String &p_world) {
+	Dictionary frame;
+	Dictionary button;
+	Dictionary o;
+	auto set = [](Dictionary &d, const char *k, const Variant &v) { d[k] = v; };
+	if (p_world == "fantasy") {
+		set(frame, "material", "wood"), set(frame, "base", "#6b4a2e"), set(frame, "edge", "#2e1d10"), set(frame, "accent", "#e6c36a");
+		set(frame, "ornament", "brackets"), set(frame, "radius", 10), set(frame, "border_width", 3), set(frame, "shadow", 8);
+		set(button, "material", "parchment"), set(button, "base", "#e8d6a8"), set(button, "edge", "#5a3d22"), set(button, "radius", 6);
+		set(o, "text", "#f6e7c8"), set(o, "button_text", "#3a2614"), set(o, "accent", "#e6c36a"), set(o, "fill", "#d94a3a");
+	} else if (p_world == "wafu") {
+		set(frame, "material", "parchment"), set(frame, "base", "#efe2c4"), set(frame, "edge", "#3b2416"), set(frame, "accent", "#b8322a");
+		set(frame, "ornament", "diamonds"), set(frame, "radius", 2), set(frame, "border_width", 3), set(frame, "shadow", 6);
+		set(button, "material", "flat"), set(button, "base", "#b8322a"), set(button, "edge", "#3b1410"), set(button, "radius", 2);
+		set(o, "text", "#2a1a10"), set(o, "button_text", "#fbf1dc"), set(o, "accent", "#b8322a"), set(o, "fill", "#b8322a");
+	} else if (p_world == "sf") {
+		set(frame, "material", "glass"), set(frame, "base", "#07141ee6"), set(frame, "edge", "#38e1ff"), set(frame, "accent", "#38e1ff");
+		set(frame, "shape", "chamfer"), set(frame, "radius", 12), set(frame, "border_width", 2), set(frame, "shadow", 10);
+		set(button, "material", "glass"), set(button, "base", "#0e2a3aee"), set(button, "accent", "#38e1ff"), set(button, "shape", "chamfer"), set(button, "radius", 8);
+		set(o, "text", "#d8f6ff"), set(o, "button_text", "#d8f6ff"), set(o, "accent", "#38e1ff"), set(o, "fill", "#38e1ff");
+	} else if (p_world == "horror") {
+		set(frame, "material", "grime"), set(frame, "base", "#2a1414"), set(frame, "edge", "#090404"), set(frame, "accent", "#8a1010");
+		set(frame, "ornament", "nails"), set(frame, "radius", 1), set(frame, "border_width", 3), set(frame, "shadow", 12);
+		set(button, "material", "grime"), set(button, "base", "#3a1a1a"), set(button, "edge", "#0b0505"), set(button, "radius", 1);
+		set(o, "text", "#e8d8d0"), set(o, "button_text", "#e8d8d0"), set(o, "accent", "#a01818"), set(o, "fill", "#8a1010");
+	} else if (p_world == "persona") {
+		set(frame, "material", "halftone"), set(frame, "base", "#e8212b"), set(frame, "edge", "#111111"), set(frame, "accent", "#ffffff");
+		set(frame, "shape", "skew"), set(frame, "border_width", 4), set(frame, "shadow", 10);
+		set(button, "material", "flat"), set(button, "base", "#111111"), set(button, "edge", "#ffffff"), set(button, "shape", "skew"), set(button, "border_width", 3), set(button, "shadow", 6);
+		set(o, "text", "#ffffff"), set(o, "button_text", "#ffffff"), set(o, "accent", "#ffe14d"), set(o, "fill", "#ffe14d");
+	} else if (p_world == "pixel") {
+		set(frame, "material", "flat"), set(frame, "base", "#1b1f3a"), set(frame, "edge", "#f4f4f4"), set(frame, "accent", "#f4b41a");
+		set(frame, "shape", "pixel"), set(frame, "border_width", 3), set(frame, "shadow", 4);
+		set(button, "material", "flat"), set(button, "base", "#3b4a8c"), set(button, "edge", "#f4f4f4"), set(button, "shape", "pixel"), set(button, "border_width", 3), set(button, "shadow", 3);
+		set(o, "text", "#f4f4f4"), set(o, "button_text", "#f4f4f4"), set(o, "accent", "#f4b41a"), set(o, "fill", "#5bd46a");
+	} else {
+		ERR_FAIL_V_MSG(Dictionary(), vformat("UZUUI: unknown world \"%s\" (see get_world_names).", p_world));
+	}
+	o["world"] = p_world;
+	o["frame"] = frame;
+	o["button"] = button;
+	o["font_size"] = p_world == "pixel" ? 16 : 19;
+	return o;
+}
+
+Dictionary UZUUI::get_world_motion(const String &p_world) {
+	// Motion follows the world (gameanimation.info): sharp overshoot for persona, mechanical
+	// ease-in for sf, soft overshoot for fantasy and wafu, stepped frames for pixel.
+	Dictionary m;
+	m["duration"] = 0.25;
+	m["transition"] = "back";
+	m["ease"] = "out";
+	m["overshoot"] = 1.2;
+	m["steps"] = 0;
+	if (p_world == "persona") {
+		m["duration"] = 0.18, m["overshoot"] = 2.6;
+	} else if (p_world == "sf") {
+		m["transition"] = "expo", m["ease"] = "in_out", m["overshoot"] = 0.0, m["duration"] = 0.3;
+	} else if (p_world == "horror") {
+		m["transition"] = "sine", m["ease"] = "in_out", m["overshoot"] = 0.0, m["duration"] = 0.6;
+	} else if (p_world == "pixel") {
+		m["transition"] = "linear", m["overshoot"] = 0.0, m["steps"] = 4, m["duration"] = 0.2;
+	} else if (p_world == "wafu") {
+		m["transition"] = "quart", m["ease"] = "out", m["overshoot"] = 0.0, m["duration"] = 0.35;
+	}
+	return m;
+}
+
+Ref<Theme> UZUUI::create_world_theme(const String &p_world, const Dictionary &p_overrides) {
+	Dictionary o = get_world_options(p_world);
+	ERR_FAIL_COND_V(o.is_empty(), Ref<Theme>());
+	for (const Variant &k : p_overrides.keys()) {
+		o[k] = p_overrides[k];
+	}
+	Dictionary base_options;
+	base_options["accent"] = o["accent"];
+	base_options["text"] = o["text"];
+	base_options["font_size"] = o["font_size"];
+	if (o.has("font")) {
+		base_options["font"] = o["font"];
+	}
+	Dictionary bar;
+	bar["fill"] = o["fill"];
+	base_options["bar"] = bar;
+	Ref<Theme> theme = create_theme(base_options);
+	const Dictionary frame = o["frame"];
+	const Dictionary button = o["button"];
+	const Ref<StyleBox> panel = create_frame_style(frame);
+	for (const char *cls : { "PanelContainer", "TabContainer", "ItemList" }) {
+		theme->set_stylebox("panel", cls, panel);
+	}
+	Dictionary tip = frame.duplicate();
+	tip["padding"] = 8;
+	tip["ornament"] = "none";
+	theme->set_stylebox("panel", "TooltipPanel", create_frame_style(tip));
+	// Buttons: the world's button, lighter on hover, darker and flat when pressed.
+	theme->set_stylebox("normal", "Button", create_frame_style(button));
+	Dictionary state = button.duplicate();
+	const Color bbase = color_of(button["base"], Color(0.2, 0.2, 0.3));
+	state["base"] = bbase.lightened(0.18);
+	theme->set_stylebox("hover", "Button", create_frame_style(state));
+	state["base"] = bbase.darkened(0.25);
+	state["shadow"] = 0;
+	theme->set_stylebox("pressed", "Button", create_frame_style(state));
+	state["base"] = Color(bbase.darkened(0.4), 0.7);
+	theme->set_stylebox("disabled", "Button", create_frame_style(state));
+	const Color btext = color_of(o["button_text"], Color(1, 1, 1));
+	for (const char *name : { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color" }) {
+		theme->set_color(name, "Button", btext);
+	}
+	// Tabs use the button frames.
+	theme->set_stylebox("tab_selected", "TabContainer", create_frame_style(button));
+	Dictionary tab_off = button.duplicate();
+	tab_off["base"] = Color(bbase.darkened(0.35), 0.9);
+	theme->set_stylebox("tab_unselected", "TabContainer", create_frame_style(tab_off));
+	theme->set_stylebox("tab_hovered", "TabContainer", create_frame_style(state));
+	theme->set_color("font_selected_color", "TabContainer", btext);
+	theme->set_color("font_unselected_color", "TabContainer", Color(btext, 0.7));
+	theme->set_color("font_hovered_color", "TabContainer", btext);
+
+	// Game parts as type variations of the usual controls.
+	const Color accent = color_of(o["accent"], Color::html("#d9a441"));
+	const Color text = color_of(o["text"], Color(1, 1, 1));
+	// Name tag: a small frame of the accent color.
+	Dictionary tag = button.duplicate();
+	tag["base"] = accent;
+	tag["ornament"] = "none";
+	tag["padding"] = 6;
+	theme->set_type_variation("UZUNameTag", "PanelContainer");
+	theme->set_stylebox("panel", "UZUNameTag", create_frame_style(tag));
+	theme->set_type_variation("UZUNameTagLabel", "Label");
+	theme->set_color("font_color", "UZUNameTagLabel", accent.get_luminance() > 0.55 ? Color(0.08, 0.06, 0.05) : Color(1, 1, 1));
+	theme->set_type_variation("UZUTalk", "PanelContainer");
+	theme->set_stylebox("panel", "UZUTalk", panel);
+	// Item slot: a sunken square.
+	Dictionary slot = frame.duplicate();
+	slot["base"] = color_of(frame["base"], Color(0.1, 0.1, 0.1)).darkened(0.35);
+	slot["ornament"] = "none";
+	slot["shadow"] = 0;
+	slot["padding"] = 6;
+	theme->set_type_variation("UZUSlot", "PanelContainer");
+	theme->set_stylebox("panel", "UZUSlot", create_frame_style(slot));
+	// Ribbon heading: the accent, wider padding.
+	Dictionary ribbon = tag.duplicate();
+	ribbon["padding"] = 10;
+	ribbon["shape"] = String(frame.get("shape", "rounded")) == "pixel" ? "pixel" : "chamfer";
+	ribbon["radius"] = 10;
+	theme->set_type_variation("UZURibbon", "PanelContainer");
+	theme->set_stylebox("panel", "UZURibbon", create_frame_style(ribbon));
+	// Segmented gauge: the fill repeats a segment with a gap.
+	Ref<Image> seg = Image::create_empty(12, 12, false, Image::FORMAT_RGBA8);
+	Ref<Image> seg_bg = Image::create_empty(12, 12, false, Image::FORMAT_RGBA8);
+	const Color fill = color_of(o["fill"], accent);
+	for (int y = 0; y < 12; y++) {
+		for (int x = 0; x < 12; x++) {
+			const bool gap = x >= 10;
+			const float shade = 1.0f - 0.25f * (y / 11.0f);
+			seg->set_pixel(x, y, gap ? Color(0, 0, 0, 0) : Color(fill.r * shade, fill.g * shade, fill.b * shade, 1.0f));
+			seg_bg->set_pixel(x, y, gap ? Color(0, 0, 0, 0) : Color(0, 0, 0, 0.55f));
+		}
+	}
+	for (int i = 0; i < 2; i++) {
+		Ref<StyleBoxTexture> sb;
+		sb.instantiate();
+		sb->set_texture(ImageTexture::create_from_image(i == 0 ? seg : seg_bg));
+		sb->set_h_axis_stretch_mode(StyleBoxTexture::AXIS_STRETCH_MODE_TILE);
+		sb->set_v_axis_stretch_mode(StyleBoxTexture::AXIS_STRETCH_MODE_STRETCH);
+		theme->set_stylebox(i == 0 ? "fill" : "background", "UZUGauge", sb);
+	}
+	theme->set_type_variation("UZUGauge", "ProgressBar");
+	// Separator: a line in the accent with a diamond in the middle (drawn by make_separator).
+	theme->set_color("font_color", "Label", text);
+	theme->set_meta("uzu_world", p_world);
+	theme->set_meta("uzu_motion", get_world_motion(p_world));
+	return theme;
+}
+
+Control *UZUUI::make_gauge(double p_value, double p_max, int p_segments) {
+	ProgressBar *bar = memnew(ProgressBar);
+	bar->set_name("Gauge");
+	bar->set_theme_type_variation("UZUGauge");
+	bar->set_max(p_max);
+	bar->set_value(p_value);
+	bar->set_show_percentage(false);
+	// Segments are 12 px wide; the bar is as wide as the segments asked for.
+	bar->set_custom_minimum_size(Size2(12 * MAX(p_segments, 1), 14));
+	return bar;
+}
+
+Control *UZUUI::make_talk_window(const String &p_speaker, const String &p_text) {
+	VBoxContainer *root = memnew(VBoxContainer);
+	root->set_name("Talk");
+	root->add_theme_constant_override("separation", -8); // The name tag overlaps the window's top edge.
+	MarginContainer *tag_margin = memnew(MarginContainer);
+	tag_margin->set_name("TagMargin");
+	tag_margin->add_theme_constant_override("margin_left", 24);
+	tag_margin->set_z_index(1);
+	tag_margin->set_h_size_flags(Control::SIZE_SHRINK_BEGIN);
+	PanelContainer *tag = memnew(PanelContainer);
+	tag->set_name("NameTag");
+	tag->set_theme_type_variation("UZUNameTag");
+	Label *name = memnew(Label);
+	name->set_name("Speaker");
+	name->set_theme_type_variation("UZUNameTagLabel");
+	name->set_text(p_speaker);
+	tag->add_child(name);
+	tag_margin->add_child(tag);
+	root->add_child(tag_margin);
+	PanelContainer *window = memnew(PanelContainer);
+	window->set_name("Window");
+	window->set_theme_type_variation("UZUTalk");
+	VBoxContainer *body = memnew(VBoxContainer);
+	body->set_name("Body");
+	Label *line = memnew(Label);
+	line->set_name("Line");
+	line->set_text(p_text);
+	line->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
+	line->set_custom_minimum_size(Size2(320, 48));
+	body->add_child(line);
+	Label *next = memnew(Label);
+	next->set_name("Next");
+	next->set_text(String::utf8("▼"));
+	next->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_RIGHT);
+	body->add_child(next);
+	window->add_child(body);
+	root->add_child(window);
+	return root;
+}
+
+Control *UZUUI::make_item_slot(const String &p_label, int p_count) {
+	PanelContainer *slot = memnew(PanelContainer);
+	slot->set_name("Slot");
+	slot->set_theme_type_variation("UZUSlot");
+	slot->set_custom_minimum_size(Size2(64, 64));
+	VBoxContainer *box = memnew(VBoxContainer);
+	box->set_name("Box");
+	Label *label = memnew(Label);
+	label->set_name("Item");
+	label->set_text(p_label);
+	label->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_CENTER);
+	label->set_v_size_flags(Control::SIZE_EXPAND_FILL);
+	label->set_vertical_alignment(VERTICAL_ALIGNMENT_CENTER);
+	box->add_child(label);
+	if (p_count > 0) {
+		Label *count = memnew(Label);
+		count->set_name("Count");
+		count->set_text(itos(p_count));
+		count->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_RIGHT);
+		count->add_theme_font_size_override("font_size", 14);
+		box->add_child(count);
+	}
+	slot->add_child(box);
+	return slot;
+}
+
+Control *UZUUI::make_ribbon(const String &p_text) {
+	PanelContainer *ribbon = memnew(PanelContainer);
+	ribbon->set_name("Ribbon");
+	ribbon->set_theme_type_variation("UZURibbon");
+	Label *label = memnew(Label);
+	label->set_name("Title");
+	label->set_theme_type_variation("UZUNameTagLabel");
+	label->set_text(p_text);
+	label->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_CENTER);
+	label->add_theme_font_size_override("font_size", 22);
+	ribbon->add_child(label);
+	return ribbon;
+}
+
+Control *UZUUI::make_separator() {
+	// A thin line that fades at both ends, with a diamond in the middle.
+	const int w = 256;
+	const int h = 12;
+	Ref<Image> img = Image::create_empty(w, h, false, Image::FORMAT_RGBA8);
+	for (int y = 0; y < h; y++) {
+		for (int x = 0; x < w; x++) {
+			const float fade = 1.0f - Math::abs(x - w * 0.5f) / (w * 0.5f);
+			const bool line = Math::abs(y - h * 0.5f + 0.5f) < 1.0f;
+			const bool diamond = Math::abs(x - w * 0.5f) + Math::abs(y - h * 0.5f + 0.5f) < 5.0f;
+			const float a = diamond ? 1.0f : (line ? fade : 0.0f);
+			img->set_pixel(x, y, Color(1, 1, 1, a));
+		}
+	}
+	TextureRect *sep = memnew(TextureRect);
+	sep->set_name("Separator");
+	sep->set_texture(ImageTexture::create_from_image(img));
+	sep->set_expand_mode(TextureRect::EXPAND_IGNORE_SIZE);
+	sep->set_stretch_mode(TextureRect::STRETCH_SCALE);
+	sep->set_custom_minimum_size(Size2(0, 12));
+	sep->set_self_modulate(Color(1, 1, 1, 0.8));
+	return sep;
+}
+
 Control *UZUUI::make_panel(Control *p_content) {
 	PanelContainer *panel = memnew(PanelContainer);
 	panel->set_name("Panel");
@@ -347,6 +834,17 @@ void UZUUI::_bind_methods() {
 	ClassDB::bind_static_method("UZUUI", D_METHOD("draw_panel", "radius", "top", "bottom", "border", "border_width", "shadow"), &UZUUI::draw_panel);
 	ClassDB::bind_static_method("UZUUI", D_METHOD("create_theme", "options"), &UZUUI::create_theme, DEFVAL(Dictionary()));
 	ClassDB::bind_static_method("UZUUI", D_METHOD("get_theme_defaults"), &UZUUI::get_theme_defaults);
+	ClassDB::bind_static_method("UZUUI", D_METHOD("draw_frame", "style"), &UZUUI::draw_frame);
+	ClassDB::bind_static_method("UZUUI", D_METHOD("create_frame_style", "style"), &UZUUI::create_frame_style);
+	ClassDB::bind_static_method("UZUUI", D_METHOD("get_world_names"), &UZUUI::get_world_names);
+	ClassDB::bind_static_method("UZUUI", D_METHOD("get_world_options", "world"), &UZUUI::get_world_options);
+	ClassDB::bind_static_method("UZUUI", D_METHOD("create_world_theme", "world", "overrides"), &UZUUI::create_world_theme, DEFVAL(Dictionary()));
+	ClassDB::bind_static_method("UZUUI", D_METHOD("get_world_motion", "world"), &UZUUI::get_world_motion);
+	ClassDB::bind_static_method("UZUUI", D_METHOD("make_gauge", "value", "max", "segments"), &UZUUI::make_gauge, DEFVAL(100.0), DEFVAL(10));
+	ClassDB::bind_static_method("UZUUI", D_METHOD("make_talk_window", "speaker", "text"), &UZUUI::make_talk_window);
+	ClassDB::bind_static_method("UZUUI", D_METHOD("make_item_slot", "label", "count"), &UZUUI::make_item_slot, DEFVAL(String()), DEFVAL(0));
+	ClassDB::bind_static_method("UZUUI", D_METHOD("make_ribbon", "text"), &UZUUI::make_ribbon);
+	ClassDB::bind_static_method("UZUUI", D_METHOD("make_separator"), &UZUUI::make_separator);
 	ClassDB::bind_static_method("UZUUI", D_METHOD("make_panel", "content"), &UZUUI::make_panel, DEFVAL(Variant()));
 	ClassDB::bind_static_method("UZUUI", D_METHOD("make_button", "text"), &UZUUI::make_button);
 	ClassDB::bind_static_method("UZUUI", D_METHOD("make_bar", "value", "max"), &UZUUI::make_bar, DEFVAL(100.0));

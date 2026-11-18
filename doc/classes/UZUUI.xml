@@ -12,11 +12,19 @@
 		screen.add_child(dialog)
 		[/codeblock]
 		Screens can also be built from a JSON spec with [code]ai_loop/uzu.py ui[/code], which uses this class.
+		World themes ([method create_world_theme]) give game frames instead of plain panels: wood, parchment, glass, halftone and other textures, game shapes and corner ornaments, and the classic game parts (segmented gauges, talk windows, item slots, ribbons). One name switches the world.
 		[b]Note:[/b] This class is specific to U.ZU Engine.
 	</description>
 	<tutorials>
 	</tutorials>
 	<methods>
+		<method name="create_frame_style" qualifiers="static">
+			<return type="StyleBox" />
+			<param index="0" name="style" type="Dictionary" />
+			<description>
+				Returns a 9-slice style from [method draw_frame]. Its middle repeats, so the texture keeps its scale at any size. The shadow is drawn outside the control's rectangle.
+			</description>
+		</method>
 		<method name="create_panel_style" qualifiers="static">
 			<return type="StyleBox" />
 			<param index="0" name="style" type="Dictionary" />
@@ -40,6 +48,28 @@
 				- [code]panel[/code], [code]button[/code] and [code]bar[/code]: style dictionaries as in [method create_panel_style]. Buttons also take [code]hover[/code] and [code]pressed[/code] colors; bars take [code]fill[/code].
 			</description>
 		</method>
+		<method name="create_world_theme" qualifiers="static">
+			<return type="Theme" />
+			<param index="0" name="world" type="String" />
+			<param index="1" name="overrides" type="Dictionary" default="{}" />
+			<description>
+				Returns the theme of a world (see [method get_world_names]): textured frames for panels, buttons, tabs, lists and tooltips, the world's colors, and the type variations of the game parts ([code]UZUGauge[/code], [code]UZUTalk[/code], [code]UZUNameTag[/code], [code]UZUSlot[/code], [code]UZURibbon[/code]). So the same UI changes world with one name. [param overrides] changes any option of [method get_world_options], for example [code]font[/code]. The theme's metadata holds [code]uzu_world[/code] and [code]uzu_motion[/code] ([method get_world_motion]). Returns [code]null[/code] for an unknown world.
+			</description>
+		</method>
+		<method name="draw_frame" qualifiers="static">
+			<return type="Image" />
+			<param index="0" name="style" type="Dictionary" />
+			<description>
+				Draws the 9-slice image of a game frame. Keys:
+				- [code]material[/code]: [code]wood[/code], [code]metal[/code], [code]parchment[/code], [code]stone[/code], [code]glass[/code], [code]halftone[/code], [code]grime[/code] or [code]flat[/code].
+				- [code]shape[/code]: [code]rounded[/code], [code]chamfer[/code], [code]skew[/code] or [code]pixel[/code]. Pixel frames have hard edges with no anti-aliasing.
+				- [code]base[/code], [code]edge[/code] and [code]accent[/code] colors.
+				- [code]radius[/code], [code]border_width[/code] and [code]shadow[/code].
+				- [code]ornament[/code]: corner ornaments, [code]none[/code], [code]rivets[/code], [code]nails[/code], [code]brackets[/code] or [code]diamonds[/code].
+				- [code]padding[/code] and [code]seed[/code].
+				The textures are procedural and repeat every 32 pixels.
+			</description>
+		</method>
 		<method name="draw_panel" qualifiers="static">
 			<return type="Image" />
 			<param index="0" name="radius" type="int" />
@@ -56,6 +86,26 @@
 			<return type="Dictionary" />
 			<description>
 				Returns the default options of [method create_theme].
+			</description>
+		</method>
+		<method name="get_world_motion" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="world" type="String" />
+			<description>
+				Returns how a world's UI moves when opened or hovered: [code]duration[/code], [code]transition[/code], [code]ease[/code], [code]overshoot[/code] and [code]steps[/code]. Persona-like UI snaps with a big overshoot, sf UI eases in mechanically, fantasy UI has a soft overshoot, and pixel UI steps frame by frame.
+			</description>
+		</method>
+		<method name="get_world_names" qualifiers="static">
+			<return type="PackedStringArray" />
+			<description>
+				Returns the world themes: [code]fantasy[/code], [code]wafu[/code], [code]sf[/code], [code]horror[/code], [code]persona[/code] and [code]pixel[/code].
+			</description>
+		</method>
+		<method name="get_world_options" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="world" type="String" />
+			<description>
+				Returns the options of a world: [code]frame[/code] and [code]button[/code] (frame styles), [code]text[/code], [code]button_text[/code], [code]accent[/code], [code]fill[/code] and [code]font_size[/code].
 			</description>
 		</method>
 		<method name="make_bar" qualifiers="static">
@@ -82,6 +132,23 @@
 				Returns a panel with a title, wrapped text, and a row of buttons on the right. The parts are [code]Content/Title[/code], [code]Content/Text[/code] and [code]Content/Buttons/&lt;label&gt;[/code].
 			</description>
 		</method>
+		<method name="make_gauge" qualifiers="static">
+			<return type="Control" />
+			<param index="0" name="value" type="float" />
+			<param index="1" name="max" type="float" default="100.0" />
+			<param index="2" name="segments" type="int" default="10" />
+			<description>
+				Returns a segmented gauge: a [ProgressBar] whose fill is a row of segments. It is 12 pixels per segment wide.
+			</description>
+		</method>
+		<method name="make_item_slot" qualifiers="static">
+			<return type="Control" />
+			<param index="0" name="label" type="String" default="&quot;&quot;" />
+			<param index="1" name="count" type="int" default="0" />
+			<description>
+				Returns a square, sunken item slot with a label, and a count in the corner when [param count] is above 0.
+			</description>
+		</method>
 		<method name="make_list" qualifiers="static">
 			<return type="Control" />
 			<param index="0" name="items" type="PackedStringArray" />
@@ -96,11 +163,32 @@
 				Returns a [PanelContainer], holding [param content] if given.
 			</description>
 		</method>
+		<method name="make_ribbon" qualifiers="static">
+			<return type="Control" />
+			<param index="0" name="text" type="String" />
+			<description>
+				Returns a ribbon heading in the world's accent color.
+			</description>
+		</method>
+		<method name="make_separator" qualifiers="static">
+			<return type="Control" />
+			<description>
+				Returns a decorated divider: a line that fades at both ends, with a diamond in the middle.
+			</description>
+		</method>
 		<method name="make_tabs" qualifiers="static">
 			<return type="Control" />
 			<param index="0" name="titles" type="PackedStringArray" />
 			<description>
 				Returns a [TabContainer] with one empty page (a [VBoxContainer]) per title.
+			</description>
+		</method>
+		<method name="make_talk_window" qualifiers="static">
+			<return type="Control" />
+			<param index="0" name="speaker" type="String" />
+			<param index="1" name="text" type="String" />
+			<description>
+				Returns a talk window: a name tag over the window's top edge ([code]TagMargin/NameTag/Speaker[/code]), the line ([code]Window/Body/Line[/code]), and a next mark ([code]Window/Body/Next[/code]).
 			</description>
 		</method>
 	</methods>
