@@ -54,6 +54,18 @@ def render(godot, project, variant, args, out):
     return {"variant": variant, "grain": grain(shot), "gpu_ms_median": info.get("gpu_ms_median"), "image": shot}
 
 
+def once_more(fn, *a):
+    """The local RTX 4050 laptop has machine-wide GPU faults (NVIDIA Xid 13 / device lost, also outside Godot;
+    see ai_loop/iterations/2026-11-18-GPUFLAKE-claude-local.md). A failed render is tried once more, and the
+    first failure is kept in the result as "retried" so flaky runs stay visible."""
+    r = fn(*a)
+    if "error" in r:
+        first = {k: r[k] for k in ("error", "log") if k in r}
+        r = fn(*a)
+        r["retried"] = first
+    return r
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("godot", nargs="?")
@@ -78,7 +90,7 @@ def main():
         project = os.path.join(work, "street")
         shutil.copytree(SAMPLE, project, ignore=shutil.ignore_patterns(".godot"))
         subprocess.run([args.godot, "--headless", "--path", project, "--import"], capture_output=True)
-        results = [render(args.godot, project, v, args, out) for v in args.variants.split(",")]
+        results = [once_more(render, args.godot, project, v, args, out) for v in args.variants.split(",")]
     finally:
         shutil.rmtree(work, ignore_errors=True)
     ok = all("error" not in r for r in results)
