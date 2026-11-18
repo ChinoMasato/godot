@@ -36,6 +36,7 @@
 #include "core/os/time.h"
 #include "scene/main/node.h"
 #include "scene/main/scene_tree.h"
+#include "scene/main/window.h"
 
 // The per-frame driver for UZUJuice's effects: created once by
 // UZUJuice::ensure_runtime() as a child of the scene tree root, so it survives
@@ -47,11 +48,14 @@ class UZUJuiceRuntime : public Node {
 public:
 	UZUJuiceRuntime() {
 		set_process_mode(Node::PROCESS_MODE_ALWAYS);
+		set_process(true);
 		set_name("UZUJuiceRuntime");
 	}
-	virtual void _process(double p_delta) override {
-		(void)p_delta; // Deadlines use the wall clock, not the scaled delta.
-		UZUJuice::apply_time_state();
+	virtual void _notification(int p_what) override {
+		if (p_what == NOTIFICATION_PROCESS) {
+			// Deadlines use the wall clock, not the scaled delta.
+			UZUJuice::apply_time_state();
+		}
 	}
 };
 
@@ -83,14 +87,18 @@ void UZUJuice::apply_time_state() {
 
 void UZUJuice::ensure_runtime() {
 	SceneTree *tree = Object::cast_to<SceneTree>(OS::get_singleton()->get_main_loop());
-	if (!tree || !tree->get_root()) {
+	if (!tree) {
 		return;
 	}
-	if (tree->get_root()->get_node_or_null("UZUJuiceRuntime")) {
+	Window *root = tree->get_root();
+	if (!root) {
+		return;
+	}
+	if (root->get_node_or_null("UZUJuiceRuntime")) {
 		return;
 	}
 	UZUJuiceRuntime *runtime = memnew(UZUJuiceRuntime);
-	tree->get_root()->add_child(runtime);
+	root->add_child(runtime);
 }
 
 void UZUJuice::hitstop(double p_duration, double p_scale) {
