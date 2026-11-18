@@ -1,0 +1,123 @@
+{
+  "ok": false,
+  "results": [
+    {
+      "case": "wind",
+      "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+      "gpu_ms_median": 0.127000004053116,
+      "image": "wind_0.0_0.4.png",
+      "ok": true,
+      "size": [
+        1280,
+        720
+      ],
+      "strength": 0.0,
+      "time": 0.4,
+      "name": "wind_0.0_0.4",
+      "exit_code": 0,
+      "errors": []
+    },
+    {
+      "case": "wind",
+      "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+      "gpu_ms_median": 0.128000006079674,
+      "image": "wind_0.0_1.2.png",
+      "ok": true,
+      "size": [
+        1280,
+        720
+      ],
+      "strength": 0.0,
+      "time": 1.2,
+      "name": "wind_0.0_1.2",
+      "exit_code": 0,
+      "errors": []
+    },
+    {
+      "case": "wind",
+      "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+      "gpu_ms_median": 0.128000006079674,
+      "image": "wind_0.12_0.4.png",
+      "ok": true,
+      "size": [
+        1280,
+        720
+      ],
+      "strength": 0.12,
+      "time": 0.4,
+      "name": "wind_0.12_0.4",
+      "exit_code": 0,
+      "errors": []
+    },
+    {
+      "case": "wind",
+      "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+      "gpu_ms_median": 0.128000006079674,
+      "image": "wind_0.12_1.2.png",
+      "ok": true,
+      "size": [
+        1280,
+        720
+      ],
+      "strength": 0.12,
+      "time": 1.2,
+      "name": "wind_0.12_1.2",
+      "exit_code": 0,
+      "errors": []
+    },
+    {
+      "case": "wind",
+      "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+      "gpu_ms_median": 0.12899999320507,
+      "image": "wind_0.8_0.4.png",
+      "ok": true,
+      "size": [
+        1280,
+        720
+      ],
+      "strength": 0.8,
+      "time": 0.4,
+      "name": "wind_0.8_0.4",
+      "exit_code": 0,
+      "errors": []
+    },
+    {
+      "name": "wind_0.8_1.2",
+      "ok": false,
+      "exit_code": 3221225477,
+      "errors": [
+        "ERROR: Couldn't wait for Vulkan fence (VkResult error -4).",
+        "ERROR: Printing last known breadcrumbs in reverse order (last executed first).",
+        "ERROR: Searching last breadcrumb. We've sent up to ID: 80",
+        "ERROR: Last breadcrumb ID found: 77",
+        "ERROR: Last known breadcrumb: BLIT_PASS",
+        "ERROR: Last known breadcrumb: BLIT_PASS",
+        "ERROR: Last known breadcrumb: BLIT_PASS",
+        "ERROR: Last known breadcrumb: BLIT_PASS",
+        "ERROR: Last known breadcrumb: BLIT_PASS",
+        "ERROR: Last known breadcrumb: BLIT_PASS",
+        "ERROR: Last known breadcrumb: BLIT_PASS",
+        "ERROR: Last known breadcrumb: BLIT_PASS"
+      ]
+    }
+  ],
+  "pairs": {
+    "wind_0.0": {
+      "mean_rgb_difference": 0.0,
+      "changed_percent_over_8": 0.0
+    },
+    "wind_0.12": {
+      "mean_rgb_difference": 0.18826786747685187,
+      "changed_percent_over_8": 0.5115017361111112
+    }
+  },
+  "checks": {
+    "all_renders_succeeded": false,
+    "stationary_control": true,
+    "wind_moves": true,
+    "stronger_wind_changes_more_pixels": null,
+    "rays_visible": null,
+    "production_time_animates": null
+  },
+  "scope": "Pinned shader time in a test copy; timing includes no U.ZU post effects. Null checks were not completed."
+}
