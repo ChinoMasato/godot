@@ -83,4 +83,43 @@ TEST_CASE("[Scene][UZUJuice] Static API drives the shared state") {
 	CHECK_FALSE(UZUJuice::is_time_effect_active());
 }
 
+TEST_CASE("[Scene][UZUJuice] Shake state: trauma clamps, decays and squares") {
+	UZUJuiceShakeState state;
+	CHECK(state.strength() == doctest::Approx(0.0));
+	state.add(0.3);
+	CHECK(state.trauma == doctest::Approx(0.3));
+	state.add(0.9);
+	CHECK(state.trauma == doctest::Approx(1.0)); // Clamped.
+	CHECK(state.strength() == doctest::Approx(1.0));
+	state.update(0.3125); // 1.6 per second: half a second of trauma in 0.3125 s.
+	CHECK(state.trauma == doctest::Approx(0.5));
+	CHECK(state.strength() == doctest::Approx(0.25)); // Squared: half trauma, quarter shake.
+	state.update(10.0);
+	CHECK(state.trauma == doctest::Approx(0.0)); // Never below zero.
+}
+
+TEST_CASE("[Scene][UZUJuice] Shake state: the offset is bounded and deterministic") {
+	UZUJuiceShakeState state;
+	CHECK(state.offset_at(3.7, 0.5) == Vector2());
+	state.add(1.0);
+	Vector2 a = state.offset_at(3.7, 0.5);
+	Vector2 b = state.offset_at(3.7, 0.5);
+	CHECK(a == b); // Same time, same offset.
+	CHECK(Math::abs(a.x) <= 0.5);
+	CHECK(Math::abs(a.y) <= 0.5);
+	state.clear();
+	CHECK(state.offset_at(3.7, 0.5) == Vector2());
+}
+
+TEST_CASE("[Scene][UZUJuice] Shake static API drives the shared state") {
+	UZUJuice::clear_shake();
+	CHECK(UZUJuice::get_trauma() == doctest::Approx(0.0));
+	UZUJuice::shake(0.4);
+	CHECK(UZUJuice::get_trauma() == doctest::Approx(0.4));
+	UZUJuice::shake(0.4);
+	CHECK(UZUJuice::get_trauma() == doctest::Approx(0.8));
+	UZUJuice::clear_shake();
+	CHECK(UZUJuice::get_trauma() == doctest::Approx(0.0));
+}
+
 } // namespace TestUZUJuice

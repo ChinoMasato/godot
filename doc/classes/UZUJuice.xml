@@ -52,5 +52,24 @@
 				Runs the game's time at [param scale] (for example 0.25) for [param duration] real seconds, then restores the previous scale.
 			</description>
 		</method>
+		<method name="clear_shake" qualifiers="static">
+			<return type="void" />
+			<description>
+				Stops the screen shake immediately and restores the camera's own offset exactly.
+			</description>
+		</method>
+		<method name="get_trauma" qualifiers="static">
+			<return type="float" />
+			<description>
+				The current shake trauma (0..1). The applied offset scales with trauma squared, so a trauma of 0.5 shakes a quarter as much as 1.0.
+			</description>
+		</method>
+		<method name="shake" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="amount" type="float" />
+			<description>
+				Adds [param amount] of screen-shake trauma (clamped to 1.0 in total): about 0.3 for a normal hit, 0.7 for a big explosion. Trauma decays at 1.6 per second on its own. The shake is applied to the current camera (Camera3D h/v offset or Camera2D offset), preserving and later restoring the camera's own offset.
+			</description>
+		</method>
 	</methods>
 </class>

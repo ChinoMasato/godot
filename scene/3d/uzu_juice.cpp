@@ -35,9 +35,14 @@
 #include "core/math/math_funcs.h"
 #include "core/os/os.h"
 #include "core/os/time.h"
+#include "scene/2d/camera_2d.h"
+#include "scene/3d/camera_3d.h"
 #include "scene/main/node.h"
+#include "scene/main/viewport.h"
 #include "scene/main/scene_tree.h"
 #include "scene/main/window.h"
+
+static uint64_t _now_msec();
 
 // The per-frame driver for UZUJuice's effects: created once by
 // UZUJuice::ensure_runtime() as a child of the scene tree root, so it survives
@@ -52,10 +57,15 @@ public:
 		set_process(true);
 		set_name("UZUJuiceRuntime");
 	}
+	uint64_t last_msec = 0;
 	void _notification(int p_what) {
 		if (p_what == NOTIFICATION_PROCESS) {
 			// Deadlines use the wall clock, not the scaled delta.
 			UZUJuice::apply_time_state();
+			uint64_t now = _now_msec();
+			double dt = last_msec ? double(now - last_msec) / 1000.0 : 0.0;
+			last_msec = now;
+			UZUJuice::apply_shake(dt, double(now) / 1000.0);
 		}
 	}
 };
@@ -131,10 +141,93 @@ double UZUJuice::applied_time_scale() {
 	return time_state().effective_scale(_now_msec());
 }
 
+UZUJuiceShakeState &UZUJuice::shake_state() {
+	static UZUJuiceShakeState state;
+	return state;
+}
+
+void UZUJuice::shake(double p_amount) {
+	shake_state().add(p_amount);
+	ensure_runtime();
+}
+
+void UZUJuice::clear_shake() {
+	shake_state().clear();
+	apply_shake(0.0, double(_now_msec()) / 1000.0);
+}
+
+double UZUJuice::get_trauma() {
+	return shake_state().trauma;
+}
+
+// The camera offsets the shake found when it took over, per camera, so the
+// game's own offset is restored exactly when the shake ends.
+static ObjectID _shake_cam3d_id;
+static Vector2 _shake_cam3d_base;
+static ObjectID _shake_cam2d_id;
+static Vector2 _shake_cam2d_base;
+
+template <typename T>
+static T *_instance_or_null(ObjectID p_id) {
+	return Object::cast_to<T>(ObjectDB::get_instance(p_id));
+}
+
+void UZUJuice::apply_shake(double p_real_dt, double p_now_sec) {
+	UZUJuiceShakeState &state = shake_state();
+	state.update(p_real_dt);
+	SceneTree *tree = Object::cast_to<SceneTree>(OS::get_singleton()->get_main_loop());
+	if (!tree) {
+		return;
+	}
+	Window *root = tree->get_root();
+	if (!root) {
+		return;
+	}
+	Viewport *viewport = root;
+	Vector2 offset = state.offset_at(p_now_sec, 0.5);
+	bool shaking = state.trauma > 0.0;
+
+	Camera3D *cam3 = viewport->get_camera_3d();
+	if (cam3) {
+		if (_shake_cam3d_id != cam3->get_instance_id()) {
+			if (Camera3D *old = _instance_or_null<Camera3D>(_shake_cam3d_id)) {
+				old->set_h_offset(_shake_cam3d_base.x);
+				old->set_v_offset(_shake_cam3d_base.y);
+			}
+			_shake_cam3d_id = cam3->get_instance_id();
+			_shake_cam3d_base = Vector2(cam3->get_h_offset(), cam3->get_v_offset());
+		}
+		Vector2 target = shaking ? _shake_cam3d_base + offset : _shake_cam3d_base;
+		cam3->set_h_offset(target.x);
+		cam3->set_v_offset(target.y);
+		if (!shaking) {
+			_shake_cam3d_id = ObjectID();
+		}
+	}
+
+	Camera2D *cam2 = viewport->get_camera_2d();
+	if (cam2) {
+		if (_shake_cam2d_id != cam2->get_instance_id()) {
+			if (Camera2D *old = _instance_or_null<Camera2D>(_shake_cam2d_id)) {
+				old->set_offset(_shake_cam2d_base);
+			}
+			_shake_cam2d_id = cam2->get_instance_id();
+			_shake_cam2d_base = cam2->get_offset();
+		}
+		cam2->set_offset(shaking ? _shake_cam2d_base + offset * 64.0 : _shake_cam2d_base);
+		if (!shaking) {
+			_shake_cam2d_id = ObjectID();
+		}
+	}
+}
+
 void UZUJuice::_bind_methods() {
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("hitstop", "duration", "scale"), &UZUJuice::hitstop, DEFVAL(0.0));
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("slowmo", "scale", "duration"), &UZUJuice::slowmo);
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("cancel_time_effects"), &UZUJuice::cancel_time_effects);
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("is_time_effect_active"), &UZUJuice::is_time_effect_active);
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("applied_time_scale"), &UZUJuice::applied_time_scale);
+	ClassDB::bind_static_method("UZUJuice", D_METHOD("shake", "amount"), &UZUJuice::shake);
+	ClassDB::bind_static_method("UZUJuice", D_METHOD("clear_shake"), &UZUJuice::clear_shake);
+	ClassDB::bind_static_method("UZUJuice", D_METHOD("get_trauma"), &UZUJuice::get_trauma);
 }
