@@ -217,7 +217,7 @@ TEST_CASE("[Scene][UZUJuice] Burst2D carries the dot texture and the color") {
 
 } // namespace TestUZUJuice
 
-TEST_CASE("[UZUJuice] impact land: squash, shake and sound only") {
+TEST_CASE("[Scene][UZUJuice] impact land: squash, shake and sound only") {
 	Node3D *parent = memnew(Node3D);
 	Node3D *node = memnew(Node3D);
 	parent->add_child(node);
@@ -227,7 +227,7 @@ TEST_CASE("[UZUJuice] impact land: squash, shake and sound only") {
 	memdelete(parent);
 }
 
-TEST_CASE("[UZUJuice] impact pickup: burst and sound, no hitstop") {
+TEST_CASE("[Scene][UZUJuice] impact pickup: burst and sound, no hitstop") {
 	Node3D *parent = memnew(Node3D);
 	Node3D *node = memnew(Node3D);
 	parent->add_child(node);
@@ -236,7 +236,7 @@ TEST_CASE("[UZUJuice] impact pickup: burst and sound, no hitstop") {
 	memdelete(parent);
 }
 
-TEST_CASE("[UZUJuice] impact hit and unknown kinds") {
+TEST_CASE("[Scene][UZUJuice] impact hit and unknown kinds") {
 	PackedStringArray names = UZUJuice::get_impact_preset_names();
 	CHECK(names.size() == 5);
 	CHECK(names.has("hit"));
