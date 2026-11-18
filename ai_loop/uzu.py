@@ -11,6 +11,7 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py look     <project> <command> [options]   the U.ZU look (B-7xx), shot / check / panorama
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
+                  [--packet DIR] [--expect-clear]   on failure, a diagnosis packet in DIR (B-308)
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
@@ -450,6 +451,7 @@ def selfplay(project, args):
     replay = os.path.abspath(replay)
     frames, out, movie, events_out, seed = opt(args, "frames", "1800"), opt(args, "out"), opt(args, "movie"), opt(args, "log"), opt(args, "seed")
     hash_every, compare = opt(args, "hash-every"), opt(args, "compare")
+    packet = opt(args, "packet")
     godot = find_godot()
     sys.path.insert(0, os.path.join(HERE, "telemetry"))
     import report as telemetry
@@ -500,6 +502,13 @@ def selfplay(project, args):
         "errors": errors,
         "report": rep,
     }
+    if "--expect-clear" in args and not result["cleared"]:
+        result["ok"] = False
+    if packet:
+        failure = failure_reason(result, "--expect-clear" in args)
+        if failure:
+            result["ok"] = False  # With --packet, errors count as a failure (a script error does not stop the game).
+            result["packet"] = write_failure_packet(packet, project, replay, seed, result, failure, events)
     if hash_every:
         result["state_hashes"] = state_hashes or {"error": "no state hashes were written"}
         if compare:
@@ -509,6 +518,88 @@ def selfplay(project, args):
         with open(out, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=1)
     return result
+
+
+def failure_reason(result, expect_clear=False):
+    """Why a self-play counts as failed, or None (B-308)."""
+    serious = [e for e in result["errors"] if e.get("level") in ("error", "script_error")]
+    if serious:
+        return "error"
+    if result["exit_code"] != 0:
+        return "exit_code"
+    if expect_clear and not result["cleared"]:
+        return "not_cleared"
+    return None
+
+
+def write_failure_packet(folder, project, replay, seed, result, reason, events):
+    """Bundles what an agent needs to diagnose a failed self-play without running it
+    again (B-308): the structured errors (first one first, with the script line), a
+    frame and the declared state (B-307) at the failure, the input replay and seed with
+    the command to re-run, and the telemetry. Writes <folder>/packet.json and files."""
+    os.makedirs(folder, exist_ok=True)
+    serious = [e for e in result["errors"] if e.get("level") in ("error", "script_error")]
+    first = serious[0] if serious else None
+    # The failure frame: the first error's, else the last frame played.
+    frame = int(first.get("frame", 0)) if first else 0
+    if frame <= 0:
+        frame = max(result["frames"], 1)
+    shutil.copyfile(replay, os.path.join(folder, "replay.json"))
+    with open(os.path.join(folder, "errors.jsonl"), "w", encoding="utf-8") as f:
+        f.writelines(json.dumps(e, ensure_ascii=False) + "\n" for e in result["errors"])
+    with open(os.path.join(folder, "events.jsonl"), "w", encoding="utf-8") as f:
+        f.writelines(json.dumps(e, ensure_ascii=False) + "\n" for e in events)
+    # Replay through the failure frame (quit after the next one, so the state includes
+    # what that frame did) with drawing and state hashing: the run is
+    # deterministic (fixed input, fixed FPS, same seed), so it stops at the same point.
+    shot, state = None, None
+    with tempfile.TemporaryDirectory() as work:
+        game = os.path.join(work, "game")
+        shutil.copytree(project, game)
+        install_addons(game, ["telemetry/telemetry.gd", "selfplay/replay.gd", "selfplay/state_hash.gd"], AUTOLOADS_REPLAY + 'UZUStateHash="*res://addons/uzu_selfplay/state_hash.gd"\n')
+        hash_path = os.path.join(work, "state.json")
+        movie = os.path.join(work, "frame.png")
+        user = ["--", "--uzu-telemetry", os.path.join(work, "e.jsonl"), "--uzu-replay", replay, "--uzu-state-hash", hash_path, "--uzu-hash-every", "1"] + (["--uzu-seed", seed] if seed else [])
+        try:
+            cmd, env = render_command([find_godot(), "--path", game] + driver() + ["--resolution", "640x360", "--write-movie", movie, "--fixed-fps", "60", "--quit-after", str(frame + 1)] + user, "640x360")
+            run(cmd, timeout=900, env=env)
+        except ToolError:
+            cmd = [find_godot(), "--headless", "--path", game, "--fixed-fps", "60", "--quit-after", str(frame + 1)] + user
+            run(cmd, timeout=900)
+        frames = sorted(glob.glob(os.path.join(work, "frame*.png")))
+        if frames:
+            shot = os.path.join(folder, "failure.png")
+            shutil.copyfile(frames[-1], shot)
+        if os.path.exists(hash_path):
+            with open(hash_path, encoding="utf-8") as f:
+                state = json.load(f).get("state")
+    with open(os.path.join(folder, "state.json"), "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=1)
+    where = None
+    if first:
+        # The script position: the script error's own, or the script line that raised an engine error.
+        where = {"file": first.get("script_file") or first.get("file"), "line": first.get("script_line", first.get("line")), "function": first.get("script_function") or first.get("function")}
+    rerun = ["python3", "ai_loop/uzu.py", "selfplay", project, "--input", os.path.join(folder, "replay.json"), "--frames", str(result["frames"] or 1800)] + (["--seed", seed] if seed else [])
+    packet = {
+        "reason": reason,
+        "where": where,
+        "first_error": first,
+        "frame": frame,
+        "errors": len(result["errors"]),
+        "screenshot": "failure.png" if shot else None,
+        "state": state,
+        "checkpoints": result["checkpoints"],
+        "deaths": result["deaths"],
+        "cleared": result["cleared"],
+        "report": result["report"],
+        "replay": "replay.json",
+        "seed": seed or None,
+        "rerun": rerun,
+        "files": sorted(os.listdir(folder)) + ["packet.json"],
+    }
+    with open(os.path.join(folder, "packet.json"), "w", encoding="utf-8") as f:
+        json.dump(packet, f, ensure_ascii=False, indent=1)
+    return {"folder": os.path.abspath(folder), "reason": reason, "where": where, "frame": frame}
 
 
 def compare_state_hashes(baseline, current):
@@ -725,6 +816,30 @@ def selftest_selfplay():
         h3 = selfplay(changed, ["--input", replay, "--frames", "600", "--hash-every", "30", "--compare", os.path.join(work, "h1.json")])
         assert not h3["ok"] and not h3["comparison"]["same"] and h3["comparison"]["first_difference"] == 30, h3["comparison"]
         assert h3["comparison"]["state_differences"], h3["comparison"]
+        # B-308: a failure packet. A game that breaks at the second checkpoint: the packet
+        # alone names the script and line, and holds a frame, the state and the replay.
+        broken = os.path.join(work, "broken_game")
+        shutil.copytree(game, broken)
+        with open(os.path.join(broken, "main.gd"), encoding="utf-8") as f:
+            lines = f.read().split("\n")
+        at = next(i for i, l in enumerate(lines) if '_telemetry("checkpoint", CHECKPOINTS[cx])' in l)
+        indent = lines[at][: len(lines[at]) - len(lines[at].lstrip())]
+        lines[at + 1 : at + 1] = [indent + 'if CHECKPOINTS[cx] == "cp2":', indent + "\tvar broken_list := []", indent + "\tprint(broken_list[3])"]
+        with open(os.path.join(broken, "main.gd"), "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        bad_line = at + 4  # 1-based line of print(broken_list[3]).
+        packet_dir = os.path.join(work, "packet")
+        p = selfplay(broken, ["--input", replay, "--frames", "600", "--packet", packet_dir, "--expect-clear"])
+        assert not p["ok"] and p["packet"]["reason"] == "error", p.get("packet")
+        with open(os.path.join(packet_dir, "packet.json"), encoding="utf-8") as f:
+            pk = json.load(f)
+        assert pk["where"] == {"file": "res://main.gd", "line": bad_line, "function": "_physics_process"}, pk["where"]
+        # The state at the failure: just at the second checkpoint (the game itself plays on after a script error).
+        assert "cp2" in pk["checkpoints"] and pk["state"]["/root/Main"]["respawn_x"] == "500.0", pk["state"]
+        assert pk["screenshot"] in (None, "failure.png")
+        assert os.path.exists(os.path.join(packet_dir, "replay.json")) and os.path.exists(os.path.join(packet_dir, "errors.jsonl"))
+        assert pk["rerun"][:3] == ["python3", "ai_loop/uzu.py", "selfplay"]
+        assert "packet" not in selfplay(game, ["--input", replay, "--frames", "600", "--packet", os.path.join(work, "none")]), "no packet when nothing fails"
         s1, s1b, s2 = (selfplay(rand, ["--input", no_jump, "--frames", "5", "--seed", s])["checkpoints"] for s in ("1", "1", "2"))
         assert s1 == s1b and s1 != s2 and len(s1) == 1, (s1, s1b, s2)
     print("selfplay selftest: ok")

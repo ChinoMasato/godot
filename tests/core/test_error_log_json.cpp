@@ -32,6 +32,7 @@
 
 TEST_FORCE_LINK(test_error_log_json)
 
+#include "core/config/engine.h"
 #include "core/error/error_log_json.h"
 #include "core/io/dir_access.h"
 #include "core/io/file_access.h"
@@ -55,6 +56,7 @@ TEST_CASE("[ErrorLogJSON] Lines are JSON with stable codes") {
 	CHECK(String(entry["code"]).length() == 9);
 	CHECK_FALSE(line.contains("\n"));
 	CHECK_FALSE(entry.has("script_file"));
+	CHECK(int(entry["frame"]) == int(Engine::get_singleton()->get_process_frames())); // B-308: when it happened.
 
 	// An engine error raised from a script also says where in the script (B-103).
 	const Dictionary from_script = JSON::parse_string(ErrorLogJSON::format_line("get_node", "scene/main/node.cpp", 10, "", "Node not found", ERR_HANDLER_ERROR, "res://main.gd", 5, "_ready"));

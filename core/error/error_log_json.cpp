@@ -30,6 +30,7 @@
 
 #include "error_log_json.h"
 
+#include "core/config/engine.h"
 #include "core/io/file_access.h"
 #include "core/io/json.h"
 #include "core/object/script_backtrace.h"
@@ -77,6 +78,10 @@ String ErrorLogJSON::format_line(const char *p_function, const char *p_file, int
 	entry["function"] = function;
 	entry["message"] = message;
 	entry["condition"] = condition;
+	// The frame the error happened in (B-308), so a failure can be replayed up to it.
+	if (Engine::get_singleton()) {
+		entry["frame"] = Engine::get_singleton()->get_process_frames();
+	}
 	if (!p_script_file.is_empty()) {
 		entry["script_file"] = p_script_file;
 		entry["script_line"] = p_script_line;

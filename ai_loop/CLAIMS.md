@@ -66,3 +66,4 @@
 | B-723／B-724 | Claude Code (cloud) | ai-native（直接） | scene/3d/look_preset_3d.cpp, scene/3d/uzu_look.cpp, tests/scene/test_look_preset_3d.cpp, tests/scene/test_uzu_look.cpp, ai_loop/iterations/ | 反映済み（GPU 再撮影はローカル） | 2026-11-18 |
 | B-307 | Claude Code (cloud) | ai-native（直接） | ai_loop/selfplay/state_hash.gd（新規）, ai_loop/uzu.py, ai_loop/selfplay/sample_game/main.tscn, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-309 | Claude Code (cloud) | ai-native（直接） | ai_loop/selfplay/state_hash.gd, ai_loop/selfplay/control.gd, ai_loop/aiplayer.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
+| B-308 | Claude Code (cloud) | ai-native（直接） | core/error/error_log_json.{h,cpp}, tests/core/test_error_log_json.cpp, ai_loop/uzu.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |

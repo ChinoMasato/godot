@@ -37,7 +37,7 @@
 // error and warning is also appended to <file> as one line of JSON (JSON Lines),
 // so agents can read errors without parsing console text. The normal output is
 // unchanged. Each line: {"level", "code", "file", "line", "function", "message",
-// "condition"}, plus "script_file", "script_line" and "script_function" when an
+// "condition", "frame" (the process frame, B-308)}, plus "script_file", "script_line" and "script_function" when an
 // engine error (push_error, get_node...) was raised from a script. "code" is stable for a given error site (file, function and the
 // checked condition), so the same problem keeps the same code between runs.
 class ErrorLogJSON {
