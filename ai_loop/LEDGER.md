@@ -179,3 +179,4 @@
 - B-726: ローカル GPU 再確認の記録・画像はローカルセッションが ai-native へ統合済み（e165e44）。リード側の締めとして BACKLOG を完了にし、本項を追記した。判定の詳細は iterations/2026-11-18-B-726-GPU-claude-local.md。
 - B-902 追補: クラウドセッションの重複実装からの指摘（ぼかしの縮小が点サンプリングで、規則模様の目地に同期して光推定が外れる）を正と判断し、縮小を区画の平均に変更した（agent/b-902-blurfix-muse、Actions green、新規回帰テスト1件＝規則格子を光と誤認しないこと）。実測の裏付け（本当の法線との誤差 10.00°→9.54°）は iterations/2026-11-18-B-902-dup-claude.md。
 - B-109: 実装はクラウドセッションが反映済み。残りは macOS 実機での表示確認のみ。B-110: ワークフロー変更の差分を ai_loop/uzu_verify_artifact.patch に置き、push 代行をクラウドセッションへ依頼した（COORDINATION）。
+- B-1001: サンプルゲーム『灯りの欠片』を ai-native へ統合し、実エンジンでの完走を検証した（タイトル→収集3つ→点火→クリア、cleared=true、スクリプトエラー0件、スクショ4枚）。検証で main.gd の存在しない API 呼び出し（surface_material_override → set_surface_override_material、4箇所）を捕まえて修正。描画確認は Compatibility まで、Forward+ のルックは GPU 実機で別途。記録 iterations/2026-11-18-B-1001-muse.md。
