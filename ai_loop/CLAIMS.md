@@ -102,3 +102,4 @@
 | B-1102 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19、CI 1531 pass） |
 | B-1103 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19、CI 1534 pass） |
 | B-1104 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 着手（2026-11-19） |
+| B-314 | Codex | agent/b-314-codex | ai_loop/replay_compare.py, ai_loop/uzu.py（ログ照合への接続）, ai_loop/mcp_server.py（ログ照合ツールのみ）, ai_loop/tests/test_replay_compare.py, ai_loop/iterations/ | 作業中 | 2026-11-19 |
