@@ -1,3 +1,44 @@
+<p align="center">
+  <img src="misc/logo/logo.png" width="400" alt="U.ZU Engine logo">
+</p>
+
+# U.ZU Engine
+
+**AI エージェントによる開発に特化した、Godot のフォーク（MIT）**
+*An AI-native fork of the [Godot Engine](https://godotengine.org) (MIT), built and verified by AI agents.*
+
+## これは何か
+
+U.ZU Engine は、ユーズ株式会社が開発する AI ネイティブなゲームエンジンです。
+憲法はひとつだけです。
+
+> 面白いゲームを作るためのエンジン。今までのゲームエンジンは作るで終わっていた。
+
+「作る → 公開 → 遊ばれる → 感想が戻る → 直す」の循環を回し続けることを、
+エンジン自体の仕事とします。
+
+## 開発方式
+
+- 変更は AI エージェントが実装し、**人間のコードレビューの代わりに機械検証を関門**とします：
+  フルビルド + 全テスト + 実機（GPU）確認を通った変更だけを取り込みます。
+- 本家 Godot へプルリクエストは送りません。本家の AI コード方針を尊重し、
+  このフォークの中で完結させます。
+- 改造は「追加型」を原則とし、本家の新バージョンへ乗り換え続けられる規律を保ちます。
+
+## AI ファーストの方向
+
+- エディタ画面は作りません。すべての操作は CLI / MCP / 構造化出力（JSON）で AI が行います。
+- 作ったゲームを AI が自分でプレイし、詰まりや異常を検証する「自己検証プレイ」。
+- ドット絵 × 3D の光と影「HD-2D」表現を標準機能に。
+- 公開と感想の循環への橋（Gogashare 連携）。
+
+ベースは Godot 4.8 beta（master @ 203bf0a）。開発の記録は
+[ai_loop/](ai_loop/) にすべて公開しています。
+
+---
+
+以下は、ベースである Godot Engine（本家）の README です。
+
 # Godot Engine
 
 <p align="center">
