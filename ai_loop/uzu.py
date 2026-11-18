@@ -765,6 +765,28 @@ def selftest_engine():
         c.expect("pixel preset", r["ok"] and r["texels"]["ok"] and abs(r["texel"] - 0.05) < 1e-6, r)
         r = _call(look, p, ["texels", "--scene", "res://sprites.tscn"])
         c.expect("texels clean", r["ok"] and r["warnings"] == [], r)
+        # B-204: the project map (a separate small project: scenes, an instanced scene, a
+        # script with preload and class_name, signal connections, an autoload).
+        with tempfile.TemporaryDirectory() as m:
+            files = {
+                "project.godot": 'config_version=5\n\n[application]\n\nrun/main_scene="res://main.tscn"\n\n[autoload]\n\nGame="*res://game.gd"\n',
+                "game.gd": "extends Node\n",
+                "coin.gd": 'class_name Coin\nextends Area3D\nconst SPARK = preload("res://spark.tres")\nsignal picked\n',
+                "spark.tres": '[gd_resource type="StandardMaterial3D" format=3]\n\n[resource]\n',
+                "coin.tscn": '[gd_scene load_steps=2 format=3]\n\n[ext_resource type="Script" path="res://coin.gd" id="1"]\n\n[node name="Coin" type="Area3D"]\nscript = ExtResource("1")\n',
+                "main.tscn": '[gd_scene load_steps=2 format=3]\n\n[ext_resource type="PackedScene" path="res://coin.tscn" id="1"]\n\n[node name="Main" type="Node3D"]\n\n[node name="Coin1" parent="." instance=ExtResource("1")]\n\n[connection signal="picked" from="Coin1" to="." method="_on_coin_picked"]\n',
+            }
+            for name, text in files.items():
+                with open(os.path.join(m, name), "w", encoding="utf-8") as f:
+                    f.write(text)
+            r = _call(engine, m, ["map"])
+            ok = r.get("ok") and r["depends_on"]["res://main.tscn"] == ["res://coin.tscn"] and r["depends_on"]["res://coin.gd"] == ["res://spark.tres"]
+            ok = ok and r["used_by"]["res://coin.tscn"] == ["res://main.tscn"] and r["main_scene"] == "res://main.tscn"
+            ok = ok and r["scenes"]["res://main.tscn"]["connections"] == [{"from": "Coin1", "signal": "picked", "to": ".", "method": "_on_coin_picked"}]
+            ok = ok and r["scenes"]["res://main.tscn"]["instances"] == [{"node": "Coin1", "scene": "res://coin.tscn"}]
+            ok = ok and r["scenes"]["res://coin.tscn"]["scripts"] == [{"node": ".", "script": "res://coin.gd"}]
+            ok = ok and {"class": "Coin", "base": "Area3D", "path": "res://coin.gd"} in r["classes"] and r["autoloads"] == [{"name": "Game", "path": "res://game.gd", "singleton": True}]
+            c.expect("map", ok, r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))

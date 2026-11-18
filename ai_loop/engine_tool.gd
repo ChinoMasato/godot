@@ -23,6 +23,9 @@ extends SceneTree
 ## Project:
 ##   validate                                                     loads every scene, resource and script; lists problems (B-203)
 ##   actions                                                      the project's input actions and their events (B-304)
+##   map                                                          static index of the project (B-204): files by kind, dependencies
+##                                                                both ways, scenes (root, nodes, scripts, instances, signal
+##                                                                connections), autoloads, global classes, main scene
 ## Resources, settings, input map and import settings (B-802):
 ##   res-new      --path res://m.tres --type StandardMaterial3D [--set '{"albedo_color": "Color(1, 0, 0, 1)"}']
 ##   res-props    --path res://m.tres                             inspector properties with values
@@ -122,6 +125,8 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 			return _validate()
 		"actions":
 			return _actions()
+		"map":
+			return _map()
 		"res-new", "res-props", "res-get", "res-set":
 			return _resource_command(command, args)
 		"setting-get", "setting-set":
@@ -564,3 +569,112 @@ func _preset_command(command: String, args: PackedStringArray) -> Dictionary:
 	if err != OK:
 		return _error("could not save export_presets.cfg: %s" % error_string(err))
 	return {"ok": true, "command": command, "preset": name, "platform": PLATFORMS[platform], "export_path": out, "custom_template": template, "presets": _presets(cfg)}
+
+
+const MAP_KINDS := {"tscn": "scene", "scn": "scene", "tres": "resource", "res": "resource", "gd": "script", "gdshader": "shader", "gdshaderinc": "shader"}
+
+
+# A static index of the project for understanding it (B-204; validate, B-203, checks it).
+# Nothing is instantiated, so no game code runs.
+func _map() -> Dictionary:
+	var files := []
+	_project_files("res://", files)
+	var kinds := {}
+	var depends := {}
+	var used_by := {}
+	for file in files:
+		if file.get_extension() == "import" or file.get_extension() == "uid":
+			continue
+		var kind: String = MAP_KINDS.get(file.get_extension().to_lower(), "other")
+		if not kinds.has(kind):
+			kinds[kind] = []
+		kinds[kind].append(file)
+		if kind == "other":
+			continue
+		var deps := []
+		var entries := Array(ResourceLoader.get_dependencies(file))
+		if kind == "script":
+			entries.append_array(_script_references(file))  # preload/load/extends paths are not in the loader's list.
+		for entry in entries:
+			var dep := _dependency_path(entry)
+			if not dep.is_empty() and not dep in deps:
+				deps.append(dep)
+				if not used_by.has(dep):
+					used_by[dep] = []
+				used_by[dep].append(file)
+		deps.sort()
+		depends[file] = deps
+	for dep in used_by:
+		used_by[dep].sort()
+
+	var scenes := {}
+	for file in kinds.get("scene", []):
+		scenes[file] = _scene_map(file)
+
+	var autoloads := []
+	for prop in ProjectSettings.get_property_list():
+		var name: String = prop.name
+		if name.begins_with("autoload/"):
+			var value := String(ProjectSettings.get_setting(name))
+			autoloads.append({"name": name.trim_prefix("autoload/"), "path": value.trim_prefix("*"), "singleton": value.begins_with("*")})
+	var classes := []
+	var named := {}
+	for c in ProjectSettings.get_global_class_list():
+		classes.append({"class": c["class"], "base": c["base"], "path": c["path"]})
+		named[c["path"]] = true
+	# The class list is a cache the editor builds when it scans; read class_name from the scripts too.
+	for file in kinds.get("script", []):
+		if named.has(file):
+			continue
+		var source := FileAccess.get_file_as_string(file)
+		var class_match := RegEx.create_from_string("(?m)^\\s*class_name\\s+(\\w+)").search(source)
+		if class_match:
+			var base_match := RegEx.create_from_string("(?m)^\\s*extends\\s+([\\w\\.\"/:]+)").search(source)
+			classes.append({"class": class_match.get_string(1), "base": base_match.get_string(1).trim_prefix("\"").trim_suffix("\"") if base_match else "RefCounted", "path": file})
+	classes.sort_custom(func(a, b): return a["class"] < b["class"])
+	return {"ok": true, "command": "map", "main_scene": ProjectSettings.get_setting("application/run/main_scene", ""), "files": kinds, "depends_on": depends, "used_by": used_by, "scenes": scenes, "autoloads": autoloads, "classes": classes}
+
+
+# Resource paths a GDScript names in preload(), load() and extends "..." (string literals).
+func _script_references(path: String) -> Array:
+	var found := []
+	var source := FileAccess.get_file_as_string(path)
+	var regex := RegEx.create_from_string("(?:preload|load)\\(\\s*\"(res://[^\"]+)\"|extends\\s+\"(res://[^\"]+)\"")
+	for m in regex.search_all(source):
+		var target := m.get_string(1) if not m.get_string(1).is_empty() else m.get_string(2)
+		if not target in found:
+			found.append(target)
+	return found
+
+
+# "./A/B" -> "A/B", "." stays the root.
+func _clean_path(path: String) -> String:
+	return path.trim_prefix("./") if path != "." else path
+
+
+func _scene_map(path: String) -> Dictionary:
+	var packed := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
+	if packed == null:
+		return {"error": "could not load"}
+	var state := packed.get_state()
+	var nodes := []
+	var instances := []
+	var scripts := []
+	for i in state.get_node_count():
+		var node_path := _clean_path(str(state.get_node_path(i)))
+		var type := String(state.get_node_type(i))
+		var instance := state.get_node_instance(i)
+		if instance:
+			instances.append({"node": node_path, "scene": instance.resource_path})
+			if type.is_empty():
+				type = "(instance)"
+		for p in state.get_node_property_count(i):
+			if state.get_node_property_name(i, p) == "script":
+				var script = state.get_node_property_value(i, p)
+				if script is Script:
+					scripts.append({"node": node_path, "script": script.resource_path})
+		nodes.append({"path": node_path, "type": type})
+	var connections := []
+	for c in state.get_connection_count():
+		connections.append({"from": _clean_path(str(state.get_connection_source(c))), "signal": String(state.get_connection_signal(c)), "to": _clean_path(str(state.get_connection_target(c))), "method": String(state.get_connection_method(c))})
+	return {"root": nodes[0]["type"] if not nodes.is_empty() else "", "node_count": nodes.size(), "nodes": nodes, "scripts": scripts, "instances": instances, "connections": connections}

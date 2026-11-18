@@ -67,3 +67,4 @@
 | B-307 | Claude Code (cloud) | ai-native（直接） | ai_loop/selfplay/state_hash.gd（新規）, ai_loop/uzu.py, ai_loop/selfplay/sample_game/main.tscn, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-309 | Claude Code (cloud) | ai-native（直接） | ai_loop/selfplay/state_hash.gd, ai_loop/selfplay/control.gd, ai_loop/aiplayer.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-308 | Claude Code (cloud) | ai-native（直接） | core/error/error_log_json.{h,cpp}, tests/core/test_error_log_json.cpp, ai_loop/uzu.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
+| B-204 | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
