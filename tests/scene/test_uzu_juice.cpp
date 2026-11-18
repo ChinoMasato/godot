@@ -42,14 +42,10 @@ TEST_FORCE_LINK(test_uzu_juice)
 #include "scene/main/scene_tree.h"
 #include "scene/main/window.h"
 #include "scene/resources/uzu_sfx.h"
-#include <cstdio>
 
 namespace TestUZUJuice {
 
 TEST_CASE("[Scene][UZUJuice] Time state: idle is the base scale and inactive") {
-	fprintf(stderr, "DBG early generate land\n");
-	Ref<AudioStreamWAV> early = UZUSfx::generate_preset("land");
-	fprintf(stderr, "DBG early generate ok valid=%d\n", early.is_valid() ? 1 : 0);
 	UZUJuiceTimeState state;
 	CHECK(state.effective_scale(1000) == doctest::Approx(1.0));
 	CHECK_FALSE(state.active(1000));
@@ -223,25 +219,7 @@ TEST_CASE("[Scene][UZUJuice] Burst2D carries the dot texture and the color") {
 } // namespace TestUZUJuice
 
 
-TEST_CASE("[Scene][UZUJuice] impact debug steps (temporary)") {
-	fprintf(stderr, "DBG step 0\n");
-	Node3D *parent = memnew(Node3D);
-	Node3D *node = memnew(Node3D);
-	parent->add_child(node);
-	UZUJuice::squash(node, 0.3);
-	fprintf(stderr, "DBG step 1 squash ok\n");
-	UZUJuice::shake(0.12);
-	fprintf(stderr, "DBG step 2 shake ok\n");
-	Ref<AudioStreamWAV> stream = UZUSfx::generate_preset("land");
-	fprintf(stderr, "DBG step 3 generate ok valid=%d\n", stream.is_valid() ? 1 : 0);
-	AudioStreamPlayer *player = UZUSfx::play(parent, stream);
-	fprintf(stderr, "DBG step 4 play ok player=%p\n", (void *)player);
-	memdelete(parent);
-	fprintf(stderr, "DBG step 5 delete ok\n");
-	UZUJuice::clear_shake();
-}
-
-TEST_CASE("[Scene][UZUJuice] impact land: squash, shake and sound only") {
+TEST_CASE("[Scene][Audio][UZUJuice] impact land: squash, shake and sound only") {
 	Node3D *parent = memnew(Node3D);
 	Node3D *node = memnew(Node3D);
 	parent->add_child(node);
@@ -251,7 +229,7 @@ TEST_CASE("[Scene][UZUJuice] impact land: squash, shake and sound only") {
 	memdelete(parent);
 }
 
-TEST_CASE("[Scene][UZUJuice] impact pickup: burst and sound, no hitstop") {
+TEST_CASE("[Scene][Audio][UZUJuice] impact pickup: burst and sound, no hitstop") {
 	Node3D *parent = memnew(Node3D);
 	Node3D *node = memnew(Node3D);
 	parent->add_child(node);
@@ -260,7 +238,7 @@ TEST_CASE("[Scene][UZUJuice] impact pickup: burst and sound, no hitstop") {
 	memdelete(parent);
 }
 
-TEST_CASE("[Scene][UZUJuice] impact hit and unknown kinds") {
+TEST_CASE("[Scene][Audio][UZUJuice] impact hit and unknown kinds") {
 	PackedStringArray names = UZUJuice::get_impact_preset_names();
 	CHECK(names.size() == 5);
 	CHECK(names.has("hit"));

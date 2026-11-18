@@ -29,7 +29,7 @@
 /**************************************************************************/
 
 #include "uzu_sfx.h"
-#include <cstdio>
+#include "servers/audio/audio_server.h"
 
 #include "core/math/random_pcg.h"
 #include "core/object/callable_mp.h"
@@ -138,6 +138,11 @@ Dictionary UZUSfx::get_preset(const String &p_name, int p_seed) {
 }
 
 Ref<AudioStreamWAV> UZUSfx::generate(const Dictionary &p_params) {
+	// AudioStreamWAV::set_data locks the AudioServer; without one (unit-test
+	// harnesses, audio-less tooling) it would dereference a null singleton.
+	if (AudioServer::get_singleton() == nullptr) {
+		return fail("no AudioServer is available in this environment.");
+	}
 	Dictionary params = defaults();
 	for (const Variant &key : p_params.keys()) {
 		if (!params.has(key)) {
@@ -234,23 +239,17 @@ Ref<AudioStreamWAV> UZUSfx::generate(const Dictionary &p_params) {
 		w[i * 2 + 1] = uint8_t((q >> 8) & 0xff);
 	}
 
-	fprintf(stderr, "SFX loop done\n");
 	Ref<AudioStreamWAV> stream;
 	stream.instantiate();
-	fprintf(stderr, "SFX instantiated\n");
 	stream->set_format(AudioStreamWAV::FORMAT_16_BITS);
 	stream->set_mix_rate(rate);
 	stream->set_stereo(false);
-	fprintf(stderr, "SFX props set\n");
 	stream->set_data(data);
-	fprintf(stderr, "SFX data set\n");
 	return stream;
 }
 
 Ref<AudioStreamWAV> UZUSfx::generate_preset(const String &p_name, int p_seed) {
-	fprintf(stderr, "SFX gen_preset enter\n");
 	const Dictionary params = get_preset(p_name, p_seed);
-	fprintf(stderr, "SFX preset ok empty=%d\n", params.is_empty() ? 1 : 0);
 	if (params.is_empty()) {
 		return Ref<AudioStreamWAV>();
 	}
