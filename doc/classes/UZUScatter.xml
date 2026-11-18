@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUScatter" inherits="Object" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Spreads small props over a surface as one MultiMesh.
+	</brief_description>
+	<description>
+		[UZUScatter] places many small props (stones, tufts, flowers, debris) over the triangles of a surface mesh. Points are spread evenly by area. A fixed seed always gives the same layout, so a scene can be rebuilt exactly. Props can be filtered by slope, exclusion zones and a minimum spacing. [method scatter] draws them as one [MultiMeshInstance3D], so thousands of props cost about one draw call.
+		[codeblock]
+		var stats = UZUScatter.scatter(self, $Ground, preload("res://rock.tres"), {
+		    "density": 0.5, "seed": 3, "scale_min": 0.2, "scale_max": 0.4, "min_distance": 0.6,
+		    "exclude": [{"center": Vector3.ZERO, "radius": 3.0}],
+		}, "Stones")
+		print(stats.count, stats.bounds)
+		[/codeblock]
+		[b]Note:[/b] This class is specific to U.ZU Engine.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="compute_transforms" qualifiers="static">
+			<return type="Transform3D[]" />
+			<param index="0" name="surface" type="Mesh" />
+			<param index="1" name="surface_transform" type="Transform3D" />
+			<param index="2" name="options" type="Dictionary" default="{}" />
+			<description>
+				Returns the transforms of the props on [param surface], whose triangles are first moved by [param surface_transform]. See [method get_defaults] for the [param options]. An unknown option is an error, and the result is empty.
+			</description>
+		</method>
+		<method name="get_defaults" qualifiers="static">
+			<return type="Dictionary" />
+			<description>
+				Returns the options with their defaults:
+				- [code]density[/code]: props per square meter.
+				- [code]seed[/code]: the layout; the same seed gives the same props.
+				- [code]scale_min[/code] and [code]scale_max[/code]: a random uniform scale between them.
+				- [code]random_yaw[/code]: turn each prop at random around its up axis.
+				- [code]align[/code] (0..1): how much props lean with the surface (0 = upright).
+				- [code]max_slope[/code] (degrees): steeper ground gets no props.
+				- [code]min_distance[/code] (meters): the least distance between two props.
+				- [code]sink[/code] (meters): pushes props into the ground.
+				- [code]max_count[/code]: an upper limit.
+				- [code]exclude[/code]: an [Array] of zones without props: [code]{"center": Vector3, "radius": float}[/code] (a circle on the ground plane) or [code]{"aabb": AABB}[/code].
+			</description>
+		</method>
+		<method name="scatter" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="root" type="Node" />
+			<param index="1" name="surface" type="MeshInstance3D" />
+			<param index="2" name="mesh" type="Mesh" />
+			<param index="3" name="options" type="Dictionary" default="{}" />
+			<param index="4" name="name" type="String" default="&quot;Scatter&quot;" />
+			<description>
+				Scatters [param mesh] over [param surface] and adds the props as a [MultiMeshInstance3D] named [param name] under [param root]. The new node is owned by [param root], so it is saved with the scene. The surface's transform is taken relative to [param root].
+				Returns [code]ok[/code], [code]node[/code], [code]count[/code], [code]target[/code] (area × density), [code]area[/code], [code]bounds[/code] (an [AABB] around the props' positions), and how many points were rejected for slope, exclusion and spacing ([code]rejected_slope[/code], [code]rejected_excluded[/code], [code]rejected_spacing[/code]). On failure it returns [code]ok[/code] false and [code]error[/code].
+			</description>
+		</method>
+	</methods>
+</class>

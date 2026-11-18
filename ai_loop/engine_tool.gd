@@ -13,6 +13,11 @@ extends SceneTree
 ##   add        --parent N --type T [--name X] [--set '{"position": "Vector3(0, 1, 0)"}']   saves
 ##   instance   --parent N --path res://other.tscn [--name X]     saves
 ##   remove     --node N                                          saves
+##   scatter    --surface Ground --mesh box|sphere|cylinder|capsule|prism|res://rock.tres|res://rock.glb
+##              [--material res://m.tres] [--density 1] [--seed 1] [--scale 0.8,1.2] [--no-yaw] [--align 0]
+##              [--max-slope 90] [--min-distance 0] [--sink 0] [--max-count 100000] [--name Scatter]
+##              [--exclude '[{"center": [x, y, z], "radius": r}, {"aabb": [x, y, z, sx, sy, sz]}]']
+##              props spread over a surface as one MultiMesh (B-1203); saves
 ##   reparent   --node N --parent P                               saves
 ##   call       --node N --method M [--args '[1, "a"]'] [--save]  returns the result
 ##   connect    --from N --signal S --to N --method M             persistent connection, saves
@@ -239,6 +244,28 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 	return result
 
 
+## The mesh to scatter: a primitive by name, a Mesh resource, or the first mesh of a scene (GLB).
+func _scatter_mesh(spec: String) -> Mesh:
+	var primitives := {"box": BoxMesh, "sphere": SphereMesh, "cylinder": CylinderMesh, "capsule": CapsuleMesh, "prism": PrismMesh}
+	if primitives.has(spec):
+		return primitives[spec].new()
+	if spec.is_empty() or not ResourceLoader.exists(spec):
+		return null
+	var res := load(spec)
+	if res is Mesh:
+		return res
+	if res is PackedScene:
+		var inst: Node = res.instantiate()
+		var found: Mesh = null
+		for n in [inst] + inst.find_children("*", "MeshInstance3D", true, false):
+			if n is MeshInstance3D and n.mesh != null:
+				found = n.mesh
+				break
+		inst.free()
+		return found
+	return null
+
+
 func _scene_command(command: String, args: PackedStringArray, root: Node) -> Dictionary:
 	var node := root.get_node_or_null(_option(args, "node", "."))
 	match command:
@@ -282,6 +309,51 @@ func _scene_command(command: String, args: PackedStringArray, root: Node) -> Dic
 				for key in props:
 					child.set_indexed(key, _value_in(str(props[key])) if typeof(props[key]) == TYPE_STRING else props[key])
 			return {"ok": true, "save": true, "node": _node_info(root, child)}
+		"scatter":
+			var surface := root.get_node_or_null(_option(args, "surface")) as MeshInstance3D
+			if surface == null or surface.mesh == null:
+				return _error("scatter needs --surface, a MeshInstance3D with a mesh")
+			var mesh := _scatter_mesh(_option(args, "mesh"))
+			if mesh == null:
+				return _error("scatter needs --mesh box|sphere|cylinder|capsule|prism or a res:// mesh or scene")
+			if not _option(args, "material").is_empty():
+				var material := load(_option(args, "material")) as Material if ResourceLoader.exists(_option(args, "material")) else null
+				if material == null:
+					return _error("no --material '%s'" % _option(args, "material"))
+				mesh = mesh.duplicate()
+				if mesh is PrimitiveMesh:
+					mesh.material = material
+				else:
+					mesh.surface_set_material(0, material)
+			var options := {"random_yaw": not args.has("--no-yaw")}
+			var numbers := {"density": "density", "align": "align", "max-slope": "max_slope", "min-distance": "min_distance", "sink": "sink"}
+			for flag in numbers:
+				if not _option(args, flag).is_empty():
+					options[numbers[flag]] = _option(args, flag).to_float()
+			for flag in ["seed", "max-count"]:
+				if not _option(args, flag).is_empty():
+					options[flag.replace("-", "_")] = _option(args, flag).to_int()
+			var scale := _option(args, "scale").split(",")
+			if scale.size() == 2:
+				options["scale_min"] = scale[0].to_float()
+				options["scale_max"] = scale[1].to_float()
+			var zones = JSON.parse_string(_option(args, "exclude", "[]"))
+			if not zones is Array:
+				return _error("--exclude needs a JSON array of {center, radius} or {aabb} zones")
+			var exclude := []
+			for z in zones:
+				if z is Dictionary and z.has("center"):
+					exclude.append({"center": Vector3(z.center[0], z.center[1], z.center[2]), "radius": float(z.get("radius", 1.0))})
+				elif z is Dictionary and z.has("aabb"):
+					exclude.append({"aabb": AABB(Vector3(z.aabb[0], z.aabb[1], z.aabb[2]), Vector3(z.aabb[3], z.aabb[4], z.aabb[5]))})
+			options["exclude"] = exclude
+			var result := UZUScatter.scatter(root, surface, mesh, options, _option(args, "name", "Scatter"))
+			if not result.ok:
+				return _error(result.error)
+			var bounds: AABB = result.bounds
+			result["bounds"] = {"position": [bounds.position.x, bounds.position.y, bounds.position.z], "size": [bounds.size.x, bounds.size.y, bounds.size.z]}
+			result["save"] = true
+			return result
 		"instance":
 			var parent := root.get_node_or_null(_option(args, "parent", "."))
 			var packed := load(_option(args, "path")) as PackedScene if ResourceLoader.exists(_option(args, "path")) else null
