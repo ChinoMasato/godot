@@ -33,7 +33,7 @@
 #include "core/config/engine.h"
 #include "core/math/math_funcs.h"
 #include "core/os/os.h"
-#include "core/time/time.h"
+#include "core/os/time.h"
 #include "scene/main/node.h"
 #include "scene/main/scene_tree.h"
 
