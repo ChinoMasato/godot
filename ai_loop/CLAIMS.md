@@ -104,3 +104,4 @@
 | B-1104 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 着手（2026-11-19） |
 - B-1106 イベントプリセット（impact）: 完了（2026-11-19 ai-native 統合、CI 全テスト 1540 pass）
 - B-727（GPU 確認）: 記録済み（Claude Code ローカル、agent/b727gpu-claude-local を 2026-11-19 に統合。水は3レンダラーで動作・速さ OK、波の格子と反射の段差を報告 → B-728 へ）
+- B-314 ログ照合（リプレイ判定）: 完了（Codex、agent/b-314-codex を 2026-11-19 に統合。最初の不一致を CLI／MCP で報告）
