@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUPicture" inherits="Node3D" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Turns one picture and its depth map into a living 3D scene from a spec.
+	</brief_description>
+	<description>
+		[UZUPicture] builds a scene from one picture, as described by [member spec] (or the JSON file in [member spec_path]). The picture becomes a relief mesh shaped by its depth map and torn where the depth jumps. A backdrop sits behind it, with the near things painted out, so near and far slide apart as layers when the camera drifts. Real lights placed at picture pixels light the picture as a PBR surface. Rain, embers, sheets of fog, clouds and lightning live in the same space.
+		Every position in the spec is a picture pixel (x right, y down). An agent can look at the picture, name points and regions, render, and adjust. The main keys are:
+		- [code]image[/code]: the picture path. [code]depth[/code]: [code]{path, kind ("disparity" or "linear"), near, far}[/code]. [code]normal[/code]: an optional normal map. [code]fov[/code]: the camera field of view in degrees.
+		- [code]lights[/code]: an array of [code]{at: [x, y], color, energy, reach, flicker}[/code]. [code]moon[/code]: [code]{at, color, energy}[/code].
+		- [code]regions[/code]: masks ([code]glow[/code], [code]wet[/code], [code]sky[/code], [code]flicker[/code], [code]waterfall[/code], [code]sway[/code], [code]water[/code]) as [code]{path, channel}[/code]. [code]clouds[/code]: drifting cloud shadows.
+		- [code]effects[/code]: [code]rain {amount, opacity}[/code], [code]fog {layers, amount, density}[/code], [code]embers {from, amount}[/code], [code]lightning {every, first, seed, strength, at}[/code].
+		- [code]relief[/code]: [code]{tear, backdrop, backdrop_radius}[/code]. [code]camera[/code]: [code]{drift, push, overscan}[/code]. [code]look[/code]: [code]{quality ("low", "standard", "high"), atmosphere, bloom, post, edge, vignette}[/code].
+		The scene is built when the node enters the tree, or when [method build] is called. Normal and depth maps made by outside tools can be brought into line with the picture first with [UZUMapImport].
+		[b]Note:[/b] This class is specific to U.ZU Engine (U.ZU Picture). The relief and fog shaders need a 3D renderer; the post effects do nothing in the Compatibility renderer.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="build">
+			<return type="Dictionary" />
+			<description>
+				Builds (or rebuilds) the scene from [member spec] and returns statistics. The result has [code]ok[/code] and, on failure, [code]error[/code]. On success it also has [code]grid[/code], [code]torn_triangles[/code], [code]backdrop_fill_ms[/code], [code]backdrop_filled_share[/code], [code]rain[/code], [code]ember_sources[/code], [code]fog_sheets[/code], [code]lightning[/code], [code]lights[/code] and [code]image_size[/code]. Children built earlier are removed first; other children are kept.
+			</description>
+		</method>
+		<method name="depth_at" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="pixel" type="Vector2" />
+			<description>
+				Returns the depth map value (0..1, bilinear) at a picture pixel. Returns [code]0.0[/code] before the scene is built.
+			</description>
+		</method>
+		<method name="get_stats" qualifiers="const">
+			<return type="Dictionary" />
+			<description>
+				Returns the statistics of the last [method build].
+			</description>
+		</method>
+		<method name="is_built" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] when the scene has been built successfully.
+			</description>
+		</method>
+		<method name="place" qualifiers="const">
+			<return type="Vector3" />
+			<param index="0" name="pixel" type="Vector2" />
+			<param index="1" name="depth" type="float" />
+			<description>
+				Returns the local position that shows at picture pixel [param pixel] from the camera's rest position, at depth value [param depth] (0 = far, 1 = near). Use it to put your own nodes into the picture.
+			</description>
+		</method>
+		<method name="point_at" qualifiers="const">
+			<return type="Vector3" />
+			<param index="0" name="pixel" type="Vector2" />
+			<description>
+				Returns the local position of the picture's surface at a picture pixel: [method place] with the depth from [method depth_at].
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="spec" type="Dictionary" setter="set_spec" getter="get_spec" default="{}">
+			The scene description. See the class description for the keys. When empty, [member spec_path] is read.
+		</member>
+		<member name="spec_path" type="String" setter="set_spec_path" getter="get_spec_path" default="&quot;&quot;">
+			A JSON file with the spec, used when [member spec] is empty.
+		</member>
+	</members>
+</class>

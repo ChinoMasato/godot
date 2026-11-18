@@ -145,6 +145,7 @@
 #if !defined(NAVIGATION_2D_DISABLED) || !defined(NAVIGATION_3D_DISABLED)
 #include "scene/resources/navigation_mesh.h"
 #endif // !defined(NAVIGATION_2D_DISABLED) || !defined(NAVIGATION_3D_DISABLED)
+#include "scene/3d/uzu_picture.h"
 #include "scene/resources/audio/audio_stream_generator.h"
 #include "scene/resources/dpi_texture.h"
 #include "scene/resources/packed_scene.h"
@@ -473,6 +474,7 @@ void register_scene_types() {
 	GDREGISTER_CLASS(UZUTiltShift);
 	GDREGISTER_CLASS(UZUPaletteDither);
 	GDREGISTER_ABSTRACT_CLASS(UZUMapImport);
+	GDREGISTER_CLASS(UZUPicture);
 
 	GDREGISTER_ABSTRACT_CLASS(MultiplayerPeer);
 	GDREGISTER_VIRTUAL_CLASS(MultiplayerPeerExtension);
