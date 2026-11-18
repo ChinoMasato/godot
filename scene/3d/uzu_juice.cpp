@@ -31,6 +31,7 @@
 #include "uzu_juice.h"
 
 #include "core/config/engine.h"
+#include "core/object/class_db.h"
 #include "core/math/math_funcs.h"
 #include "core/os/os.h"
 #include "core/os/time.h"
@@ -51,7 +52,7 @@ public:
 		set_process(true);
 		set_name("UZUJuiceRuntime");
 	}
-	virtual void _notification(int p_what) override {
+	void _notification(int p_what) {
 		if (p_what == NOTIFICATION_PROCESS) {
 			// Deadlines use the wall clock, not the scaled delta.
 			UZUJuice::apply_time_state();
@@ -94,7 +95,7 @@ void UZUJuice::ensure_runtime() {
 	if (!root) {
 		return;
 	}
-	if (root->get_node_or_null("UZUJuiceRuntime")) {
+	if (root->get_node_or_null(NodePath("UZUJuiceRuntime"))) {
 		return;
 	}
 	UZUJuiceRuntime *runtime = memnew(UZUJuiceRuntime);
