@@ -179,3 +179,7 @@
 - B-726: ローカル GPU 再確認の記録・画像はローカルセッションが ai-native へ統合済み（e165e44）。リード側の締めとして BACKLOG を完了にし、本項を追記した。判定の詳細は iterations/2026-11-18-B-726-GPU-claude-local.md。
 - B-902 追補: クラウドセッションの重複実装からの指摘（ぼかしの縮小が点サンプリングで、規則模様の目地に同期して光推定が外れる）を正と判断し、縮小を区画の平均に変更した（agent/b-902-blurfix-muse、Actions green、新規回帰テスト1件＝規則格子を光と誤認しないこと）。実測の裏付け（本当の法線との誤差 10.00°→9.54°）は iterations/2026-11-18-B-902-dup-claude.md。
 - B-109: 実装はクラウドセッションが反映済み。残りは macOS 実機での表示確認のみ。B-110: ワークフロー変更の差分を ai_loop/uzu_verify_artifact.patch に置き、push 代行をクラウドセッションへ依頼した（COORDINATION）。
+- B-1001: サンプルゲーム『灯りの欠片』を ai-native へ統合し、実エンジンでの完走を検証した（タイトル→収集3つ→点火→クリア、cleared=true、スクリプトエラー0件、スクショ4枚）。検証で main.gd の存在しない API 呼び出し（surface_material_override → set_surface_override_material、4箇所）を捕まえて修正。描画確認は Compatibility まで、Forward+ のルックは GPU 実機で別途。記録 iterations/2026-11-18-B-1001-muse.md。
+- B-110: 完了。ローカル（WSL）が実行 44326635731（7ad07707a）の artifact をダウンロードして起動確認（--headless --version → 4.8.beta.custom_build.7ad07707a、終了コード 0）。判定を満たした。重複ブランチ agent/b110push-claude-local は統合不要（リード判断。同名ブランチはリモートに無く、ローカル側のみ）。
+- B-727: GPU 確認（ローカル、RTX 4050）が合格。3 描画方式すべてでシェーダーの誤り 0、深さの色・泡・映り込み・屈折の正しさと、水の重さ（1080p で +0.6〜1.4 ms）を確認。見た目の直し4点（ノイズの格子、反射の階段、泡の角、下端の線）を B-728 として登録した。GPU 記録ファイル（iterations/2026-11-19-B-727-GPU-claude-local.md、look_samples/compare/b727_gpu_*、ai_loop/windows/water_gpu.py）はローカルブランチ agent/b727gpu-claude-local にあり、ai-native への反映はローカル待ち。
+- 運用: オーナー指示（2026-11-19）でリード判断の範囲を COORDINATION 運用ルール6に明記した。
