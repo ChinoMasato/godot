@@ -1,0 +1,19 @@
+{
+	"image": "res://title/art.png",
+	"depth": { "path": "res://title/depth.png", "kind": "disparity", "near": 4.5, "far": 60 },
+	"fov": 38,
+	"normal": "res://title/normal.png",
+	"lights": [
+		{ "at": [402, 213], "color": "#ffb45e", "energy": 2.2, "flicker": 1.0 },
+		{ "at": [65, 148], "color": "#ffbe5c", "energy": 1.0, "flicker": 0.4 },
+		{ "at": [392, 142], "color": "#ffbe5c", "energy": 1.0, "flicker": 0.4 }
+	],
+	"effects": {
+		"embers": { "from": [[402, 213]], "amount": 36 },
+		"fog": { "density": 0.25, "layers": [12, 30], "amount": 0.3, "top": 0.1 },
+		"clouds": { "amount": 0.4, "speed": 0.6, "direction": [1, 0] }
+	},
+	"camera": { "drift": 1.2, "push": 0.8 },
+	"look": { "atmosphere": "night", "quality": "high", "post": true, "vignette": 0.3 },
+	"relief": { "tear": 0.05, "backdrop": true, "backdrop_radius": 6 }
+}
