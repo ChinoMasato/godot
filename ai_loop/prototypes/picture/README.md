@@ -7,7 +7,10 @@
 
 ## エージェントの手順
 
+リポジトリのルートからは共通 CLI の `python ai_loop/uzu.py picture <project> <command>` を使える。以下の `python picture.py <project> <command>` と同じ引数・JSON 出力・終了コードで動く。
+
 ```sh
+python picture.py <project> doctor                 # 実行ファイル・スクリプト・Pillow・バージョンを診断（GPU不要）
 python picture.py <project> schema                 # 書けるキーの説明
 python picture.py <project> analyze --overlay res://overlay.png
 #   光源の候補（ピクセル位置、色、奥行き、印の色）。overlay.png を見て、本物の光源か確かめる。
@@ -22,6 +25,22 @@ python picture.py <project> shot --out shots --seconds 0,6
 ```
 
 すべてのコマンドは JSON を1行だけ返す（`ok`、`problems`、`next` など）。
+
+### コマンド実行の保証（B-904 補完）
+
+- `GODOT` 環境変数で使うエディタを指定できる。未指定なら、この checkout の `bin/` から Windows／Linux／macOS のエディタを探す。Windows の `.console.exe` を指定した場合、隣の実行本体を直接使う。
+- `doctor` は実行ファイルのバージョン、対象の `project.godot`、同梱のツールスクリプト、Pillow の有無を JSON で返す。Pillow は画像の書き出しに必要。モデル本体や GPU の動作を保証する診断ではない。
+- ツールスクリプトは `picture.py` の隣から読む。対象プロジェクトに `map_tool.gd` などを写す必要はない。実行する Picture シーン側には引き続き `uzu_picture.gd` とシェーダーが必要。
+- エンジンが成功 JSON を出しても、その後に異常終了したり `ERROR:` が出たりした場合は失敗として返す。壊れた JSON、重複した結果、`ok` が真偽値でない応答も失敗になる。エンジンが返す入力エラーの `problems` などは構造を保つ。
+- 1回のエンジン起動は既定120秒で打ち切る。`UZU_PICTURE_TIMEOUT_SECONDS` で変更できる。推定モデルを子プロセスで動かしていた場合も、起動したプロセスのツリーを終了する。OS側で終了に失敗したときは `cleanup_warning` を返す。
+- `shot` は指定フレームのファイルを確認し、途中までしか描画されていないときに最後の画像で代用しない。例えば30fpsで4秒の撮影なら `f00000120.png` が必要。成功時の `frame_indices` に実際のフレーム番号が入る。
+- `shot` は対象PNGをすべて読めることを確認してから結果を書き出す。Pillow が無いときは失敗し、存在しない `motion.png` を返さない。前回の出力フォルダを調べる場合も、今回の JSON の `ok` と `images` を基準にすること。
+
+回帰テスト（エンジンや GPU を起動しない）:
+
+```sh
+python -m unittest discover -s ai_loop/prototypes/picture -p test_picture_cli.py -v
+```
 
 ## 必要な素材
 

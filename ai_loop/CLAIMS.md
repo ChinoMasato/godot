@@ -7,6 +7,7 @@
 
 | 項目 | 担当 | ブランチ | 触るパス | 状態 | 開始日 |
 |---|---|---|---|---|---|
+| B-904 試作CLIの信頼性補完 | Codex local | agent/b-904-codex-cli | ai_loop/prototypes/picture/picture.py・test_picture_cli.py・README.md, ai_loop/iterations/ | 共通CLI接続・16回帰試験・GPU試作一巡確認済み、統合待ち | 2026-11-18 |
 | B-005 Windows アイコン補完（オーナー依頼） | Codex local | agent/b-005-codex-windows | platform/windows/*.ico・SCsub, misc/logo/uzu/windows_icons.py・README.md, ai_loop/iterations/ | バイナリ資源検証済み、統合待ち | 2026-11-18 |
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
 | B-001 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/LEDGER.md, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
