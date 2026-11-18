@@ -876,6 +876,172 @@ MeshInstance3D *create_god_rays(float p_width, float p_length, const Color &p_co
 	return rays;
 }
 
+static const char *WATER_SHADER = R"(
+shader_type spatial;
+render_mode blend_mix, depth_draw_always, cull_back, specular_schlick_ggx;
+
+// The water's own color: shallow (thin water) and deep. How many meters of water
+// the bottom stays visible through: clarity.
+uniform vec4 shallow_color : source_color = vec4(0.2, 0.55, 0.52, 1.0);
+uniform vec4 deep_color : source_color = vec4(0.015, 0.09, 0.13, 1.0);
+uniform float clarity : hint_range(0.05, 50.0) = 2.0;
+uniform float refraction : hint_range(0.0, 0.2) = 0.03;
+// Waves: slope strength, size in meters, speed, and the swell of the surface itself.
+uniform float wave_strength : hint_range(0.0, 3.0) = 0.6;
+uniform float wave_scale : hint_range(0.05, 20.0) = 1.5;
+uniform float wave_speed : hint_range(0.0, 4.0) = 1.0;
+uniform float wave_height : hint_range(0.0, 1.0) = 0.04;
+// Foam where the water is shallower than foam_width meters (shores, around rocks).
+uniform float foam_width : hint_range(0.0, 3.0) = 0.3;
+uniform vec4 foam_color : source_color = vec4(0.9, 0.95, 1.0, 1.0);
+// Screen-space reflection of the scene (0 = the sky and probes only).
+uniform float reflection : hint_range(0.0, 1.0) = 1.0;
+uniform float surface_roughness : hint_range(0.0, 1.0) = 0.04;
+
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap, repeat_disable;
+uniform sampler2D depth_tex : hint_depth_texture, filter_nearest, repeat_disable;
+
+varying vec3 world_pos;
+
+float hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float value_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+
+// Two wave trains crossing, three octaves each way.
+float waves(vec2 p, float t) {
+	float h = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 3; i++) {
+		h += a * value_noise(p + vec2(t * 0.35, t * 0.2));
+		h += a * value_noise(p * 1.3 - vec2(t * 0.25, -t * 0.3) + 17.0);
+		p *= 2.1;
+		a *= 0.45;
+	}
+	return h * 0.5;
+}
+
+// Distance from the camera (view-space depth) of what is in the depth buffer at uv.
+float scene_depth(vec2 uv, mat4 inv_projection) {
+	float d = textureLod(depth_tex, uv, 0.0).r;
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	vec3 ndc = vec3(uv, d) * 2.0 - 1.0;
+#else
+	vec3 ndc = vec3(uv * 2.0 - 1.0, d);
+#endif
+	vec4 v = inv_projection * vec4(ndc, 1.0);
+	return -v.z / v.w;
+}
+
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	VERTEX.y += (waves(world_pos.xz / (wave_scale * 4.0), TIME * wave_speed * 0.4) - 0.5) * 2.0 * wave_height;
+}
+
+void fragment() {
+	float t = TIME * wave_speed;
+	vec2 p = world_pos.xz / wave_scale;
+	const float e = 0.04;
+	float h0 = waves(p, t);
+	vec2 slope = vec2(waves(p + vec2(e, 0.0), t) - h0, waves(p + vec2(0.0, e), t) - h0) / e;
+	vec3 n_world = normalize(vec3(-slope.x * wave_strength * 0.12, 1.0, -slope.y * wave_strength * 0.12));
+	NORMAL = normalize((VIEW_MATRIX * vec4(n_world, 0.0)).xyz);
+
+	// How much water the eye looks through to reach the bottom (along the view ray).
+	float surface = -VERTEX.z;
+	float thick = max(scene_depth(SCREEN_UV, INV_PROJECTION_MATRIX) - surface, 0.0);
+	// Refraction: bend the look-up by the waves, more where the water is deeper,
+	// but never onto something in front of the water.
+	vec3 flat_normal = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+	vec2 ruv = SCREEN_UV + (NORMAL.xy - flat_normal.xy) * refraction * 3.0 * clamp(thick, 0.0, 1.0);
+	float thick_r = scene_depth(ruv, INV_PROJECTION_MATRIX) - surface;
+	if (thick_r < 0.0) {
+		ruv = SCREEN_UV;
+		thick_r = thick;
+	}
+	vec3 behind = textureLod(screen_tex, ruv, 0.0).rgb;
+	float see = exp(-thick_r / clarity); // How much of the bottom shows.
+	vec3 body = mix(deep_color.rgb, shallow_color.rgb, exp(-thick_r / (clarity * 2.5)));
+
+	// Fresnel: water reflects little looking down and almost all at grazing angles.
+	float fresnel = 0.02 + 0.98 * pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 5.0);
+
+	// Screen-space reflection, marched in view space against the depth buffer.
+	vec3 reflected = vec3(0.0);
+	float hit = 0.0;
+	if (reflection > 0.0) {
+		vec3 dir = reflect(normalize(VERTEX), NORMAL);
+		vec3 pos = VERTEX;
+		float step_len = max(0.05, surface * 0.03);
+		for (int i = 0; i < 28; i++) {
+			pos += dir * step_len;
+			step_len *= 1.12;
+			vec4 clip = PROJECTION_MATRIX * vec4(pos, 1.0);
+			if (clip.w <= 0.0) {
+				break;
+			}
+			vec2 uv = clip.xy / clip.w * 0.5 + 0.5;
+			if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+				break;
+			}
+			float gap = -pos.z - scene_depth(uv, INV_PROJECTION_MATRIX);
+			if (gap > 0.0 && gap < step_len * 2.0 + 0.1) {
+				vec2 edge = smoothstep(vec2(0.0), vec2(0.08), uv) * smoothstep(vec2(0.0), vec2(0.08), 1.0 - uv);
+				hit = edge.x * edge.y * reflection;
+				reflected = textureLod(screen_tex, uv, 0.0).rgb;
+				break;
+			}
+		}
+	}
+
+	// Foam: where the water is thin, broken up by noise and drifting.
+	float edge = 1.0 - smoothstep(0.0, max(foam_width, 0.001), thick);
+	float foam = smoothstep(0.5, 0.8, edge * (0.55 + 0.9 * value_noise(p * 7.0 + vec2(t * 0.3, -t * 0.2))));
+	foam *= step(0.0001, foam_width);
+
+	ALBEDO = mix(body * (1.0 - see), foam_color.rgb, foam);
+	EMISSION = (behind * see * mix(vec3(1.0), shallow_color.rgb * 1.6, 0.35) * (1.0 - fresnel) + reflected * fresnel * hit) * (1.0 - foam);
+	// Where the scene is reflected, the sky reflection from the specular term steps back.
+	SPECULAR = 0.5 * (1.0 - hit * 0.9);
+	ROUGHNESS = mix(surface_roughness, 0.7, foam);
+	ALPHA = 1.0; // Drawn with the transparent objects, after the screen and depth are captured.
+}
+)";
+
+Ref<ShaderMaterial> create_water_material() {
+	Ref<Shader> shader;
+	shader.instantiate();
+	shader->set_code(WATER_SHADER);
+	Ref<ShaderMaterial> material;
+	material.instantiate();
+	material->set_shader(shader);
+	return material;
+}
+
+MeshInstance3D *create_water(const Vector2 &p_size) {
+	const Vector2 size(MAX(p_size.x, 0.1f), MAX(p_size.y, 0.1f));
+	Ref<PlaneMesh> plane;
+	plane.instantiate();
+	plane->set_size(size);
+	// About two vertices per meter for the swell, within limits.
+	plane->set_subdivide_width(CLAMP(int(size.x * 2.0f), 1, 200));
+	plane->set_subdivide_depth(CLAMP(int(size.y * 2.0f), 1, 200));
+	plane->set_material(create_water_material());
+
+	MeshInstance3D *water = memnew(MeshInstance3D);
+	water->set_name("Water");
+	water->set_mesh(plane);
+	water->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
+	water->set_gi_mode(GeometryInstance3D::GI_MODE_DISABLED);
+	return water;
+}
+
 Ref<Compositor> create_compositor(Quality p_quality) {
 	Ref<Compositor> compositor;
 	compositor.instantiate();

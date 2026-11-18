@@ -1008,6 +1008,13 @@ def selftest_engine():
         c.expect("pixel preset", r["ok"] and r["texels"]["ok"] and abs(r["texel"] - 0.05) < 1e-6, r)
         r = _call(look, p, ["texels", "--scene", "res://sprites.tscn"])
         c.expect("texels clean", r["ok"] and r["warnings"] == [], r)
+        # B-727: a water surface saved into the scene, and a bad option refused.
+        r = _call(look, p, ["water", "--scene", "res://sprites.tscn", "--position", "0,-0.5,0", "--size", "8,4", "--deep", "#04182a", "--foam", "0.5"])
+        with open(os.path.join(p, "sprites.tscn"), encoding="utf-8") as f:
+            saved = f.read()
+        c.expect("look water", r["ok"] and r["node"] == "Water" and r["size"] == [8, 4] and "foam_width" in saved and "hint_depth_texture" in saved, r)
+        r = _call(look, p, ["water", "--scene", "res://sprites.tscn", "--deep", "blue-ish"])
+        c.expect("look water bad color", not r["ok"] and "--deep" in r["error"], r)
         # B-204: the project map (a separate small project: scenes, an instanced scene, a
         # script with preload and class_name, signal connections, an autoload).
         with tempfile.TemporaryDirectory() as m:

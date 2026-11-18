@@ -9,6 +9,8 @@ look. Agents apply the U.ZU look to a copy (ai_loop/look.sh apply), render it
   landscape  layered ridges at 150-1400 m, trees: aerial perspective, distance blur
   street     tall buildings, a person-sized capsule, lamp posts: lighting, night, lenses
   materials  leaves, skin, glass and water over a rock, backlit: material presets
+  water      a pond whose bottom slopes from the near shore to deep water, a post and
+             rocks in it, a tower on the far shore: the water shader (look.sh water)
 """
 
 import math
@@ -105,8 +107,42 @@ def materials():
     write_project("materials", res, nodes)
 
 
+def water():
+    """A pond without water: look.sh water adds the surface at y = 0 (B-727)."""
+    res = ['[sub_resource type="BoxMesh" id="box"]\n', '[sub_resource type="SphereMesh" id="rock"]\n',
+           '[sub_resource type="CylinderMesh" id="post"]\ntop_radius = 0.15\nbottom_radius = 0.18\nheight = 4.0\n',
+           '[sub_resource type="PlaneMesh" id="plane"]\nsize = Vector2(400, 400)\n',
+           mat("m_sand", "0.62, 0.55, 0.4", "roughness = 0.95\n"), mat("m_bank", "0.32, 0.42, 0.22", "roughness = 0.95\n"),
+           mat("m_stripe", "0.85, 0.75, 0.3", "roughness = 0.9\n"), mat("m_post", "0.7, 0.18, 0.12"),
+           mat("m_rock", "0.5, 0.48, 0.44"), mat("m_tower", "0.92, 0.9, 0.85")]
+    nodes = ['[node name="Main" type="Node3D"]\n',
+             node("Camera3D", "Camera3D", "1, 0, 0, 0, 0.9659258, 0.258819, 0, -0.258819, 0.9659258, 0, 2.4, 6", "fov = 60.0\n"),
+             # Far land around the pond, below the bottom so it never covers it.
+             node("Land", "MeshInstance3D", scaled(1, 1, 1, 0, -6, 0), 'mesh = SubResource("plane")\nmaterial_override = SubResource("m_bank")\n')]
+    # The bottom: a slab whose top runs from y = 0.15 at the near shore (z = 3) to y = -3 at z = -15.
+    angle = math.atan2(3.15, 18.0)
+    ca, sa = math.cos(angle), math.sin(angle)
+    length = 18.0 / ca
+    cz, cy = -6.0, (0.15 - 3.0) / 2 - 0.5 * ca
+    nodes.append(node("Bottom", "MeshInstance3D", f"16, 0, 0, 0, {ca:.6f}, {sa * length:.6f}, 0, {-sa:.6f}, {ca * length:.6f}, 0, {cy:.6f}, {cz}", 'mesh = SubResource("box")\nmaterial_override = SubResource("m_sand")\n'))
+    # Light stripes across the bottom, to see depth color and refraction on.
+    for i, z in enumerate([1.0, -2.0, -5.0, -8.0, -11.0]):
+        y = 0.15 - 3.15 * (3.0 - z) / 18.0
+        nodes.append(node(f"Stripe{i}", "MeshInstance3D", f"14, 0, 0, 0, {ca * 0.1:.6f}, {sa * 0.6:.6f}, 0, {-sa * 0.1:.6f}, {ca * 0.6:.6f}, 0, {y + 0.03:.6f}, {z}", 'mesh = SubResource("box")\nmaterial_override = SubResource("m_stripe")\n'))
+    # Banks on both sides and the far shore, above the water.
+    for name, t in (("BankLeft", scaled(4, 2, 30, -9, -0.6, -6)), ("BankRight", scaled(4, 2, 30, 9, -0.6, -6)), ("FarShore", scaled(22, 2, 6, 0, -0.6, -18))):
+        nodes.append(node(name, "MeshInstance3D", t, 'mesh = SubResource("box")\nmaterial_override = SubResource("m_bank")\n'))
+    nodes.append(node("Post", "MeshInstance3D", scaled(1, 1, 1, -1.6, -0.6, -2.5), 'mesh = SubResource("post")\nmaterial_override = SubResource("m_post")\n'))
+    for i, (x, y, z, r) in enumerate([(2.2, -0.35, -1.5, 1.2), (3.5, -1.0, -6.0, 1.8), (-4.0, -0.2, 0.5, 0.9)]):
+        nodes.append(node(f"Rock{i}", "MeshInstance3D", scaled(r, r * 0.8, r, x, y, z), 'mesh = SubResource("rock")\nmaterial_override = SubResource("m_rock")\n'))
+    nodes.append(node("Tower", "MeshInstance3D", scaled(1.5, 6, 1.5, 2.5, 3.0, -18), 'mesh = SubResource("box")\nmaterial_override = SubResource("m_tower")\n'))
+    nodes.append(node("Sun", "DirectionalLight3D", f"{rot(40, 200)}, 0, 0, 0", "shadow_enabled = true\n"))
+    write_project("water", res, nodes)
+
+
 if __name__ == "__main__":
     landscape()
     street()
     materials()
+    water()
     print("written:", ", ".join(sorted(n for n in os.listdir(HERE) if os.path.isdir(os.path.join(HERE, n)))))
