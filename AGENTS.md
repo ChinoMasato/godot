@@ -83,3 +83,12 @@ Only the lead merges into `ai-native` and appends to `ai_loop/LEDGER.md`.
   stays in this fork (upstream contribution policy prohibits AI-generated code).
 - Follow upstream code style: clang-format config in repo root, GDScript
   style guide in docs. Keep the copyright/license headers intact (MIT).
+
+## ピクセルアート描画ルール（2026-11-19 オーナー共有）
+ピクセルアートのゲーム・素材を作るときは、ぼやけとガクつきを防ぐため次を守る。
+- 全テクスチャは Nearest フィルタ、ミップマップなし、スプライト圧縮は Lossless。
+- 基本解像度を1つ決め、拡大は整数倍のみ（余白は黒帯）。ピクセルサイズはゲーム全体で1種類に統一する。
+- 移動計算は小数のまま保持し、丸めるのは描画時のみ。カメラとスプライトで丸め方をそろえる。
+- 実行時にピクセルアートを回転させない（描画済みフレームか90度単位のみ）。ピクセルフォントは原寸・AAなし。
+- Godot の設定: ビューポート＝基本解像度、Default Texture Filter = Nearest、Stretch は viewport＋integer、Snap 2D Transforms to Pixel = オン。
+- 検証: スクリーンショットを拡大し、全ピクセルが同じ大きさの正方形で、2ピクセル幅やぼやけた縁がないことを確認する。新規素材は原寸で既存タイルと並べ、ピクセルグリッドの一致を見る。
