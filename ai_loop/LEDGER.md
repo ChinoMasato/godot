@@ -196,3 +196,5 @@
 - 2026-11-19: B-1104（粒子バースト＋カメラキック）を ai-native へ統合。CI 全テスト 1537 pass。CI は4周: テスト API 名（get_one_shot／delay_usec）→ CPUParticles の世代 API（Parameter enum／set_mesh）→ 全テスト pass 後の終了時クラッシュ（静的キャッシュしたテクスチャがサーバー解体後に破棄）を順に修正。
 
 - 2026-11-19: B-1106（impact プリセット）を ai-native へ統合。CI 全テスト 1540 pass。過程で本物のバグを発見: AudioServer のない環境で UZUSfx::generate が AudioStreamWAV::set_data の null 参照で落ちる → generate にガードを追加（UZUSfx 側の修正として同梱）。
+
+- 2026-11-19: B-1107（『灯りの欠片』への juice 組み込み）を完了。欠片収集で impact(pickup)、ランタン点火で impact＋kick＋バースト。AI プレイヤー検証2回とも juice 発火記録 [pickup×3, lantern] を確認し全判定合格（verify_report.json）。Phase 11 は B-1108（クラウド担当）を除き完了。
