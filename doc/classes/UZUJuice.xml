@@ -71,5 +71,22 @@
 				Adds [param amount] of screen-shake trauma (clamped to 1.0 in total): about 0.3 for a normal hit, 0.7 for a big explosion. Trauma decays at 1.6 per second on its own. The shake is applied to the current camera (Camera3D h/v offset or Camera2D offset), preserving and later restoring the camera's own offset.
 			</description>
 		</method>
+		<method name="flash" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="node" type="Node" />
+			<param index="1" name="color" type="Color" default="Color(1, 1, 1, 1)" />
+			<param index="2" name="duration" type="float" default="0.08" />
+			<description>
+				Tints [param node] toward [param color] and fades back over [param duration] seconds, restoring the node exactly. Works on [CanvasItem]s and [Sprite3D] (their modulate) and on other [GeometryInstance3D]s (a fading material overlay). Flashing the same node again restarts the flash from the new color, keeping the original base.
+			</description>
+		</method>
+		<method name="squash" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="node" type="Node" />
+			<param index="1" name="amount" type="float" default="0.3" />
+			<description>
+				Squashes [param node] (a [Node2D] or [Node3D]) flat by [param amount] and lets a spring bring it back with a wobble, roughly preserving volume (wider as it gets flatter). The node's own scale is captured and restored exactly when the spring settles.
+			</description>
+		</method>
 	</methods>
 </class>
