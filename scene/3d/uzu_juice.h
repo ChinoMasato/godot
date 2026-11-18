@@ -126,6 +126,19 @@ struct UZUJuiceSpringState {
 	bool settled() const { return Math::abs(x) < 0.001 && Math::abs(v) < 0.01; }
 };
 
+// Camera kick state (BACKLOG B-1104): a spring punch of the camera's zoom --
+// the field of view dips (3D) or the zoom rises (2D) and springs back.
+struct UZUJuiceKickState {
+	UZUJuiceSpringState spring;
+	void punch(double p_amount) { spring.displace(p_amount); }
+	void update(double p_dt) { spring.update(p_dt); }
+	bool settled() const { return spring.settled(); }
+	double fov_delta() const { return -spring.x * 8.0; } // Degrees: negative punches in.
+	double zoom_factor() const { return 1.0 + spring.x * 0.25; }
+};
+
+class CPUParticles2D;
+class CPUParticles3D;
 class Node;
 
 class UZUJuice : public Object {
@@ -186,4 +199,19 @@ public:
 	// Advances the node effects (flashes and springs) by p_real_dt seconds.
 	// Called by the runtime node each frame.
 	static void apply_node_effects(double p_real_dt);
+
+	// A one-shot burst of p_count particles at p_global_position under
+	// p_parent, in p_color, flying outward and falling; the node frees itself
+	// when the burst is over. p_power scales speed and lifetime.
+	static CPUParticles3D *burst3d(Node *p_parent, const Vector3 &p_global_position, const Color &p_color, int p_count = 14, double p_power = 1.0);
+	// The 2D form of burst3d, under a Node2D parent at a global position.
+	static CPUParticles2D *burst2d(Node *p_parent, const Vector2 &p_global_position, const Color &p_color, int p_count = 14, double p_power = 1.0);
+	// Punches the current camera's zoom: the field of view dips by up to
+	// 8 * p_amount degrees (2D: the zoom rises), springing back on its own.
+	static void kick(double p_amount = 0.5);
+	// The current kick displacement (0 when settled).
+	static double get_kick();
+
+	// The shared kick state, exposed for the runtime and the unit tests.
+	static UZUJuiceKickState &kick_state();
 };
