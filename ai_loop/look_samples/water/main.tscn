@@ -49,6 +49,11 @@ transform = Transform3D(16, 0, 0, 0, 0.985030, 3.150000, 0, -0.172380, 18.000000
 mesh = SubResource("box")
 material_override = SubResource("m_sand")
 
+[node name="NearShore" type="MeshInstance3D" parent="."]
+transform = Transform3D(14, 0, 0, 0, 1, 0, 0, 0, 6, 0, -0.35, 5.85)
+mesh = SubResource("box")
+material_override = SubResource("m_sand")
+
 [node name="Stripe0" type="MeshInstance3D" parent="."]
 transform = Transform3D(14, 0, 0, 0, 0.098503, 0.103428, 0, -0.017238, 0.591018, 0, -0.170000, 1.0)
 mesh = SubResource("box")

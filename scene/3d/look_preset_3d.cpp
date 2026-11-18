@@ -910,18 +910,21 @@ float hash(vec2 p) {
 float value_noise(vec2 p) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
-	vec2 u = f * f * (3.0 - 2.0 * f);
+	// Quintic fade keeps the slope and its change continuous across cells.
+	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
 	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
 
-// Two wave trains crossing, three octaves each way.
+const mat2 WAVE_ROTATION = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8));
+
+// Two crossing wave trains use different grid orientations.
 float waves(vec2 p, float t) {
 	float h = 0.0;
 	float a = 0.5;
 	for (int i = 0; i < 3; i++) {
 		h += a * value_noise(p + vec2(t * 0.35, t * 0.2));
-		h += a * value_noise(p * 1.3 - vec2(t * 0.25, -t * 0.3) + 17.0);
-		p *= 2.1;
+		h += a * value_noise(WAVE_ROTATION * p * 1.3 - vec2(t * 0.25, -t * 0.3) + 17.0);
+		p = WAVE_ROTATION * p * 2.1;
 		a *= 0.45;
 	}
 	return h * 0.5;
@@ -979,7 +982,9 @@ void fragment() {
 		vec3 dir = reflect(normalize(VERTEX), NORMAL);
 		vec3 pos = VERTEX;
 		float step_len = max(0.05, surface * 0.03);
+		float previous_gap = 0.0;
 		for (int i = 0; i < 28; i++) {
+			vec3 previous_pos = pos;
 			pos += dir * step_len;
 			step_len *= 1.12;
 			vec4 clip = PROJECTION_MATRIX * vec4(pos, 1.0);
@@ -992,17 +997,37 @@ void fragment() {
 			}
 			float gap = -pos.z - scene_depth(uv, INV_PROJECTION_MATRIX);
 			if (gap > 0.0 && gap < step_len * 2.0 + 0.1) {
+				// Refine only a bracketed crossing. Use the first behind-depth
+				// point, so the color lookup stays on the reflected surface.
+				if (previous_gap <= 0.0) {
+					vec3 near_pos = previous_pos;
+					vec3 far_pos = pos;
+					for (int refinement = 0; refinement < 3; refinement++) {
+						vec3 mid = (near_pos + far_pos) * 0.5;
+						vec4 mid_clip = PROJECTION_MATRIX * vec4(mid, 1.0);
+						vec2 mid_uv = mid_clip.xy / mid_clip.w * 0.5 + 0.5;
+						if (-mid.z > scene_depth(mid_uv, INV_PROJECTION_MATRIX)) {
+							far_pos = mid;
+							uv = mid_uv;
+						} else {
+							near_pos = mid;
+						}
+					}
+				}
 				vec2 edge = smoothstep(vec2(0.0), vec2(0.08), uv) * smoothstep(vec2(0.0), vec2(0.08), 1.0 - uv);
 				hit = edge.x * edge.y * reflection;
 				reflected = textureLod(screen_tex, uv, 0.0).rgb;
 				break;
 			}
+			previous_gap = gap;
 		}
 	}
 
 	// Foam: where the water is thin, broken up by noise and drifting.
 	float edge = 1.0 - smoothstep(0.0, max(foam_width, 0.001), thick);
-	float foam = smoothstep(0.5, 0.8, edge * (0.55 + 0.9 * value_noise(p * 7.0 + vec2(t * 0.3, -t * 0.2))));
+	vec2 foam_uv = p * 7.0 + vec2(t * 0.3, -t * 0.2);
+	float foam_noise = mix(value_noise(foam_uv), value_noise(WAVE_ROTATION * foam_uv * 1.7 + 11.0), 0.35);
+	float foam = smoothstep(0.40, 0.82, edge * (0.55 + 0.9 * foam_noise));
 	foam *= step(0.0001, foam_width);
 
 	ALBEDO = mix(body * (1.0 - see), foam_color.rgb, foam);
