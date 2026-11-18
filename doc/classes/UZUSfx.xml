@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUSfx" inherits="Object" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Synthesizes game sound effects from a few parameters, without sound files.
+	</brief_description>
+	<description>
+		[UZUSfx] makes short game sounds (hits, jumps, pickups, explosions) in the style of the sfxr family of tools. A sound is a waveform whose pitch slides and jumps, shaped by an envelope and an optional low-pass filter. The result is a 16-bit mono [AudioStreamWAV].
+		A table of presets gives starting points, and a seed varies them a little. [method play] plays a sound once, with a small random change of pitch and volume, so repeated sounds do not feel mechanical. [method describe] reports what a sound is like (length, peak, loudness, pitch at the start and the end), for an agent that cannot listen.
+		[codeblock]
+		var coin = UZUSfx.generate_preset("coin", 3)
+		UZUSfx.play(self, coin)
+		var params = UZUSfx.get_preset("laser")
+		params["decay"] = 0.4
+		var longer_laser = UZUSfx.generate(params)
+		[/codeblock]
+		[b]Note:[/b] This class is specific to U.ZU Engine (UZUJuice).
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="describe" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="stream" type="AudioStreamWAV" />
+			<description>
+				Describes a 16-bit mono [param stream]: [code]length[/code] (seconds), [code]peak[/code] and [code]rms[/code] (0..1), [code]pitch_start[/code] and [code]pitch_end[/code] (zero crossings per second over the first and the last fifth; about twice the pitch for a tone, high for noise), and [code]ends_silent[/code] (the last millisecond is under 5% of the peak, so it ends without a click).
+			</description>
+		</method>
+		<method name="generate" qualifiers="static">
+			<return type="AudioStreamWAV" />
+			<param index="0" name="params" type="Dictionary" />
+			<description>
+				Makes a sound from [param params]. Missing parameters take their defaults (see [method get_defaults]):
+				- [code]wave[/code]: [code]"square"[/code], [code]"saw"[/code], [code]"sine"[/code], [code]"triangle"[/code] or [code]"noise"[/code].
+				- [code]frequency[/code] and [code]frequency_end[/code]: the pitch in Hz at the start and the end. It slides evenly in octaves between them.
+				- [code]change_ratio[/code] and [code]change_time[/code]: the pitch is multiplied by the ratio after that many seconds (the jump of a coin sound).
+				- [code]vibrato_depth[/code] (semitones) and [code]vibrato_speed[/code] (Hz).
+				- [code]duty[/code] and [code]duty_sweep[/code]: the share of the square wave that is high, and its change per second.
+				- [code]attack[/code], [code]sustain[/code] and [code]decay[/code]: the envelope, in seconds. [code]punch[/code] (0..1) makes the start of the sustain louder.
+				- [code]lowpass[/code]: 1 is off; lower values sound darker.
+				- [code]volume[/code] (0..1), [code]seed[/code] (for noise) and [code]sample_rate[/code].
+				Returns [code]null[/code] with an error for an unknown parameter, an unknown wave, or a length that is 0 or longer than 10 seconds.
+			</description>
+		</method>
+		<method name="generate_preset" qualifiers="static">
+			<return type="AudioStreamWAV" />
+			<param index="0" name="name" type="String" />
+			<param index="1" name="seed" type="int" default="0" />
+			<description>
+				Makes the sound of a preset: [method generate] with [method get_preset].
+			</description>
+		</method>
+		<method name="get_defaults" qualifiers="static">
+			<return type="Dictionary" />
+			<description>
+				Returns every parameter of [method generate] with its default value.
+			</description>
+		</method>
+		<method name="get_preset" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="name" type="String" />
+			<param index="1" name="seed" type="int" default="0" />
+			<description>
+				Returns the parameters of a preset, ready to change and pass to [method generate]. Seed 0 is the preset as written. Other seeds shift its pitch (up to a fifth of an octave) and length (up to 15%) a little, always the same way for the same seed. Returns an empty [Dictionary] with an error for an unknown name.
+			</description>
+		</method>
+		<method name="get_preset_names" qualifiers="static">
+			<return type="PackedStringArray" />
+			<description>
+				Returns the names of the presets: [code]hit[/code], [code]jump[/code], [code]pickup[/code], [code]coin[/code], [code]explosion[/code], [code]laser[/code], [code]powerup[/code], [code]blip[/code] and [code]land[/code].
+			</description>
+		</method>
+		<method name="play" qualifiers="static">
+			<return type="AudioStreamPlayer" />
+			<param index="0" name="parent" type="Node" />
+			<param index="1" name="stream" type="AudioStream" />
+			<param index="2" name="pitch_jitter" type="float" default="0.05" />
+			<param index="3" name="volume_jitter_db" type="float" default="1.0" />
+			<param index="4" name="volume_db" type="float" default="0.0" />
+			<description>
+				Adds an [AudioStreamPlayer] under [param parent] that plays [param stream] once and frees itself when it has finished. Its pitch scale is 1 ± [param pitch_jitter], and its volume is [param volume_db] ± [param volume_jitter_db], both chosen at random. It starts when [param parent] is in the scene tree.
+			</description>
+		</method>
+	</methods>
+</class>
