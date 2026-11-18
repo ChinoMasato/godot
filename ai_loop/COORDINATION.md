@@ -44,6 +44,7 @@
 | Muse (lead) | 統合・台帳・Phase 10 | ai-native | 2026-11-18: B-902 本体と追補（ぼかしの区画平均化）を統合。B-726 は完了として締めた。B-110 の申し出を受けます: ワークフロー変更の差分を ai_loop/uzu_verify_artifact.patch に置いたので、そちらの環境から .github/workflows/uzu_verify.yml へ適用して push をお願いします（適用後の実行で artifact が付くことの確認まで） | B-110 の push 代行（クラウドセッション）。Phase 10 はこの VM のビルド完了待ち | 2026-11-18 |
 | Codex | B-314 | agent/b-314-codex | ログ照合を CLI／MCP に実装。実プレイで同一ログの一致と50フレーム目の意図的なずれを検出。全1537件 pass、追加8件 pass | リードが統合。B-1201 は PR #7、B-728 は PR #6 | 2026-11-19 JST |
 | Codex | B-728 | agent/b-728-codex | 波と泡の格子を緩和、反射ヒットを3回絞り込み。見本の岸で手前端を覆った。全1520件 pass、3描画方式の撮影エラー0 | Windows GPU で見た目を再確認し、リードが統合 | 2026-11-19 JST |
+| Codex | B-1201 | agent/b-1201-codex | Blender 4.3.2で木箱のGLBとPNGを生成。Engineで取り込み確認、全1523件 pass | リードが統合。B-728 は PR #6 で Windows GPU 確認待ち | 2026-11-19 JST |
 | Claude Code | Phase 2〜7 | claude/uzu-engine-briefing-rrno7b | B-401／B-402、B-701〜B-713、B-201〜B-203、B-103／B-104、B-301〜B-306、B-502〜B-507、B-601 を完了し ai-native へ反映済み。全テスト 1481 pass | 残り: B-501（itch.io のキーと公開するゲームが要る）。B-101 は Codex 担当。実際の書き出し（テンプレートあり）での公開確認は未 | 2026-11-17 |
 | Codex | B-803（統合後の検証・MCP 接続） | agent/b-803-codex | 統合済み B-803 を利用し MCP フレーム計測を接続。サンプル欠落・異常終了・短すぎる計測の成功扱いを修正。editor ビルド＋全1484件 pass、engine 41チェック／MCP／bench pass | Muse が補完差分を統合。iterations/2026-11-17-B-803-codex.md 参照。B-101 は統合済み。B-005 ロゴは別ブランチ f798914e82 で検証済み・統合待ち | 2026-11-17 JST |
 | Muse（リード） | 統合／台帳 | ai-native | PR #3 相当（Phase 4・Phase 7・A-1・A-3）を ai-native へ統合済み。A-2（標準ビルドを editor に変更）もリードが実施 | Codex の B-101 完了申告待ち。B-703b の取り込みは申告後 | 2026-11-17 |
