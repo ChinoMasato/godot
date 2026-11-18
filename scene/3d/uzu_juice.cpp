@@ -305,6 +305,11 @@ struct UZUJuiceSquashEntry {
 	UZUJuiceSpringState spring;
 };
 
+struct UZUJuiceBurstEntry {
+	ObjectID id;
+	uint64_t free_at_msec = 0;
+};
+static Vector<UZUJuiceBurstEntry> _burst_entries;
 static Vector<UZUJuiceFlashEntry> _flash_entries;
 static Vector<UZUJuiceSquashEntry> _squash_entries;
 
@@ -458,14 +463,6 @@ double UZUJuice::get_kick() {
 	return kick_state().spring.x;
 }
 
-// Bursts waiting to be freed: {instance id, free-at msec}, advanced by
-// apply_node_effects alongside the other node effects.
-struct UZUJuiceBurstEntry {
-	ObjectID id;
-	uint64_t free_at_msec = 0;
-};
-static Vector<UZUJuiceBurstEntry> _burst_entries;
-
 CPUParticles3D *UZUJuice::burst3d(Node *p_parent, const Vector3 &p_global_position, const Color &p_color, int p_count, double p_power) {
 	ERR_FAIL_NULL_V(p_parent, nullptr);
 	double power = CLAMP(p_power, 0.25, 4.0);
@@ -474,15 +471,15 @@ CPUParticles3D *UZUJuice::burst3d(Node *p_parent, const Vector3 &p_global_positi
 	particles->set_amount(MAX(p_count, 1));
 	particles->set_lifetime(lifetime);
 	particles->set_one_shot(true);
-	particles->set_explosiveness(0.92);
-	particles->set_local_coords(false);
+	particles->set_explosiveness_ratio(0.92);
+	particles->set_use_local_coordinates(false);
 	particles->set_direction(Vector3(0, 1, 0));
 	particles->set_spread(180.0);
-	particles->set_initial_velocity_min(2.2 * power);
-	particles->set_initial_velocity_max(3.8 * power);
+	particles->set_param_min(CPUParticles3D::PARAM_INITIAL_LINEAR_VELOCITY, 2.2 * power);
+	particles->set_param_max(CPUParticles3D::PARAM_INITIAL_LINEAR_VELOCITY, 3.8 * power);
 	particles->set_gravity(Vector3(0, -5, 0));
-	particles->set_damping_min(0.5);
-	particles->set_damping_max(1.5);
+	particles->set_param_min(CPUParticles3D::PARAM_DAMPING, 0.5);
+	particles->set_param_max(CPUParticles3D::PARAM_DAMPING, 1.5);
 	Ref<StandardMaterial3D> mat;
 	mat.instantiate();
 	mat->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
@@ -492,7 +489,7 @@ CPUParticles3D *UZUJuice::burst3d(Node *p_parent, const Vector3 &p_global_positi
 	quad.instantiate();
 	quad->set_size(Vector2(0.07, 0.07));
 	quad->set_material(mat);
-	particles->set_draw_pass_1(quad);
+	particles->set_mesh(quad);
 	p_parent->add_child(particles);
 	particles->set_global_position(p_global_position);
 	particles->set_emitting(true);
@@ -528,17 +525,17 @@ CPUParticles2D *UZUJuice::burst2d(Node *p_parent, const Vector2 &p_global_positi
 	particles->set_amount(MAX(p_count, 1));
 	particles->set_lifetime(lifetime);
 	particles->set_one_shot(true);
-	particles->set_explosiveness(0.92);
-	particles->set_local_coords(false);
+	particles->set_explosiveness_ratio(0.92);
+	particles->set_use_local_coordinates(false);
 	particles->set_direction(Vector2(1, 0));
 	particles->set_spread(180.0);
-	particles->set_initial_velocity_min(90.0 * power);
-	particles->set_initial_velocity_max(170.0 * power);
+	particles->set_param_min(CPUParticles2D::PARAM_INITIAL_LINEAR_VELOCITY, 90.0 * power);
+	particles->set_param_max(CPUParticles2D::PARAM_INITIAL_LINEAR_VELOCITY, 170.0 * power);
 	particles->set_gravity(Vector2(0, 220));
-	particles->set_damping_min(20.0);
-	particles->set_damping_max(60.0);
-	particles->set_scale_amount_min(0.5);
-	particles->set_scale_amount_max(1.0);
+	particles->set_param_min(CPUParticles2D::PARAM_DAMPING, 20.0);
+	particles->set_param_max(CPUParticles2D::PARAM_DAMPING, 60.0);
+	particles->set_param_min(CPUParticles2D::PARAM_SCALE, 0.5);
+	particles->set_param_max(CPUParticles2D::PARAM_SCALE, 1.0);
 	particles->set_texture(_dot_texture());
 	particles->set_color(p_color);
 	p_parent->add_child(particles);
