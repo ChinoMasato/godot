@@ -46,6 +46,19 @@ func _ready() -> void:
 		telemetry.event_recorded.connect(_on_event)
 
 
+# B-310: a press must look like a player's press. Input.action_press alone
+# only sets the action state, so games that read input through
+# _unhandled_input (event.is_action_pressed) never see it. Dispatch the
+# matching InputEventAction as well; games that poll (is_action_just_pressed
+# / get_vector) keep reading the state exactly as before.
+func _send_action_event(action: StringName, pressed: bool) -> void:
+	var ev := InputEventAction.new()
+	ev.action = action
+	ev.pressed = pressed
+	ev.strength = 1.0 if pressed else 0.0
+	Input.parse_input_event(ev)
+
+
 func _on_event(event: Dictionary) -> void:
 	_events.append(event)
 	if event.get("type") == "clear":
@@ -165,9 +178,11 @@ func _command() -> void:
 		return
 	for action in cmd.get("release", []):
 		Input.action_release(action)
+		_send_action_event(action, false)
 		_pressed.erase(action)
 	for action in cmd.get("press", []):
 		Input.action_press(action)
+		_send_action_event(action, true)
 		_pressed[action] = true
 	_remaining = max(int(cmd.get("frames", 1)), 1)
 
