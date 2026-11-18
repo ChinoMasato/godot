@@ -192,3 +192,5 @@
 - B-1102: 完了。UZUJuice シェイク（trauma 方式、決定的ノイズ、カメラの元オフセットを退避・復元）。CI 全テスト 1531 pass。記録: iterations/2026-11-19-B-1102-muse.md。
 - B-1103: 完了。UZUJuice フラッシュ（modulate／オーバーレイ、正確な復元）＋スカッシュ＆ストレッチ（バネ積分）。CI 全テスト 1534 pass。記録: iterations/2026-11-19-B-1103-muse.md。
 - B-1215: 登録（オーナーの原則「常にどこかが動いているとリッチ」から、常時モーションキット＋動きの監査）。
+
+- 2026-11-19: B-1104（粒子バースト＋カメラキック）を ai-native へ統合。CI 全テスト 1537 pass。CI は4周: テスト API 名（get_one_shot／delay_usec）→ CPUParticles の世代 API（Parameter enum／set_mesh）→ 全テスト pass 後の終了時クラッシュ（静的キャッシュしたテクスチャがサーバー解体後に破棄）を順に修正。
