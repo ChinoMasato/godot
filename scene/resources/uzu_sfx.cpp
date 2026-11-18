@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "uzu_sfx.h"
+#include <cstdio>
 
 #include "core/math/random_pcg.h"
 #include "core/object/callable_mp.h"
@@ -233,6 +234,7 @@ Ref<AudioStreamWAV> UZUSfx::generate(const Dictionary &p_params) {
 		w[i * 2 + 1] = uint8_t((q >> 8) & 0xff);
 	}
 
+	fprintf(stderr, "SFX loop done\n");
 	Ref<AudioStreamWAV> stream;
 	stream.instantiate();
 	stream->set_format(AudioStreamWAV::FORMAT_16_BITS);
@@ -243,7 +245,9 @@ Ref<AudioStreamWAV> UZUSfx::generate(const Dictionary &p_params) {
 }
 
 Ref<AudioStreamWAV> UZUSfx::generate_preset(const String &p_name, int p_seed) {
+	fprintf(stderr, "SFX gen_preset enter\n");
 	const Dictionary params = get_preset(p_name, p_seed);
+	fprintf(stderr, "SFX preset ok empty=%d\n", params.is_empty() ? 1 : 0);
 	if (params.is_empty()) {
 		return Ref<AudioStreamWAV>();
 	}
