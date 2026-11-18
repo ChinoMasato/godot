@@ -1,0 +1,4 @@
+game_font.ttf is a subset of Noto Sans CJK (NotoSansCJK-Regular), covering
+only the glyphs this sample game displays. Noto Sans CJK is licensed under
+the SIL Open Font License 1.1. Copyright Google LLC / Adobe.
+Subset created with fonttools (pyftsubset).

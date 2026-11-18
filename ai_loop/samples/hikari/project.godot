@@ -1,0 +1,20 @@
+; Engine configuration file.
+; U.ZU Engine sample game: 灯りの欠片 (Shards of Light)
+
+config_version=5
+
+[application]
+
+config/name="灯りの欠片 - U.ZU Engine sample"
+run/main_scene="res://title.tscn"
+config/features=PackedStringArray("4.8", "Forward Plus")
+config/icon="res://art/shard.png"
+
+[autoload]
+
+UZUTelemetry="*res://telemetry.gd"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="gl_compatibility"
