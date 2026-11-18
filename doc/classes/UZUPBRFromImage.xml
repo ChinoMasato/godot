@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUPBRFromImage" inherits="Object" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Estimates PBR maps from a single texture image.
+	</brief_description>
+	<description>
+		From one texture photograph, [UZUPBRFromImage] estimates the maps a PBR material needs: an albedo with the baked light removed, a normal map from the image's own brightness, an ORM map (ambient occlusion in cavities, roughness per material kind, metallic) and a height map. The per-kind values were fitted against Poly Haven scans in the prototype; the premise is honest: a normal map estimated from one image measures about as close to a real scan as a flat normal does, so the output is a starting point, not a scan. An externally estimated normal map can replace the brightness-based one, ideally after [UZUMapImport] has checked it.
+		[b]Note:[/b] This class is specific to U.ZU Engine (U.ZU Picture).
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="compare" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="normal" type="Image" />
+			<param index="1" name="ref" type="Image" />
+			<param index="2" name="rough" type="Image" default="null" />
+			<param index="3" name="ref_rough" type="Image" default="null" />
+			<description>
+				Measures a normal map against a reference (e.g. a scan): returns the mean angular error in degrees, plus the same error for a flat normal as the honest baseline. With [param rough] and [param ref_rough] (ORM maps), also reports the roughness means and their correlation.
+			</description>
+		</method>
+		<method name="kinds" qualifiers="static">
+			<return type="Dictionary" />
+			<description>
+				Returns the fitted per-kind table: for each kind name, a [Dictionary] with [code]strength[/code], [code]rough[/code], [code]spread[/code], [code]metal[/code] and [code]detail[/code].
+			</description>
+		</method>
+		<method name="make" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="image" type="Image" />
+			<param index="1" name="kind" type="String" />
+			<param index="2" name="strength" type="float" default="1.0" />
+			<param index="3" name="delight" type="float" default="0.7" />
+			<param index="4" name="tile" type="bool" default="false" />
+			<param index="5" name="invert" type="bool" default="false" />
+			<param index="6" name="normal_from" type="Image" default="null" />
+			<param index="7" name="max_size" type="int" default="1024" />
+			<description>
+				Generates the maps from [param image]. Returns a [Dictionary] with [code]"albedo"[/code], [code]"normal"[/code], [code]"orm"[/code] and [code]"height"[/code] images, the [code]"stats"[/code] of the estimate and any [code]"warnings"[/code], or [code]"ok" = false[/code] with an [code]"error"[/code]. [param strength] multiplies the kind's fitted normal strength, [param delight] (0 to 1) how strongly the baked light is removed, [param tile] wraps the estimation around the edges, [param invert] treats dark as high, and [param normal_from] replaces the brightness-based normal map.
+			</description>
+		</method>
+		<method name="make_file" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="in_path" type="String" />
+			<param index="1" name="out_dir" type="String" />
+			<param index="2" name="kind" type="String" />
+			<param index="3" name="strength" type="float" default="1.0" />
+			<param index="4" name="delight" type="float" default="0.7" />
+			<param index="5" name="tile" type="bool" default="false" />
+			<param index="6" name="invert" type="bool" default="false" />
+			<param index="7" name="normal_from_path" type="String" default="&quot;&quot;" />
+			<param index="8" name="max_size" type="int" default="1024" />
+			<description>
+				Like [method make] with files: loads [param in_path], writes [code]albedo.png[/code], [code]normal.png[/code], [code]orm.png[/code], [code]height.png[/code] and a [code]material.tres[/code] (an [ORMMaterial3D] using the maps) into [param out_dir]. Returns the same [Dictionary] with [code]"files"[/code] in place of the images.
+			</description>
+		</method>
+	</methods>
+</class>

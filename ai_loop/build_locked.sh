@@ -27,5 +27,8 @@ flock 9
 echo "build lock acquired."
 
 TARGET="${TARGET:-editor}"
-"$SCONS" platform=linuxbsd target="$TARGET" tests=yes accesskit=no arch=x86_64 -j3
+# Share the SCons cache with the Actions workflow (uzu_verify.yml): repeated
+# and cross-branch builds reuse compiled objects instead of starting cold.
+"$SCONS" platform=linuxbsd target="$TARGET" tests=yes accesskit=no arch=x86_64 -j3 \
+  cache_path=.scons_cache cache_limit=7
 "bin/godot.linuxbsd.${TARGET}.x86_64" --test

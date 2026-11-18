@@ -7,7 +7,10 @@
 
 ## エージェントの手順
 
+リポジトリのルートからは共通 CLI の `python ai_loop/uzu.py picture <project> <command>` を使える。以下の `python picture.py <project> <command>` と同じ引数・JSON 出力・終了コードで動く。
+
 ```sh
+python picture.py <project> doctor                 # 実行ファイル・スクリプト・Pillow・バージョンを診断（GPU不要）
 python picture.py <project> schema                 # 書けるキーの説明
 python picture.py <project> analyze --overlay res://overlay.png
 #   光源の候補（ピクセル位置、色、奥行き、印の色）。overlay.png を見て、本物の光源か確かめる。
@@ -22,6 +25,22 @@ python picture.py <project> shot --out shots --seconds 0,6
 ```
 
 すべてのコマンドは JSON を1行だけ返す（`ok`、`problems`、`next` など）。
+
+### コマンド実行の保証（B-904 補完）
+
+- `GODOT` 環境変数で使うエディタを指定できる。未指定なら、この checkout の `bin/` から Windows／Linux／macOS のエディタを探す。Windows の `.console.exe` を指定した場合、隣の実行本体を直接使う。
+- `doctor` は実行ファイルのバージョン、対象の `project.godot`、同梱のツールスクリプト、Pillow の有無を JSON で返す。Pillow は画像の書き出しに必要。モデル本体や GPU の動作を保証する診断ではない。
+- ツールスクリプトは `picture.py` の隣から読む。対象プロジェクトに `map_tool.gd` などを写す必要はない。実行する Picture シーン側には引き続き `uzu_picture.gd` とシェーダーが必要。
+- エンジンが成功 JSON を出しても、その後に異常終了したり `ERROR:` が出たりした場合は失敗として返す。壊れた JSON、重複した結果、`ok` が真偽値でない応答も失敗になる。エンジンが返す入力エラーの `problems` などは構造を保つ。
+- 1回のエンジン起動は既定120秒で打ち切る。`UZU_PICTURE_TIMEOUT_SECONDS` で変更できる。推定モデルを子プロセスで動かしていた場合も、起動したプロセスのツリーを終了する。OS側で終了に失敗したときは `cleanup_warning` を返す。
+- `shot` は指定フレームのファイルを確認し、途中までしか描画されていないときに最後の画像で代用しない。例えば30fpsで4秒の撮影なら `f00000120.png` が必要。成功時の `frame_indices` に実際のフレーム番号が入る。
+- `shot` は対象PNGをすべて読めることを確認してから結果を書き出す。Pillow が無いときは失敗し、存在しない `motion.png` を返さない。前回の出力フォルダを調べる場合も、今回の JSON の `ok` と `images` を基準にすること。
+
+回帰テスト（エンジンや GPU を起動しない）:
+
+```sh
+python -m unittest discover -s ai_loop/prototypes/picture -p test_picture_cli.py -v
+```
 
 ## 必要な素材
 
@@ -87,6 +106,28 @@ python picture.py <project> map import --kind normal --in res://model_normal.png
 python picture.py <project> map import --kind depth  --in res://model_depth.png  --for res://art.png --out res://depth.png [--depth-kind auto|disparity|linear]
 python picture.py <project> map estimate --kind depth --in res://art.png --out res://depth.png   # estimators.json のコマンドを実行してから import
 python picture.py <project> pbr make --in res://tex.png --out res://materials/x --kind cobble --normal-from res://normal.png
+```
+
+### 向きが分かっているモデルを使うとき（B-903 補完）
+
+```sh
+# モデルがDirectX形式の法線を返すと分かっている場合
+python picture.py <project> map import --kind normal --normal-convention directx --in res://model_normal.png --for res://tex.png --out res://normal.png
+# モデルが白＝遠い深度を返すと分かっている場合
+python picture.py <project> map import --kind depth --white-is far --in res://model_depth.png --for res://art.png --out res://depth.png
+```
+
+- `--normal-convention auto|opengl|directx`、`--white-is auto|near|far` を選べる。既定はauto。既知の形式を指定した場合は推測より優先し、JSONの `convention_source`／`direction_source` にexplicitを返す。
+- 自動判定で画像の上下から近遠を判断できないとき、向きを変えず警告する。`found.white_is` と `output_white_is` はunsureになり、既知の形式を指定して再実行できる。一定値の深度も、その値を保ったまま警告する。
+- 互換用の `--depth-kind disparity` は白＝近い、`linear` は白＝遠いという向きの指定として使える。これは画素の範囲合わせと反転であり、メートル単位の線形距離を物理的な逆距離へ変換する処理ではない。新しい指定では `--white-is` を推奨する。矛盾する指定やタイプミスはエラーにする。
+- 元の画像・元のマップを出力先に指定するとエラー。出力はPNG限定で、ディレクトリ作成とPNG保存の結果も検査する。
+- `map estimate` は毎回別のraw画像パスを外部モデルへ渡す。出力画像を作らなかった場合に、前回のraw画像を再利用しない。raw画像のパスは成功時の `raw` に返す。向きの指定と `--no-align` はimport段階へ引き継ぐ。
+- 外部モデルの失敗時は既存の最終出力を維持する。コマンド設定は空でない文字列で、`{in}`／`{out}` の両方が必要。
+
+実エンジンを使う回帰試験（合成画像のみ、GPU不要。`GODOT`でエディタを指定）:
+
+```sh
+python -m unittest discover -s ai_loop/prototypes/picture -p test_map_import.py -v
 ```
 
 - `estimators.json` の例: `{"depth": "python my_depth.py {in} {out}", "normal": "python my_normal.py {in} {out}"}`（`{in}`/`{out}` は絶対パスに置き換わる）。

@@ -100,10 +100,26 @@ void UZULook::configure_lit_sprite(Sprite3D *p_sprite, const Ref<Texture2D> &p_n
 
 Decal *UZULook::add_blob_shadow(Node3D *p_node, float p_radius) {
 	ERR_FAIL_NULL_V(p_node, nullptr);
-	Decal *decal = LookPreset3D::create_blob_shadow(p_radius);
 	// At the feet: the bottom of the node's visual bounds (a centered sprite's lower edge).
 	VisualInstance3D *visual = Object::cast_to<VisualInstance3D>(p_node);
-	const float bottom = visual ? visual->get_aabb().position.y : 0.0f;
+	float bottom = visual ? visual->get_aabb().position.y : 0.0f;
+	// The scene tool configures sprites before their deferred mesh update.
+	const SpriteBase3D *sprite = Object::cast_to<SpriteBase3D>(p_node);
+	if (sprite) {
+		bottom = sprite->get_axis() == Vector3::AXIS_Y ? 0.0f : sprite->get_item_rect().position.y * sprite->get_pixel_size();
+	}
+	const float radius = MAX(p_radius, 0.01f);
+	// Re-applying must repair a shadow saved with stale geometry (B-726: a
+	// decal measured while the sprite's rect was still empty kept the floor
+	// size at the sprite's center): refresh the existing decal in place
+	// instead of stacking a second one.
+	if (Decal *existing = Object::cast_to<Decal>(p_node->get_node_or_null(NodePath("BlobShadow")))) {
+		existing->set_size(Vector3(radius * 2.0, 1.0, radius * 2.0));
+		existing->set_position(Vector3(0.0, bottom, 0.0));
+		existing->set_cull_mask(existing->get_cull_mask() & ~LookPreset3D::LIT_SPRITE_LAYER_MASK);
+		return existing;
+	}
+	Decal *decal = LookPreset3D::create_blob_shadow(radius);
 	decal->set_position(Vector3(0.0, bottom, 0.0));
 	p_node->add_child(decal, true);
 	Node *owner = p_node->get_owner() ? p_node->get_owner() : p_node;
@@ -213,10 +229,12 @@ Dictionary UZULook::apply_hd2d(Node *p_root, Atmosphere p_atmosphere, bool p_cam
 			sprite->set_texture_filter(StandardMaterial3D::TEXTURE_FILTER_NEAREST);
 			sprite->set_draw_flag(SpriteBase3D::FLAG_SHADED, true);
 			sprite->set_alpha_cut_mode(SpriteBase3D::ALPHA_CUT_DISCARD);
+			sprite->set_layer_mask(LookPreset3D::LIT_SPRITE_LAYER_MASK);
 		}
-		if (!sprite->has_node(NodePath("BlobShadow"))) {
-			add_blob_shadow(sprite, MAX(sprite->get_aabb().size.x * 0.4f, 0.1f));
-		}
+		// add_blob_shadow refreshes an existing decal's size and position,
+		// so re-applying the look also repairs shadows saved with stale
+		// geometry (B-726); the cull mask fix rides along in both paths.
+		add_blob_shadow(sprite, MAX(sprite->get_item_rect().size.x * sprite->get_pixel_size() * 0.4f, 0.1f));
 		sprite_paths.push_back(String(p_root->get_path_to(sprite)));
 	}
 	result["sprites"] = sprite_paths;
