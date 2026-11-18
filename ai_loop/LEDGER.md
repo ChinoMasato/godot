@@ -198,3 +198,5 @@
 - 2026-11-19: B-1106（impact プリセット）を ai-native へ統合。CI 全テスト 1540 pass。過程で本物のバグを発見: AudioServer のない環境で UZUSfx::generate が AudioStreamWAV::set_data の null 参照で落ちる → generate にガードを追加（UZUSfx 側の修正として同梱）。
 
 - 2026-11-19: B-1107（『灯りの欠片』への juice 組み込み）を完了。欠片収集で impact(pickup)、ランタン点火で impact＋kick＋バースト。AI プレイヤー検証2回とも juice 発火記録 [pickup×3, lantern] を確認し全判定合格（verify_report.json）。Phase 11 は B-1108（クラウド担当）を除き完了。
+
+- 2026-11-19: 滞留ブランチ5件を ai-native へ統合（オーナー指示）: B-727 GPU 記録、B-314 ログ照合（Codex）、B-728 水の見た目修正（Codex）、B-1201 Blender ブリッジ（Codex）、UZUWorldGen（ローカル、Phase 15 の B-1501／1502／1503／1505／1506 を充足）。競合は台帳と uzu.py の道具追加のみで union 解消。統合後 CI 全テスト 1548 pass（クラウドの B-1302 込み）。
