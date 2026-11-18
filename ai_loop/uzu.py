@@ -1072,6 +1072,13 @@ def selftest_engine():
             c.expect("map-estimate", r.get("ok") and found.get("convention") == "directx" and any("resized" in x for x in r["changed"]) and os.path.exists(os.path.join(q, "maps", "normal.png")), r)
             r = _call(engine, q, ["map-estimate", "--kind", "depth", "--in", "res://pic.png", "--out", "res://maps/depth.png"])
             c.expect("map-estimate without a model", not r["ok"] and "no estimator" in r["error"], r)
+            # B-902: estimated PBR maps from the same picture, then compared with themselves.
+            r = _call(engine, q, ["pbr-make", "--in", "res://pic.png", "--out", "res://materials/pic", "--kind", "brick"])
+            c.expect("pbr-make", r.get("ok") and r["kind"] == "brick" and all(os.path.exists(os.path.join(q, "materials", "pic", n)) for n in ("albedo.png", "normal.png", "orm.png", "height.png", "material.tres")), r)
+            r = _call(engine, q, ["pbr-compare", "--normal", "res://materials/pic/normal.png", "--ref", "res://materials/pic/normal.png", "--orm", "res://materials/pic/orm.png", "--ref-orm", "res://materials/pic/orm.png"])
+            c.expect("pbr-compare", r.get("ok") and r["normal_angle_error_deg"] < 0.5 and r["roughness_correlation"] > 0.99, r)
+            r = _call(engine, q, ["pbr-make", "--in", "res://pic.png", "--out", "res://materials/x", "--kind", "nope"])
+            c.expect("pbr-make unknown kind", not r["ok"] and "pbr-kinds" in r["error"], r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))
