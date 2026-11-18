@@ -82,3 +82,4 @@
 | B-903 | Claude Code (cloud) | ai-native（直接） | scene/resources/uzu_map_import.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUMapImport.xml（新規）, tests/scene/test_uzu_map_import.cpp（新規）, ai_loop/engine_tool.gd, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-901 | Claude Code (cloud) | ai-native（直接） | scene/3d/uzu_picture.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUPicture.xml（新規）, tests/scene/test_uzu_picture.cpp（新規）, ai_loop/iterations/ | 反映済み（GPU の見た目確認はローカル担当） | 2026-11-18 |
 | B-725（GPU 確認） | Claude Code (local) | agent/b725gpu-claude-local | ai_loop/iterations/, ai_loop/look_samples/compare/ | 記録済み（帯は OK、地面の影は未達） | 2026-11-18 |
+| B-726（GPU 確認） | Claude Code (local) | agent/b726gpu-claude-local | ai_loop/iterations/, ai_loop/look_samples/compare/ | 記録済み（判定すべて満たす） | 2026-11-18 |
