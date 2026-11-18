@@ -21,7 +21,8 @@ map-estimate (B-903: an outside model, then map-import), and every command of ai
 (tree, props, get, set, add, instance, remove, reparent, call, connect, script, new,
 classes, describe, actions, res-new, res-props, res-get, res-set, setting-get,
 setting-set, action-add, action-remove, import-get, import-set, export-preset, presets);
-also export (--preset, B-804) and templates. look commands: shot, check, panorama, and those of
+also export (--preset, B-804) and templates. look commands: shot, check, panorama, rich (B-1204:
+the richness report, static and rendered, with a budget), and those of
 ai_loop/look_tool.gd (apply, rig, lamp, camera, material, info), and bake (lightmaps, B-805:
 --scene res://x.tscn [--node Path/To/LightmapGI] [--prepare]).
 Every command prints one JSON line {"ok": bool, ...}; exit 0 on success.
@@ -591,8 +592,88 @@ def look(project, args):
         return result or {"ok": rc == 0, "command": "panorama", "image": os.path.abspath(out), "log": tail(out_text, 5)}
     if command == "bake":
         return bake(project, opt(args, "scene"), opt(args, "node"), "--prepare" in args)
+    if command == "rich":
+        return rich(project, args)
     result, _ = gd_tool(project, "look_tool.gd", args, "UZU_RESULT ")
     return result
+
+
+RICH_PROBE = 'UZURichProbe="*res://addons/uzu_selfplay/rich_probe.gd"\n'
+
+
+def _main_scene(project):
+    with open(os.path.join(project, "project.godot"), encoding="utf-8") as f:
+        m = re.search(r'^run/main_scene="([^"]+)"', f.read(), re.M)
+    return m.group(1) if m else ""
+
+
+def check_budget(metrics, budget):
+    """Budget keys are max_<metric> or min_<metric> (a scene can be too heavy, or not rich
+    enough). Returns the failures; an unknown key is an error listing the metrics."""
+    failures = []
+    for key, limit in budget.items():
+        kind, _, metric = key.partition("_")
+        if kind not in ("max", "min") or metric not in metrics:
+            raise ToolError(f"unknown budget key '{key}': use max_<metric> or min_<metric> with one of {sorted(metrics)}")
+        value = metrics[metric]
+        if (kind == "max" and value > limit) or (kind == "min" and value < limit):
+            failures.append({"metric": metric, "value": value, kind: limit})
+    return failures
+
+
+def rich(project, args):
+    """Richness report (B-1204): the scene's static costs (engine rich), what one rendered
+    frame really drew (unless --no-render), and a budget check (--budget JSON or
+    --budget-file), with hints on what to change. A summary first, details after."""
+    scene = opt(args, "scene") or _main_scene(project)
+    if not scene:
+        raise ToolError("rich needs --scene res://... (the project has no main scene)")
+    static, _ = gd_tool(project, "engine_tool.gd", ["rich", "--scene", scene, "--top", opt(args, "top", "10")], "ENGINE_RESULT ")
+    if not static or not static.get("ok"):
+        return static or {"ok": False, "command": "rich", "error": "the static analysis failed"}
+    metrics = dict(static["summary"])
+    frame = None
+    if "--no-render" not in args:
+        with tempfile.TemporaryDirectory() as tmp:
+            game = os.path.join(tmp, "game")
+            shutil.copytree(project, game)
+            install_addons(game, ["rich_probe.gd"], RICH_PROBE)
+            run([find_godot(), "--headless", "--path", game, "--import"], timeout=1800)
+            out = os.path.join(tmp, "frame.json")
+            cmd, env = render_command([find_godot(), "--path", game, scene] + driver() + ["--resolution", "1280x720"], "1280x720")
+            rc, log = run(cmd + ["--", "--uzu-rich", out, opt(args, "frames", "10")], timeout=900, env=env, cwd=game)
+            if not os.path.exists(out):
+                sys.stderr.write(log)
+                raise ToolError("the rendered frame was not measured (see stderr)", command="rich")
+            with open(out, encoding="utf-8") as f:
+                frame = json.load(f)
+        metrics.update({k: v for k, v in frame.items() if k != "frames"})
+    budget = {}
+    if opt(args, "budget-file"):
+        path = opt(args, "budget-file")
+        path = os.path.join(project, path[len("res://"):]) if path.startswith("res://") else path
+        with open(path, encoding="utf-8") as f:
+            budget = json.load(f)
+    elif opt(args, "budget"):
+        budget = json.loads(opt(args, "budget"))
+    failures = check_budget(metrics, budget)
+    # Hints: what to look at first (heavy props repeated many times, many surfaces, big textures).
+    hints = []
+    for n in static.get("top", []):
+        per = n["triangles"] // max(n["instances"], 1)
+        if n["instances"] > 1 and per > 500:
+            hints.append(f"{n['node']}: {n['instances']} copies of a {per}-triangle mesh ({n['triangles']} triangles); a low-poly mesh or fewer copies cuts this most")
+        elif n["draw_calls"] > 8:
+            hints.append(f"{n['node']}: {n['draw_calls']} surfaces (draw calls); merging materials cuts them")
+    if metrics.get("texture_mb", 0) > 256:
+        hints.append(f"textures take {metrics['texture_mb']} MB; check the largest images and VRAM compression")
+    if frame and static["summary"]["objects"] == 0 and frame["frame_objects"] > 0:
+        hints.append("the scene builds its content at run time (scripts), so the static numbers miss it; judge by the frame_* numbers")
+    if frame and metrics["frame_draw_calls"] > 2000:
+        hints.append(f"{metrics['frame_draw_calls']} draw calls in the frame; MultiMesh (scatter) or merging meshes helps")
+    return {"ok": not failures, "command": "rich", "scene": scene, "summary": static["summary"], "frame": frame,
+            "budget": budget or None, "failures": failures, "hints": hints, "top": static.get("top", []), "by_type": static.get("by_type", {}),
+            "note": static.get("note", "")}
 
 
 BAKE_PLUGIN = "res://addons/uzu_bake/plugin.cfg"
@@ -1098,6 +1179,17 @@ def selftest_engine():
             c.expect("scatter same seed", r2.get("ok") and r2["count"] == r["count"] and r2["bounds"] == r["bounds"], r2)
             r = _call(engine, q, ["scatter", "--scene", "res://field.tscn", "--surface", "Nope", "--mesh", "sphere"])
             c.expect("scatter no surface", not r["ok"] and "--surface" in r["error"], r)
+            # B-1204: the richness report on that field (static part; rendering is covered by hand),
+            # a budget it fails with a hint, one it passes, and a wrong budget key.
+            r = rich(q, ["rich", "--scene", "res://field.tscn", "--no-render", "--budget", '{"max_triangles": 100000}'])
+            c.expect("rich over budget", not r["ok"] and r["failures"][0]["metric"] == "triangles" and r["summary"]["props"] > 0 and any("low-poly" in h for h in r["hints"]), r)
+            r = rich(q, ["rich", "--scene", "res://field.tscn", "--no-render", "--budget", '{"max_triangles": 10000000, "min_props_per_m2": 1}'])
+            c.expect("rich within budget", r["ok"] and r["failures"] == [] and r["frame"] is None, r)
+            try:
+                rich(q, ["rich", "--scene", "res://field.tscn", "--no-render", "--budget", '{"max_polygons": 1}'])
+                c.expect("rich bad budget key", False, "accepted")
+            except ToolError as e:
+                c.expect("rich bad budget key", "max_polygons" in str(e), str(e))
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))
