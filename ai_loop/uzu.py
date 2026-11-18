@@ -36,7 +36,8 @@ map-estimate (B-903: an outside model, then map-import), and every command of ai
 classes, describe, actions, res-new, res-props, res-get, res-set, setting-get,
 setting-set, action-add, action-remove, import-get, import-set, export-preset, presets);
 also export (--preset, B-804) and templates. look commands: shot, check, panorama, rich (B-1204:
-the richness report, static and rendered, with a budget), and those of
+the richness report, static and rendered, with a budget), ui-report (B-1305: the UI's density,
+text, margins and problems, headless), and those of
 ai_loop/look_tool.gd (apply, rig, lamp, camera, material, info), and bake (lightmaps, B-805:
 --scene res://x.tscn [--node Path/To/LightmapGI] [--prepare]).
 Every command prints one JSON line {"ok": bool, ...}; exit 0 on success.
@@ -608,6 +609,8 @@ def look(project, args):
         return bake(project, opt(args, "scene"), opt(args, "node"), "--prepare" in args)
     if command == "rich":
         return rich(project, args)
+    if command == "ui-report":
+        return ui_report(project, args)
     result, _ = gd_tool(project, "look_tool.gd", args, "UZU_RESULT ")
     return result
 
@@ -619,6 +622,39 @@ def _main_scene(project):
     with open(os.path.join(project, "project.godot"), encoding="utf-8") as f:
         m = re.search(r'^run/main_scene="([^"]+)"', f.read(), re.M)
     return m.group(1) if m else ""
+
+
+UI_PROBE = 'UZUUIReportProbe="*res://addons/uzu_selfplay/ui_report_probe.gd"\n'
+
+
+def ui_report(project, args):
+    """UI richness report (B-1305): runs a UI scene headless (layout and text need no GPU),
+    measures every visible Control, and returns a summary (controls, panels, buttons, text,
+    smallest font, depth, screen coverage, edge inset, unstyled parts), the problems with a
+    fix for each (small text, text overflow, small buttons, no margin, overlap, off screen,
+    unstyled), hints, and the top-level panels. ok is false when there are problems.
+    --shot adds a screenshot of the same scene."""
+    scene = opt(args, "scene") or _main_scene(project)
+    if not scene:
+        raise ToolError("ui-report needs --scene res://ui/screen.tscn")
+    size = opt(args, "resolution", "1280x720")
+    with tempfile.TemporaryDirectory() as tmp:
+        game = os.path.join(tmp, "game")
+        shutil.copytree(project, game)
+        install_addons(game, ["ui_report_probe.gd"], UI_PROBE)
+        run([find_godot(), "--headless", "--path", game, "--import"], timeout=1800)
+        out = os.path.join(tmp, "ui.json")
+        rc, log = run([find_godot(), "--headless", "--path", game, scene, "--resolution", size, "--quit-after", str(int(opt(args, "frames", "5")) + 120), "--", "--uzu-ui-report", out, opt(args, "frames", "5"), "--uzu-ui-size", size], timeout=600, cwd=game)
+        if not os.path.exists(out):
+            sys.stderr.write(log)
+            raise ToolError("the UI was not measured (see stderr)", command="ui-report")
+        with open(out, encoding="utf-8") as f:
+            report = json.load(f)
+    result = {"ok": not report["problems"], "command": "ui-report", "scene": scene, **report}
+    if opt(args, "shot"):
+        w, h = size.split("x")
+        result["shot"] = screenshot(project, os.path.abspath(opt(args, "shot")), int(opt(args, "frames", "8")), f"{w}x{h}", scene=scene)["image"]
+    return result
 
 
 def check_budget(metrics, budget):
@@ -1511,6 +1547,14 @@ def selftest_engine():
                 c.expect("ui font subset", r.get("ok") and r["fonts"]["ok"] and r["fonts"]["size_kb"] < 100 and os.path.exists(os.path.join(q, "fonts", "screen_ja.woff2")), r)
             except ImportError:
                 print("skip ui font subset (no fonttools/brotli)")
+            # B-1305: the UI report finds the problems of a deliberately poor screen, and none of
+            # them on the styled screen built above.
+            shutil.copyfile(os.path.join(HERE, "look_samples", "specs", "poor_ui.tscn"), os.path.join(q, "ui", "poor.tscn"))
+            r = ui_report(q, ["--scene", "res://ui/poor.tscn"])
+            kinds = {p["kind"] for p in r["problems"]}
+            c.expect("ui-report poor", not r["ok"] and r["screen"] == [1280, 720] and kinds >= {"small_text", "small_button", "no_margin", "overlap", "text_overflow", "unstyled"}, r)
+            r = ui_report(q, ["--scene", "res://ui/screen.tscn"])
+            c.expect("ui-report styled", r["summary"]["panels"] == 2 and r["summary"]["unstyled"] == 0 and not {"unstyled", "overlap", "no_margin", "off_screen"} & {p["kind"] for p in r["problems"]}, r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))

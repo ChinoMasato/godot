@@ -1,0 +1,43 @@
+[gd_scene format=3]
+
+[node name="Poor" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Status" type="PanelContainer" parent="."]
+offset_right = 260.0
+offset_bottom = 90.0
+
+[node name="Box" type="VBoxContainer" parent="Status"]
+layout_mode = 2
+
+[node name="Name" type="Label" parent="Status/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Mina Lv.7  HP 72/100  MP 40/100"
+
+[node name="Menu" type="PanelContainer" parent="."]
+offset_left = 200.0
+offset_top = 40.0
+offset_right = 420.0
+offset_bottom = 200.0
+
+[node name="Box" type="VBoxContainer" parent="Menu"]
+layout_mode = 2
+
+[node name="Start" type="Button" parent="Menu/Box"]
+layout_mode = 2
+text = "Start"
+
+[node name="Options" type="Button" parent="Menu/Box"]
+layout_mode = 2
+text = "Options"
+
+[node name="Long" type="Label" parent="."]
+offset_left = 600.0
+offset_top = 300.0
+offset_right = 700.0
+offset_bottom = 330.0
+text = "This line is far too long for the little box it was given"
