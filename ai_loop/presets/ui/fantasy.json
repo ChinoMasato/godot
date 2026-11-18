@@ -1,0 +1,31 @@
+{
+ "_about": "Fantasy: brown leather panels, gold borders, round corners.",
+ "font_size": 20,
+ "font_color": "#f6e7c8",
+ "accent": "#e0b85c",
+ "panel": {
+  "top": "#4a3424ee",
+  "bottom": "#2a1c12ee",
+  "radius": 14,
+  "border": "#e0b85c",
+  "border_width": 3,
+  "shadow": 10,
+  "padding": 16
+ },
+ "button": {
+  "top": "#6a4a2c",
+  "bottom": "#4c341f",
+  "hover": "#80593a",
+  "pressed": "#3a2717",
+  "radius": 10,
+  "border": "#e0b85c",
+  "border_width": 2,
+  "shadow": 4,
+  "padding": 10
+ },
+ "bar": {
+  "bg": "#1a1009c0",
+  "fill": "#e0b85c",
+  "radius": 6
+ }
+}

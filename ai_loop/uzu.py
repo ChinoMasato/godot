@@ -14,8 +14,10 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py enrich   <project> --preset village_rich|meadow|ruins [--scene res://x.tscn] [--surface Ground] [--seed N]
                   [--density-scale 1] [--shot out.png] [--no-render]   a richness preset in one call (B-1208), with the
                   report before and after and the difference (presets: ai_loop/presets/rich/)
-  uzu.py ui       <project> --spec ui.json [--shot out.png [--over res://game.tscn]]   a UI screen (Control tree with
-                  layout and theme) from one JSON spec (B-1301, see ai_loop/ui_tool.gd)
+  uzu.py ui       <project> --spec ui.json [--shot out.png [--over res://game.tscn]] [--theme wafu|sf|fantasy]
+                  [--font-subset]   a UI screen (Control tree with layout and theme) from one JSON spec (B-1301,
+                  see ai_loop/ui_tool.gd); genre themes (ai_loop/presets/ui/) and a bundled Japanese font
+                  subset for web builds (B-1303, ai_loop/ui_font.py; needs fonttools and brotli)
   uzu.py map      <project> nature|city --scene res://main.tscn [--spec JSON-or-file] [--set key=value ...]
                   [--overview top.png] [--replace] [--camera] [--look golden_hour] [--shot out.png] [--inline]
                   a natural map or a city from a short spec (UZUWorldGen); every key is optional (presets)
@@ -790,10 +792,39 @@ def ui(project, args):
     path = os.path.join(project, spec[len("res://"):]) if spec.startswith("res://") else os.path.abspath(spec)
     if not os.path.exists(path):
         raise ToolError(f"no spec at {path}")
-    result, _ = gd_tool(project, "ui_tool.gd", ["--spec", path], "UI_RESULT ")
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    extra = {}
+    # B-1303: a genre theme preset over the spec's theme, and a Japanese font subset.
+    theme_name = opt(args, "theme")
+    if theme_name:
+        presets = {os.path.splitext(os.path.basename(p))[0]: p for p in glob.glob(os.path.join(HERE, "presets", "ui", "*.json"))}
+        if theme_name not in presets:
+            return {"ok": False, "command": "ui", "error": f"--theme needs one of {sorted(presets)}"}
+        with open(presets[theme_name], encoding="utf-8") as f:
+            preset = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
+        data["theme"] = {**data.get("theme", {}), **preset}
+        extra["theme"] = theme_name
+    if "--font-subset" in args:
+        import ui_font
+        scene_name = os.path.splitext(os.path.basename(data.get("scene", "ui.tscn")))[0]
+        fonts = ui_font.subset(ui_font.spec_text(data), os.path.join(project, "fonts"), scene_name)
+        extra["fonts"] = fonts
+        if not fonts.get("ok"):
+            return {"ok": False, "command": "ui", "error": fonts.get("error"), "fonts": fonts}
+        data["theme"] = {**data.get("theme", {}), "font": f"res://fonts/{scene_name}_latin.woff2", "font_fallback": f"res://fonts/{scene_name}_ja.woff2"}
+        run([find_godot(), "--headless", "--path", project, "--import"], timeout=1800)
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+        tmp_spec = f.name
+    try:
+        result, _ = gd_tool(project, "ui_tool.gd", ["--spec", tmp_spec], "UI_RESULT ")
+    finally:
+        os.unlink(tmp_spec)
     if not result:
         raise ToolError("the UI tool printed no result", command="ui")
     result["command"] = "ui"
+    result.update(extra)
     if not result.get("ok") or not opt(args, "shot"):
         return result
     scene = result["scene"]
@@ -1457,6 +1488,29 @@ def selftest_engine():
             r = ui(q, ["--spec", "res://ui.json"])
             problems = " | ".join(r.get("problems", []))
             c.expect("ui spec mistakes", not r["ok"] and "root.children[0].anchor" in problems and "unknown key 'txt' for Button" in problems and "inside a container" in problems, r)
+            # B-1303: a genre theme over the spec, an unknown theme, the text a font subset needs,
+            # and (when fontTools is installed) the subset itself.
+            ui_spec["root"]["children"][0]["anchor"] = "top_left"
+            ui_spec["root"]["children"][1]["children"][0]["children"][1].pop("txt")
+            ui_spec["root"]["children"][0]["children"][0]["children"][0].pop("offset")
+            ui_spec["root"]["children"][0]["children"][0]["children"][0]["text"] = "ミナ Lv.7"
+            with open(os.path.join(q, "ui.json"), "w", encoding="utf-8") as f:
+                json.dump(ui_spec, f, ensure_ascii=False)
+            r = ui(q, ["--spec", "res://ui.json", "--theme", "sf"])
+            with open(os.path.join(q, "ui", "screen.tscn"), encoding="utf-8") as f:
+                screen = f.read()
+            c.expect("ui theme", r.get("ok") and r["theme"] == "sf" and "0.2196078" in screen, r)  # The sf accent, #38e1ff, in the bar fill.
+            r = ui(q, ["--spec", "res://ui.json", "--theme", "steampunk"])
+            c.expect("ui unknown theme", not r["ok"] and "wafu" in r["error"], r)
+            import ui_font
+            c.expect("ui font text", set(ui_font.spec_text(ui_spec)) >= {"ミナ Lv.7", "OK"}, ui_font.spec_text(ui_spec))
+            try:
+                import fontTools  # noqa: F401
+                import brotli  # noqa: F401
+                r = ui(q, ["--spec", "res://ui.json", "--font-subset"])
+                c.expect("ui font subset", r.get("ok") and r["fonts"]["ok"] and r["fonts"]["size_kb"] < 100 and os.path.exists(os.path.join(q, "fonts", "screen_ja.woff2")), r)
+            except ImportError:
+                print("skip ui font subset (no fonttools/brotli)")
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))

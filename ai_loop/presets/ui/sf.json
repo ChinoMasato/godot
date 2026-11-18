@@ -1,0 +1,31 @@
+{
+ "_about": "Science fiction: dark glass panels, cyan neon edges, sharp corners.",
+ "font_size": 19,
+ "font_color": "#d8f6ff",
+ "accent": "#38e1ff",
+ "panel": {
+  "top": "#0d2230e6",
+  "bottom": "#06101ae6",
+  "radius": 2,
+  "border": "#38e1ff",
+  "border_width": 1,
+  "shadow": 12,
+  "padding": 14
+ },
+ "button": {
+  "top": "#103447",
+  "bottom": "#0a2130",
+  "hover": "#16506b",
+  "pressed": "#071822",
+  "radius": 2,
+  "border": "#38e1ff",
+  "border_width": 1,
+  "shadow": 0,
+  "padding": 10
+ },
+ "bar": {
+  "bg": "#0a1a24c0",
+  "fill": "#38e1ff",
+  "radius": 1
+ }
+}
