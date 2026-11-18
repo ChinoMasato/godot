@@ -27,27 +27,24 @@ sys.path.insert(0, os.path.join(HERE, "..", ".."))
 from aiplayer import Game  # noqa: E402
 
 STATE = ["Main/Player:global_position", "Main:shards", "Main:cleared"]
-# (name, (x, z) to stand, shards expected after interacting there)
+# (name, [waypoints (x, z) ..., target], shards expected after interacting)
+# Waypoints follow the village's open lanes; every leg keeps clear of the
+# obstacle radii in main.gd (houses 2.75, pond 2.65, trees 1.0, NPCs 0.85).
 ROUTE = [
-    ("shard_crate", (6.1, 0.6), 1),
-    ("shard_pond", (7.6, 6.4), 2),
-    ("shard_tree", (-4.9, -8.6), 3),
-    ("lantern", (0.0, -8.0), 3),
+    ("shard_crate", [(6.1, 0.6)], 1),
+    ("shard_pond", [(3.0, 3.2), (5.2, 6.9), (7.6, 6.4)], 2),
+    ("shard_tree", [(0.5, 6.0), (0.5, -1.0), (-3.4, -6.2), (-7.6, -8.6), (-4.9, -8.6)], 3),
+    ("lantern", [(-2.2, -8.2), (0.0, -8.0)], 3),
 ]
 EXPECTED_EVENTS = ["start", "shard_1", "shard_2", "shard_3", "lantern_lit"]
 
 
 def event_names(events):
+    """Checkpoint ids from telemetry events ({"type": "checkpoint", "id": ...})."""
     names = []
     for e in events:
-        if isinstance(e, dict):
-            for key in ("name", "checkpoint", "event"):
-                if key in e and isinstance(e[key], str):
-                    names.append(e[key])
-                    break
-            else:
-                if e.get("type") == "checkpoint" and "data" in e:
-                    names.append(str(e["data"]))
+        if isinstance(e, dict) and e.get("type") == "checkpoint" and isinstance(e.get("id"), str):
+            names.append(e["id"])
     return names
 
 
@@ -58,38 +55,79 @@ def pos_of(obs):
     return None
 
 
-def walk_to(game, target, max_steps=500):
+def _want_for(dx, dz):
+    want = set()
+    if abs(dx) > 0.25:
+        want.add("move_right" if dx > 0 else "move_left")
+    if abs(dz) > 0.25:
+        want.add("move_down" if dz > 0 else "move_up")
+    return want
+
+
+def walk_to(game, target, max_steps=900, sink=None):
+    """Steer by observed position. The world pushes the player out of round
+    obstacles; steering straight at a target behind one deadlocks radially,
+    so when progress stalls, detour tangentially for a while (the side
+    flips if the first detour also stalls)."""
     tx, tz = target
     held = set()
     obs = game.observe(state=STATE)
+    if sink is not None:
+        sink += event_names(obs.get("events", []))
+    best = float("inf")
+    stall = 0
+    detour_left = 0
+    side = 1.0
     for _ in range(max_steps):
         p = pos_of(obs)
-        if p is not None:
-            dx, dz = tx - p[0], tz - p[1]
-            if math.hypot(dx, dz) < 1.0:
-                if held:
-                    obs = game.step(frames=1, release=sorted(held), state=STATE)
-                return obs
-            want = set()
-            if abs(dx) > 0.25:
-                want.add("move_right" if dx > 0 else "move_left")
-            if abs(dz) > 0.25:
-                want.add("move_down" if dz > 0 else "move_up")
-            obs = game.step(
-                frames=6,
-                press=sorted(want - held),
-                release=sorted(held - want),
-                state=STATE,
-            )
-            held = want
-        else:
+        if p is None:
             obs = game.step(frames=6, state=STATE)
+            if sink is not None:
+                sink += event_names(obs.get("events", []))
+            continue
+        dx, dz = tx - p[0], tz - p[1]
+        dist = math.hypot(dx, dz)
+        if dist < 1.3:
+            if held:
+                obs = game.step(frames=1, release=sorted(held), state=STATE)
+            return obs
+        if dist < best - 0.05:
+            best = dist
+            stall = 0
+        else:
+            stall += 1
+        if detour_left > 0:
+            detour_left -= 1
+            n = max(dist, 0.001)
+            ux, uz = dx / n, dz / n
+            # Tangential heading: perpendicular to the target direction.
+            want = _want_for(-uz * side, ux * side)
+        else:
+            want = _want_for(dx, dz)
+            if stall >= 25:
+                detour_left = 14
+                stall = 0
+                side = -side
+        obs = game.step(
+            frames=6,
+            press=sorted(want - held),
+            release=sorted(held - want),
+            state=STATE,
+        )
+        if sink is not None:
+            sink += event_names(obs.get("events", []))
+        held = want
     raise RuntimeError("walk_to timed out heading for %s" % (target,))
 
 
-def interact(game):
-    game.step(frames=2, press=["interact"])
-    return game.step(frames=10, release=["interact"], state=STATE)
+def interact(game, sink=None):
+    o = game.step(frames=2, press=["interact"])
+    if sink is not None:
+        sink += event_names(o.get("events", []))
+    o = game.step(frames=10, release=["interact"], state=STATE)
+    if sink is not None:
+        sink += event_names(o.get("events", []))
+    return o
 
 
 def playthrough(seed):
@@ -97,17 +135,19 @@ def playthrough(seed):
     hashes = {}
     final = {}
     with Game(HERE, seed=seed) as game:
-        game.observe(state=STATE)
+        o0 = game.observe(state=STATE)
+        seen += event_names(o0.get("events", []))
         obs = game.step(frames=30, press=["interact"], state=STATE)
-        game.step(frames=5, release=["interact"], state=STATE)
         seen += event_names(obs.get("events", []))
+        o1 = game.step(frames=5, release=["interact"], state=STATE)
+        seen += event_names(o1.get("events", []))
         hashes["start"] = game.state_hash()
-        for name, target, want_shards in ROUTE:
-            obs = walk_to(game, target)
-            seen += event_names(obs.get("events", []))
+        for name, waypoints, want_shards in ROUTE:
+            obs = None
+            for wp in waypoints:
+                obs = walk_to(game, wp, sink=seen)
             for _try in range(4):
-                obs = interact(game)
-                seen += event_names(obs.get("events", []))
+                obs = interact(game, sink=seen)
                 if name == "lantern":
                     if obs.get("state", {}).get("Main:cleared"):
                         break
@@ -123,12 +163,10 @@ def main():
     runs = [playthrough(7), playthrough(7)]
     checks = []
     for i, run in enumerate(runs):
-        order = [e for e in EXPECTED_EVENTS if e in run["events"]]
+        subseq = [e for e in run["events"] if e in EXPECTED_EVENTS]
         checks.append({
             "run": i + 1,
-            "checkpoints_in_order": order == EXPECTED_EVENTS and
-                [run["events"].index(e) for e in EXPECTED_EVENTS] ==
-                sorted(run["events"].index(e) for e in EXPECTED_EVENTS),
+            "checkpoints_in_order": subseq == EXPECTED_EVENTS,
             "final_shards": run["final_state"].get("Main:shards"),
             "final_cleared": run["final_state"].get("Main:cleared"),
         })

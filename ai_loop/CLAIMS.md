@@ -92,3 +92,6 @@
 | B-728 | Claude Code (cloud) | ai-native（直接） | scene/3d/look_preset_3d.cpp（水シェーダー）, tests/scene/test_uzu_look.cpp, ai_loop/look_samples/（必要なら水の見本の配置）, ai_loop/iterations/ | 取り下げ（Codex が先に agent/b-728-codex で宣言していた: 2026-11-18 15:06 UTC。こちらの宣言は 15:07 UTC。運用ルール5により Codex が優先） | 2026-11-19 |
 | B-1203 | Claude Code (cloud) | ai-native（直接） | scene/3d/uzu_scatter.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUScatter.xml（新規）, tests/scene/test_uzu_scatter.cpp（新規）, ai_loop/engine_tool.gd（scatter コマンド）, ai_loop/mcp_server.py, ai_loop/uzu.py, ai_loop/iterations/ | 反映済み | 2026-11-19 |
 | B-1204 | Claude Code (cloud) | ai-native（直接） | ai_loop/look_tool.gd か engine_tool.gd（rich コマンド）, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/（エンジン側が要れば scene/ 以下に小さな関数を追加） | 着手 | 2026-11-19 |
+| B-310 | Muse (lead) | agent/b-310-muse | ai_loop/selfplay/control.gd, ai_loop/iterations/ | 統合待ち（リード） | 2026-11-19 |
+| B-311 | Muse (lead) | agent/b-310-muse | ai_loop/aiplayer.py, ai_loop/uzu.py, ai_loop/iterations/ | 統合待ち（リード） | 2026-11-19 |
+| B-1002 | Muse (lead) | agent/b-310-muse | ai_loop/samples/hikari/（verify_playthrough.py 新規, verify_report.json, main.gd の uzu_state 宣言と物理ステップ化）, ai_loop/iterations/ | 統合待ち（リード） | 2026-11-19 |
