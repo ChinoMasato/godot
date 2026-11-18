@@ -13,6 +13,10 @@ extends SceneTree
 ##   add        --parent N --type T [--name X] [--set '{"position": "Vector3(0, 1, 0)"}']   saves
 ##   instance   --parent N --path res://other.tscn [--name X]     saves
 ##   remove     --node N                                          saves
+##   rich       [--top 10]   static richness of the scene (B-1204): triangles, draw calls (one per surface),
+##              objects, texture memory, props (MultiMesh instances and small meshes) per square meter
+##              of the whole scene and of the area the props cover (props_per_m2_local),
+##              lights; the heaviest nodes. ai_loop/uzu.py look rich adds a rendered frame and a budget
 ##   scatter    --surface Ground --mesh box|sphere|cylinder|capsule|prism|res://rock.tres|res://rock.glb
 ##              [--material res://m.tres] [--density 1] [--seed 1] [--scale 0.8,1.2] [--no-yaw] [--align 0]
 ##              [--max-slope 90] [--min-distance 0] [--sink 0] [--max-count 100000] [--name Scatter]
@@ -244,6 +248,194 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 	return result
 
 
+## Triangles of a mesh (triangle surfaces only) and its surface count.
+func _mesh_cost(mesh: Mesh) -> Vector2i:
+	if mesh == null:
+		return Vector2i.ZERO
+	var tris := 0
+	for i in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(i)
+		if arrays.is_empty() or (mesh is ArrayMesh and mesh.surface_get_primitive_type(i) != Mesh.PRIMITIVE_TRIANGLES):
+			continue  # Primitive meshes are always triangles.
+		var indices = arrays[Mesh.ARRAY_INDEX]
+		tris += (indices.size() if indices != null and indices.size() > 0 else arrays[Mesh.ARRAY_VERTEX].size()) / 3
+	return Vector2i(tris, mesh.get_surface_count())
+
+
+## The instances' extent, from the saved buffer (12 floats each, the origin in 3, 7, 11):
+## a headless run has no renderer to ask.
+func _multimesh_aabb(mm: MultiMesh, count: int) -> AABB:
+	var buf := mm.buffer
+	var stride := 12 + (4 if mm.use_colors else 0) + (4 if mm.use_custom_data else 0)
+	var box := AABB()
+	for i in mini(count, buf.size() / stride):
+		var p := Vector3(buf[i * stride + 3], buf[i * stride + 7], buf[i * stride + 11])
+		box = AABB(p, Vector3.ZERO) if i == 0 else box.expand(p)
+	return box.grow(0.01) if count > 0 else AABB()
+
+
+## The node's transform in the scene root's space (the scene is not in the tree).
+func _to_root(root: Node, n: Node) -> Transform3D:
+	var t := Transform3D()
+	while n != null and n != root:
+		if n is Node3D:
+			t = n.transform * t
+		n = n.get_parent()
+	return t
+
+
+func _visible(root: Node, n: Node) -> bool:
+	while n != null:
+		if (n is Node3D or n is CanvasItem) and not n.visible:
+			return false
+		if n == root:
+			break
+		n = n.get_parent()
+	return true
+
+
+func _texture_bytes(tex: Texture2D) -> int:
+	var img := tex.get_image()
+	if img == null:
+		return tex.get_width() * tex.get_height() * 4
+	var bytes := img.get_data_size()
+	if not img.has_mipmaps() and tex is CompressedTexture2D:
+		bytes = bytes * 4 / 3  # Imported textures usually get mipmaps on the GPU.
+	return bytes
+
+
+func _materials_of(n: Node) -> Array:
+	var mats := []
+	if n is GeometryInstance3D and n.material_override:
+		mats.append(n.material_override)
+	var mesh: Mesh = null
+	if n is MeshInstance3D:
+		mesh = n.mesh
+		for i in n.get_surface_override_material_count():
+			if n.get_surface_override_material(i):
+				mats.append(n.get_surface_override_material(i))
+	elif n is MultiMeshInstance3D and n.multimesh:
+		mesh = n.multimesh.mesh
+	elif n is GPUParticles3D:
+		for i in n.draw_passes:
+			if n.get_draw_pass_mesh(i):
+				for k in n.get_draw_pass_mesh(i).get_surface_count():
+					if n.get_draw_pass_mesh(i).surface_get_material(k):
+						mats.append(n.get_draw_pass_mesh(i).surface_get_material(k))
+	if mesh:
+		for i in mesh.get_surface_count():
+			if mesh.surface_get_material(i):
+				mats.append(mesh.surface_get_material(i))
+		if mesh is PrimitiveMesh and mesh.material:
+			mats.append(mesh.material)
+	if n is SpriteBase3D and n.texture:
+		mats.append(n.texture)  # A texture stands for itself.
+	return mats
+
+
+func _textures_of(mat) -> Array:
+	var out := []
+	if mat is Texture2D:
+		out.append(mat)
+	elif mat is BaseMaterial3D:
+		for i in BaseMaterial3D.TEXTURE_MAX:
+			if mat.get_texture(i):
+				out.append(mat.get_texture(i))
+	elif mat is ShaderMaterial:
+		for p in mat.get_property_list():
+			if p.name.begins_with("shader_parameter/") and mat.get(p.name) is Texture2D:
+				out.append(mat.get(p.name))
+	return out
+
+
+func _rich(root: Node, top_n: int) -> Dictionary:
+	var nodes := []
+	var tris := 0
+	var calls := 0
+	var objects := 0
+	var props := 0
+	var lights := 0
+	var shadow_lights := 0
+	var bounds := AABB()
+	var have_bounds := false
+	var prop_bounds := AABB()
+	var have_prop_bounds := false
+	var textures := {}
+	var by_type := {}
+	for n in [root] + root.find_children("*", "", true, false):
+		if not _visible(root, n):
+			continue
+		if n is Light3D:
+			lights += 1
+			shadow_lights += int(n.shadow_enabled)
+			continue
+		if not n is GeometryInstance3D:
+			continue
+		var t := 0
+		var c := 0
+		var count := 1
+		var aabb := AABB()
+		if n is MeshInstance3D and n.mesh:
+			var cost := _mesh_cost(n.mesh)
+			t = cost.x
+			c = cost.y
+			aabb = n.mesh.get_aabb()
+			if (_to_root(root, n) * aabb).get_longest_axis_size() < 1.0:
+				props += 1  # A small mesh on its own is a prop too (small as placed, after scaling).
+		elif n is MultiMeshInstance3D and n.multimesh and n.multimesh.mesh:
+			count = n.multimesh.visible_instance_count if n.multimesh.visible_instance_count >= 0 else n.multimesh.instance_count
+			var cost := _mesh_cost(n.multimesh.mesh)
+			t = cost.x * count
+			c = cost.y
+			props += count
+			aabb = _multimesh_aabb(n.multimesh, count)
+		elif n is GPUParticles3D or n is CPUParticles3D:
+			count = n.amount
+			var pmesh: Mesh = n.get_draw_pass_mesh(0) if n is GPUParticles3D else n.mesh
+			var cost := _mesh_cost(pmesh)
+			t = cost.x * count
+			c = maxi(1, cost.y)
+		elif n is SpriteBase3D or n is Label3D:
+			t = 2
+			c = 1
+		else:
+			continue
+		tris += t
+		calls += c
+		objects += 1
+		var kind: String = n.get_class()
+		by_type[kind] = by_type.get(kind, {"nodes": 0, "triangles": 0, "draw_calls": 0})
+		by_type[kind].nodes += 1
+		by_type[kind].triangles += t
+		by_type[kind].draw_calls += c
+		nodes.append({"node": str(root.get_path_to(n)), "type": kind, "triangles": t, "draw_calls": c, "instances": count})
+		if aabb.size != Vector3.ZERO:
+			var world := _to_root(root, n) * aabb
+			bounds = world if not have_bounds else bounds.merge(world)
+			have_bounds = true
+			if n is MultiMeshInstance3D or world.get_longest_axis_size() < 1.0:
+				prop_bounds = world if not have_prop_bounds else prop_bounds.merge(world)
+				have_prop_bounds = true
+		for mat in _materials_of(n):
+			for tex in _textures_of(mat):
+				textures[tex] = true
+	var texture_bytes := 0
+	for tex in textures:
+		texture_bytes += _texture_bytes(tex)
+	nodes.sort_custom(func(a, b): return a.triangles > b.triangles)
+	var area := bounds.size.x * bounds.size.z if have_bounds else 0.0
+	# Where the props are: a huge ground plane would otherwise make any density look like zero.
+	var prop_area := prop_bounds.size.x * prop_bounds.size.z if have_prop_bounds else 0.0
+	return {"ok": true, "summary": {
+			"triangles": tris, "draw_calls": calls, "objects": objects, "textures": textures.size(),
+			"texture_mb": snappedf(texture_bytes / 1048576.0, 0.01), "props": props, "area_m2": snappedf(area, 0.01),
+			"props_per_m2": snappedf(props / area, 0.001) if area > 0 else 0.0,
+			"prop_area_m2": snappedf(prop_area, 0.01), "props_per_m2_local": snappedf(props / prop_area, 0.001) if prop_area > 0 else 0.0,
+			"lights": lights, "shadow_lights": shadow_lights},
+		"by_type": by_type, "top": nodes.slice(0, maxi(top_n, 0)),
+		"note": "static estimate: draw calls are one per surface before culling and shadows; look rich adds a rendered frame"}
+
+
 ## The mesh to scatter: a primitive by name, a Mesh resource, or the first mesh of a scene (GLB).
 func _scatter_mesh(spec: String) -> Mesh:
 	var primitives := {"box": BoxMesh, "sphere": SphereMesh, "cylinder": CylinderMesh, "capsule": CapsuleMesh, "prism": PrismMesh}
@@ -309,6 +501,8 @@ func _scene_command(command: String, args: PackedStringArray, root: Node) -> Dic
 				for key in props:
 					child.set_indexed(key, _value_in(str(props[key])) if typeof(props[key]) == TYPE_STRING else props[key])
 			return {"ok": true, "save": true, "node": _node_info(root, child)}
+		"rich":
+			return _rich(root, _option(args, "top", "10").to_int())
 		"scatter":
 			var surface := root.get_node_or_null(_option(args, "surface")) as MeshInstance3D
 			if surface == null or surface.mesh == null:
