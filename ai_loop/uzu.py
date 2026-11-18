@@ -10,6 +10,7 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py engine   <project> <command> [options]   scene, class and project operations (B-401, B-201..B-203, B-304)
   uzu.py look     <project> <command> [options]   the U.ZU look (B-7xx), shot / check / panorama
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
+                  [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
@@ -448,6 +449,7 @@ def selfplay(project, args):
         raise ToolError("selfplay needs --input replay.json")
     replay = os.path.abspath(replay)
     frames, out, movie, events_out, seed = opt(args, "frames", "1800"), opt(args, "out"), opt(args, "movie"), opt(args, "log"), opt(args, "seed")
+    hash_every, compare = opt(args, "hash-every"), opt(args, "compare")
     godot = find_godot()
     sys.path.insert(0, os.path.join(HERE, "telemetry"))
     import report as telemetry
@@ -455,10 +457,17 @@ def selfplay(project, args):
     with tempfile.TemporaryDirectory() as work:
         game = os.path.join(work, "game")
         shutil.copytree(project, game)
-        install_addons(game, ["telemetry/telemetry.gd", "selfplay/replay.gd"], AUTOLOADS_REPLAY)
+        files, autoloads = ["telemetry/telemetry.gd", "selfplay/replay.gd"], AUTOLOADS_REPLAY
+        if hash_every:  # State hashes for determinism checks (B-307).
+            files.append("selfplay/state_hash.gd")
+            autoloads += 'UZUStateHash="*res://addons/uzu_selfplay/state_hash.gd"\n'
+        install_addons(game, files, autoloads)
         log, errors_path = os.path.join(work, "events.jsonl"), os.path.join(work, "errors.jsonl")
+        hash_path = os.path.join(work, "state_hash.json")
         base = ["--path", game, "--fixed-fps", "60", "--quit-after", frames, "--log-json", errors_path]
         user = ["--", "--uzu-telemetry", log, "--uzu-replay", replay] + (["--uzu-seed", seed] if seed else [])
+        if hash_every:
+            user += ["--uzu-state-hash", hash_path, "--uzu-hash-every", hash_every]
         env = None
         if movie:
             movie = os.path.abspath(movie)
@@ -473,6 +482,10 @@ def selfplay(project, args):
         events = telemetry.read_events([log])
         rep = telemetry.report(events)
         errors = read_jsonl(errors_path)
+        state_hashes = None
+        if hash_every and os.path.exists(hash_path):
+            with open(hash_path, encoding="utf-8") as f:
+                state_hashes = json.load(f)
     quit_event = next((e for e in reversed(events) if e.get("type") == "quit"), {})
     result = {
         "ok": rc == 0,
@@ -487,9 +500,32 @@ def selfplay(project, args):
         "errors": errors,
         "report": rep,
     }
+    if hash_every:
+        result["state_hashes"] = state_hashes or {"error": "no state hashes were written"}
+        if compare:
+            result["comparison"] = compare_state_hashes(compare, result["state_hashes"])
+            result["ok"] = result["ok"] and result["comparison"]["same"]
     if out:
         with open(out, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=1)
+    return result
+
+
+def compare_state_hashes(baseline, current):
+    """Compares state hashes with an earlier selfplay result (B-307): the first frame
+    where they differ, and the declared state at the end of both runs."""
+    if isinstance(baseline, str):
+        with open(baseline, encoding="utf-8") as f:
+            baseline = json.load(f)
+    base = (baseline.get("state_hashes") or baseline).get("hashes", {})
+    cur = current.get("hashes", {}) if isinstance(current, dict) else {}
+    frames = sorted({int(k) for k in base} | {int(k) for k in cur})
+    first = next((f for f in frames if base.get(str(f)) != cur.get(str(f))), None)
+    result = {"same": first is None and bool(frames), "compared_frames": len(frames), "first_difference": first}
+    if first is not None:
+        before = (baseline.get("state_hashes") or baseline).get("state", {})
+        after = current.get("state", {})
+        result["state_differences"] = {path: {"baseline": before.get(path), "current": after.get(path)} for path in sorted(set(before) | set(after)) if before.get(path) != after.get(path)}
     return result
 
 
@@ -674,6 +710,21 @@ def selftest_selfplay():
             f.write('[gd_scene load_steps=2 format=3]\n\n[ext_resource type="Script" path="res://main.gd" id="1"]\n\n[node name="Main" type="Node"]\nscript = ExtResource("1")\n')
         with open(os.path.join(rand, "main.gd"), "w") as f:
             f.write('extends Node\n\nfunc _ready() -> void:\n\tget_node("/root/UZUTelemetry").checkpoint("r%d" % (randi() % 1000000))\n')
+        # B-307: state hashes. The same input gives the same hashes; a behavior change
+        # (a faster player) changes them, and the comparison names the first frame and the state.
+        h1 = selfplay(game, ["--input", replay, "--frames", "600", "--hash-every", "30", "--out", os.path.join(work, "h1.json")])
+        assert h1["state_hashes"]["hashes"] and "/root/Main" in h1["state_hashes"]["state"], h1["state_hashes"]
+        h2 = selfplay(game, ["--input", replay, "--frames", "600", "--hash-every", "30", "--compare", os.path.join(work, "h1.json")])
+        assert h2["ok"] and h2["comparison"]["same"] and h2["comparison"]["compared_frames"] >= 5, h2["comparison"]
+        changed = os.path.join(work, "changed_game")
+        shutil.copytree(game, changed)
+        with open(os.path.join(changed, "main.gd"), encoding="utf-8") as f:
+            code = f.read()
+        with open(os.path.join(changed, "main.gd"), "w", encoding="utf-8") as f:
+            f.write(code.replace("const SPEED := 4.0", "const SPEED := 4.2"))
+        h3 = selfplay(changed, ["--input", replay, "--frames", "600", "--hash-every", "30", "--compare", os.path.join(work, "h1.json")])
+        assert not h3["ok"] and not h3["comparison"]["same"] and h3["comparison"]["first_difference"] == 30, h3["comparison"]
+        assert h3["comparison"]["state_differences"], h3["comparison"]
         s1, s1b, s2 = (selfplay(rand, ["--input", no_jump, "--frames", "5", "--seed", s])["checkpoints"] for s in ("1", "1", "2"))
         assert s1 == s1b and s1 != s2 and len(s1) == 1, (s1, s1b, s2)
     print("selfplay selftest: ok")

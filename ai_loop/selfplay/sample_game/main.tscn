@@ -2,8 +2,9 @@
 
 [ext_resource type="Script" path="res://main.gd" id="1"]
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" groups=["uzu_state"]]
 script = ExtResource("1")
+metadata/uzu_state = ["respawn_x", "air", "done", "reached"]
 
 [node name="Player" type="Node2D" parent="." groups=["uzu_player"]]
 
