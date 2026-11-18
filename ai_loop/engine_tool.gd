@@ -17,6 +17,11 @@ extends SceneTree
 ##              objects, texture memory, props (MultiMesh instances and small meshes) per square meter
 ##              of the whole scene and of the area the props cover (props_per_m2_local),
 ##              lights; the heaviest nodes. ai_loop/uzu.py look rich adds a rendered frame and a budget
+##   lod        [--node N] [--min-triangles 300] [--merge-angle 25] [--split-angle 60] [--imports]
+##              distance LOD levels for the scene's meshes (B-1205): each mesh of a MeshInstance3D or a
+##              MultiMesh with at least that many triangles gets simplified levels (meshoptimizer), which
+##              the renderer picks by on-screen size; shared meshes are done once. --imports also turns
+##              on LOD generation in the project's 3D model imports (.glb, .gltf, ...). saves
 ##   scatter    --surface Ground --mesh box|sphere|cylinder|capsule|prism|res://rock.tres|res://rock.glb
 ##              [--material res://m.tres] [--density 1] [--seed 1] [--scale 0.8,1.2] [--no-yaw] [--align 0]
 ##              [--max-slope 90] [--min-distance 0] [--sink 0] [--max-count 100000] [--name Scatter]
@@ -408,7 +413,9 @@ func _rich(root: Node, top_n: int) -> Dictionary:
 		by_type[kind].nodes += 1
 		by_type[kind].triangles += t
 		by_type[kind].draw_calls += c
-		nodes.append({"node": str(root.get_path_to(n)), "type": kind, "triangles": t, "draw_calls": c, "instances": count})
+		var lod_mesh: Mesh = n.mesh if n is MeshInstance3D else (n.multimesh.mesh if n is MultiMeshInstance3D else null)
+		var lods: int = _lod_levels(lod_mesh).size() - 1 if lod_mesh else 0
+		nodes.append({"node": str(root.get_path_to(n)), "type": kind, "triangles": t, "draw_calls": c, "instances": count, "lods": lods})
 		if aabb.size != Vector3.ZERO:
 			var world := _to_root(root, n) * aabb
 			bounds = world if not have_bounds else bounds.merge(world)
@@ -434,6 +441,88 @@ func _rich(root: Node, top_n: int) -> Dictionary:
 			"lights": lights, "shadow_lights": shadow_lights},
 		"by_type": by_type, "top": nodes.slice(0, maxi(top_n, 0)),
 		"note": "static estimate: draw calls are one per surface before culling and shadows; look rich adds a rendered frame"}
+
+
+## Triangles per LOD level of a mesh's surfaces (level 0 is the full mesh).
+func _lod_levels(mesh: Mesh) -> Array:
+	var levels := []
+	for i in mesh.get_surface_count():
+		var surf := RenderingServer.mesh_get_surface(mesh.get_rid(), i)
+		var bytes_per_index := 4 if surf.get("vertex_count", 0) > 65535 else 2
+		var tris := [int(surf.get("index_count", 0)) / 3 if surf.get("index_count", 0) > 0 else int(surf.get("vertex_count", 0)) / 3]
+		for l in surf.get("lods", []):
+			tris.append(l.index_data.size() / bytes_per_index / 3)
+		for k in tris.size():
+			if k >= levels.size():
+				levels.append(0)
+			levels[k] += tris[k]
+	return levels
+
+
+func _lod(root: Node, args: PackedStringArray) -> Dictionary:
+	var min_tris := _option(args, "min-triangles", "300").to_int()
+	var merge := _option(args, "merge-angle", "25").to_float()
+	var split := _option(args, "split-angle", "60").to_float()
+	var only := _option(args, "node")
+	var nodes := [root.get_node_or_null(only)] if not only.is_empty() else [root] + root.find_children("*", "", true, false)
+	if nodes[0] == null:
+		return _error("no --node '%s'" % only)
+	var done := {}  # Old mesh -> new mesh, so shared meshes are simplified once.
+	var meshes := []
+	var skipped := []
+	for n in nodes:
+		var mesh: Mesh = null
+		if n is MeshInstance3D:
+			mesh = n.mesh
+		elif n is MultiMeshInstance3D and n.multimesh:
+			mesh = n.multimesh.mesh
+		if mesh == null:
+			continue
+		if not done.has(mesh):
+			var tris: int = _mesh_cost(mesh).x
+			var before := _lod_levels(mesh)
+			if tris < min_tris or before.size() > 1:
+				skipped.append({"node": str(root.get_path_to(n)), "triangles": tris, "reason": "has LODs already" if before.size() > 1 else "fewer than %d triangles" % min_tris})
+				done[mesh] = mesh
+				continue
+			var im := ImporterMesh.from_mesh(mesh)
+			im.generate_lods(merge, split, [])
+			var lodded: ArrayMesh = im.get_mesh()
+			lodded.resource_name = mesh.resource_name
+			done[mesh] = lodded
+			meshes.append({"node": str(root.get_path_to(n)), "triangles": tris, "levels": _lod_levels(lodded)})
+		if done[mesh] != mesh:
+			if n is MeshInstance3D:
+				n.mesh = done[mesh]
+			else:
+				n.multimesh.mesh = done[mesh]
+	var result := {"ok": true, "save": not meshes.is_empty(), "meshes": meshes, "skipped": skipped}
+	if args.has("--imports"):
+		result["imports"] = _lod_imports()
+	return result
+
+
+## Turns on LOD generation in the project's 3D model imports (on by default; some turn it off).
+func _lod_imports() -> Array:
+	var changed := []
+	var stack := ["res://"]
+	while not stack.is_empty():
+		var dir: String = stack.pop_back()
+		for d in DirAccess.get_directories_at(dir):
+			if not d.begins_with("."):
+				stack.append(dir.path_join(d))
+		for f in DirAccess.get_files_at(dir):
+			if not f.ends_with(".import"):
+				continue
+			var cfg := ConfigFile.new()
+			var path := dir.path_join(f)
+			if cfg.load(path) != OK or cfg.get_value("remap", "importer", "") != "scene":
+				continue
+			if not cfg.get_value("params", "meshes/generate_lods", true):
+				cfg.set_value("params", "meshes/generate_lods", true)
+				cfg.save(path)
+				changed.append(path.trim_suffix(".import"))
+	return changed
 
 
 ## The mesh to scatter: a primitive by name, a Mesh resource, or the first mesh of a scene (GLB).
@@ -503,6 +592,8 @@ func _scene_command(command: String, args: PackedStringArray, root: Node) -> Dic
 			return {"ok": true, "save": true, "node": _node_info(root, child)}
 		"rich":
 			return _rich(root, _option(args, "top", "10").to_int())
+		"lod":
+			return _lod(root, args)
 		"scatter":
 			var surface := root.get_node_or_null(_option(args, "surface")) as MeshInstance3D
 			if surface == null or surface.mesh == null:
