@@ -1,0 +1,79 @@
+{
+ "_about": "Evening village: grass, two kinds of flowers, stones, light dust; golden hour with clouds and the fill/rim rig.",
+ "look": {
+  "quality": "standard",
+  "atmosphere": "golden_hour",
+  "clouds": true,
+  "rig": true
+ },
+ "scatter": [
+  {
+   "name": "Grass",
+   "mesh": "prism",
+   "density": 4.0,
+   "seed": 11,
+   "scale": [
+    0.1,
+    0.28
+   ],
+   "color": "#6f9a40",
+   "avoid": 0.4,
+   "near_camera": 50,
+   "shadows": false
+  },
+  {
+   "name": "FlowersYellow",
+   "mesh": "blob",
+   "density": 0.8,
+   "seed": 12,
+   "scale": [
+    0.07,
+    0.13
+   ],
+   "color": "#e8c84a",
+   "avoid": 0.4,
+   "near_camera": 50,
+   "shadows": false
+  },
+  {
+   "name": "FlowersPink",
+   "mesh": "blob",
+   "density": 0.4,
+   "seed": 13,
+   "scale": [
+    0.07,
+    0.13
+   ],
+   "color": "#d86a8a",
+   "avoid": 0.4,
+   "near_camera": 50,
+   "shadows": false
+  },
+  {
+   "name": "Stones",
+   "mesh": "blob",
+   "density": 0.3,
+   "seed": 14,
+   "scale": [
+    0.12,
+    0.35
+   ],
+   "color": "#8f8a80",
+   "sink": 0.05,
+   "min_distance": 0.7,
+   "avoid": 0.3,
+   "near_camera": 50
+  }
+ ],
+ "particles": [
+  {
+   "kind": "dust",
+   "position": "camera",
+   "extents": [
+    16,
+    2,
+    16
+   ]
+  }
+ ]
+}
