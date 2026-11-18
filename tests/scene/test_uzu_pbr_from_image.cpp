@@ -148,7 +148,7 @@ TEST_CASE("[UZUPBRFromImage] Delight removes a lighting ramp from the albedo") {
 	const Dictionary flat_result = UZUPBRFromImage::make(image, "stone", 1.0f, 1.0f);
 	REQUIRE(bool(flat_result["ok"]));
 	Ref<Image> flat_albedo = flat_result["albedo"];
-	CHECK(Math::absf(window_mean(flat_albedo, 216, 232) - window_mean(flat_albedo, 24, 40)) < 0.08f);
+	CHECK(Math::abs(window_mean(flat_albedo, 216, 232) - window_mean(flat_albedo, 24, 40)) < 0.08f);
 }
 
 TEST_CASE("[UZUPBRFromImage] Compare measures known angles") {

@@ -295,10 +295,10 @@ Dictionary UZUPBRFromImage::make(const Ref<Image> &p_image, const String &p_kind
 	// Seam check: how different the opposite edges are (0 = tiles seamlessly).
 	float seam = 0.0f;
 	for (int y = 0; y < h; y++) {
-		seam += Math::absf(lum[y * w] - lum[y * w + w - 1]);
+		seam += Math::abs(lum[y * w] - lum[y * w + w - 1]);
 	}
 	for (int x = 0; x < w; x++) {
-		seam += Math::absf(lum[x] - lum[(h - 1) * w + x]);
+		seam += Math::abs(lum[x] - lum[(h - 1) * w + x]);
 	}
 	seam /= float(w + h);
 	if (seam > 0.08f && !p_tile) {
