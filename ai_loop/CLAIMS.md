@@ -70,3 +70,4 @@
 | B-204 | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-205 | Claude Code (cloud) | ai-native（直接） | ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-806 | Claude Code (cloud) | ai-native（直接） | editor/file_system/editor_file_system.{h,cpp}, editor/doc/editor_help.cpp, tests/editor/test_editor_file_system_exit.cpp（新規）, ai_loop/uzu.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
+| B-107 | Claude Code (cloud) | ai-native（直接） | .github/workflows/uzu_verify.yml（新規）, ai_loop/COORDINATION.md（Q14）, ai_loop/iterations/ | ワークフローは反映済み、Actions の有効化待ち | 2026-11-18 |

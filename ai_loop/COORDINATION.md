@@ -247,3 +247,11 @@ Phase 8（B-801〜B-805）は完了を確認。次は以下の順で CLAIMS 宣�
 ### リードのキュー追加（2026-11-18）B-107 GitHub Actions 検証基盤
 - B-107 を B-106 の直前に入れた（B-723／B-724 → B-107 → B-106 → Wave 3 の順）。B-106 の検証は、クラウド環境に加えて Actions でも回せる形にする。
 - Xserver（u-zu.co.jp の共用サーバー）はビルド用途に使わない（共用 Web ホスティングでツールチェーンがなく、高負荷プロセスも不可。会社サイトと KRC 中継の本番でもある）。ビルドの担い手は、クラウド環境／オーナーのローカル PC／GitHub Actions の3つとする。
+
+### Q14（Claude Code → オーナー、2026-11-18）B-107 のために GitHub Actions を有効にしてください
+- 専用のワークフロー `.github/workflows/uzu_verify.yml` を置いた（editor のビルド＋全テスト＋AI ツールの self-test、キャッシュつき）。ただし、このフォークでは Actions がまだ無効で、走らない。
+- お願い（2つ。どちらも GitHub の画面での設定）:
+  1. リポジトリの Settings → Actions → General で、Actions を有効にする。
+  2. Settings → Secrets and variables → Actions → Variables に、変数 `DISABLE_GODOT_CI` を値 `true` で作る。上流の重いワークフロー（全プラットフォームのビルド）が push のたびに走るのを止める、上流自身の切り替えです。上流のファイルは書き換えません。
+- 有効になったら、わざと fail を入れて red → green を確かめ、所要時間を記録します（B-107 の判定）。
+

@@ -1,0 +1,76 @@
+# U.ZU Engine verification (BACKLOG B-107): the editor build with tests and the full
+# unit test suite on every push to the working branches, plus the agent tool self-tests.
+# Only this workflow is meant to run on the fork. The upstream workflows ("🔗 GHA",
+# runner.yml) stay off: set the repository variable DISABLE_GODOT_CI to true (their
+# own switch), so no upstream file needs to change.
+name: U.ZU verify
+
+on:
+  push:
+    branches: [ai-native, "claude/**", "agent/**", "rehearsal/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: uzu-verify-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Editor build, unit tests, tool self-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python and SCons
+        uses: ./.github/actions/godot-deps
+
+      - name: Setup system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwayland-bin
+
+      - name: Restore the SCons cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .scons_cache
+          key: uzu-editor-tests-${{ github.sha }}
+          restore-keys: uzu-editor-tests-
+
+      - name: Build the editor with tests
+        id: build
+        run: |
+          start=$(date +%s)
+          scons platform=linuxbsd target=editor tests=yes accesskit=no arch=x86_64 \
+            cache_path=.scons_cache cache_limit=7 -j"$(nproc)"
+          echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+
+      - name: Save the SCons cache
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: .scons_cache
+          key: uzu-editor-tests-${{ github.sha }}
+
+      - name: Unit tests
+        id: tests
+        run: |
+          start=$(date +%s)
+          bin/godot.linuxbsd.editor.x86_64 --headless --test --force-colors 2>&1 | tee tests.log
+          status=${PIPESTATUS[0]}
+          echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+          grep -E "\[doctest\] (test cases|assertions)" tests.log >> "$GITHUB_STEP_SUMMARY" || true
+          exit "$status"
+
+      - name: Agent tool self-tests
+        run: python3 ai_loop/uzu.py selftest all
+
+      - name: Timing
+        if: always()
+        run: |
+          {
+            echo "### Timing"
+            echo "- build: ${{ steps.build.outputs.seconds }} s"
+            echo "- unit tests: ${{ steps.tests.outputs.seconds }} s"
+          } >> "$GITHUB_STEP_SUMMARY"
