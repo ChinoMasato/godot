@@ -41,6 +41,7 @@ TEST_FORCE_LINK(test_uzu_juice)
 #include "scene/3d/uzu_juice.h"
 #include "scene/main/scene_tree.h"
 #include "scene/main/window.h"
+#include "scene/resources/uzu_sfx.h"
 
 namespace TestUZUJuice {
 
@@ -216,6 +217,25 @@ TEST_CASE("[Scene][UZUJuice] Burst2D carries the dot texture and the color") {
 }
 
 } // namespace TestUZUJuice
+
+
+TEST_CASE("[Scene][UZUJuice] impact debug steps (temporary)") {
+	fprintf(stderr, "DBG step 0\n");
+	Node3D *parent = memnew(Node3D);
+	Node3D *node = memnew(Node3D);
+	parent->add_child(node);
+	UZUJuice::squash(node, 0.3);
+	fprintf(stderr, "DBG step 1 squash ok\n");
+	UZUJuice::shake(0.12);
+	fprintf(stderr, "DBG step 2 shake ok\n");
+	Ref<AudioStreamWAV> stream = UZUSfx::generate_preset("land");
+	fprintf(stderr, "DBG step 3 generate ok valid=%d\n", stream.is_valid() ? 1 : 0);
+	AudioStreamPlayer *player = UZUSfx::play(parent, stream);
+	fprintf(stderr, "DBG step 4 play ok player=%p\n", (void *)player);
+	memdelete(parent);
+	fprintf(stderr, "DBG step 5 delete ok\n");
+	UZUJuice::clear_shake();
+}
 
 TEST_CASE("[Scene][UZUJuice] impact land: squash, shake and sound only") {
 	Node3D *parent = memnew(Node3D);
