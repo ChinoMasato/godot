@@ -18,6 +18,7 @@ extends SceneTree
 ##            look + tilt-shift + lit outlined sprites with blob shadows + one texel size + telephoto camera rig
 ##   particles --scene res://main.tscn --kind dust|fireflies|snow|embers [--position x,y,z] [--extents x,y,z]   sparkle particles (B-718)
 ##   godrays  --scene res://main.tscn --position x,y,z [--width 3] [--length 8]   fake god rays along the sun's light (B-719)
+##   palette  --scene res://main.tscn [--levels 6] [--strength 1] [--scale 1]   palette quantization with ordered dithering (B-721)
 ##   info     lists the options
 ## Prints one line "UZU_RESULT {json}" with {"ok": bool, ...}; exits 0 on success, 1 on error.
 
@@ -76,7 +77,7 @@ func _save_scene(root: Node, path: String) -> Error:
 
 func _run(args: PackedStringArray) -> Dictionary:
 	if args.is_empty() or args[0] == "info":
-		return {"ok": true, "particle": PARTICLES.keys(), "commands": ["apply", "hd2d", "particles", "godrays", "rig", "lamp", "camera", "material", "sprite", "texels", "pixel", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys() + ["foliage_wind"], "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
+		return {"ok": true, "particle": PARTICLES.keys(), "commands": ["apply", "hd2d", "particles", "godrays", "palette", "rig", "lamp", "camera", "material", "sprite", "texels", "pixel", "shot", "check", "panorama", "bake", "info"], "quality": QUALITIES.keys(), "atmosphere": ATMOSPHERES.keys(), "material": MATERIALS.keys() + ["foliage_wind"], "lens": LENSES.keys(), "eye": EYE_LEVELS.keys()}
 	var command := args[0]
 
 	if command == "material" and _option(args, "scene").is_empty():
@@ -133,6 +134,22 @@ func _run(args: PackedStringArray) -> Dictionary:
 				return _error("godrays needs --position x,y,z")
 			var rays: MeshInstance3D = UZULook.add_god_rays(root, Vector3(gp[0].to_float(), gp[1].to_float(), gp[2].to_float()), _option(args, "width", "3").to_float(), _option(args, "length", "8").to_float())
 			done = {"node": str(root.get_path_to(rays))}
+		"palette":
+			var envs := root.find_children("*", "WorldEnvironment", true, false)
+			if envs.is_empty():
+				root.free()
+				return _error("palette needs a WorldEnvironment (run apply first)")
+			var env := envs[0] as WorldEnvironment
+			if env.compositor == null:
+				env.compositor = Compositor.new()
+			var palette := UZUPaletteDither.new()
+			palette.levels = _option(args, "levels", "6").to_int()
+			palette.dither_strength = _option(args, "strength", "1").to_float()
+			palette.dither_scale = _option(args, "scale", "1").to_int()
+			var effects := env.compositor.compositor_effects.duplicate()
+			effects.append(palette)
+			env.compositor.compositor_effects = effects
+			done = {"levels": palette.levels, "dither_strength": palette.dither_strength, "dither_scale": palette.dither_scale, "effects": effects.size()}
 		"rig":
 			done = UZULook.add_lighting_rig(root, atmosphere)
 		"lamp":

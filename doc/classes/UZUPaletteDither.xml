@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUPaletteDither" inherits="CompositorEffect" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Palette quantization with ordered dithering for the U.ZU look, as a compositor effect.
+	</brief_description>
+	<description>
+		Reduces the colors to [member levels] steps per channel and breaks the bands with a 4x4 Bayer pattern, for a "modern retro" finish. Compositor effects run before tonemapping, so the colors are quantized in a display-like gamma space (1/2.2) and converted back. [method quantize] returns what the effect does to a color at a pixel, so the result can be checked without rendering.
+		[b]Note:[/b] Runs only on RenderingDevice renderers (Forward+ and Mobile) with a 16-bit float color buffer. It does nothing in the Compatibility renderer.
+		[b]Note:[/b] This class is specific to U.ZU Engine.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="get_dither_threshold" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="pixel" type="Vector2i" />
+			<description>
+				Returns the Bayer threshold of the screen [param pixel], in [code][-0.5, 0.5)[/code]. The pattern tiles every 4 dither cells of [member dither_scale] pixels.
+			</description>
+		</method>
+		<method name="quantize" qualifiers="const">
+			<return type="Color" />
+			<param index="0" name="color" type="Color" />
+			<param index="1" name="pixel" type="Vector2i" />
+			<description>
+				Returns [param color] as the effect outputs it at the screen [param pixel] (the shader uses the same formula). Alpha is kept.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="dither_scale" type="int" setter="set_dither_scale" getter="get_dither_scale" default="1">
+			Screen pixels per dither cell (1 to 8). Bigger values make a chunkier, more visible pattern.
+		</member>
+		<member name="dither_strength" type="float" setter="set_dither_strength" getter="get_dither_strength" default="1.0">
+			How much the Bayer pattern shifts the rounding: 0 gives plain bands, 1 a full step of dithering.
+		</member>
+		<member name="levels" type="int" setter="set_levels" getter="get_levels" default="6">
+			Steps per color channel (2 to 64). 6 gives 216 colors.
+		</member>
+	</members>
+</class>
