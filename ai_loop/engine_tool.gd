@@ -25,10 +25,6 @@ extends SceneTree
 ##   actions                                                      the project's input actions and their events (B-304)
 ##   map-import   --kind normal|depth --in res://model.png --for res://picture.png --out res://x.png
 ##                [--depth-kind auto|disparity|linear] [--no-align]   bring in an outside normal/depth map (B-903)
-##   pbr-make     --in res://tex.png --out res://materials/stone [--kind stone] [--strength 1.0] [--delight 0.7]
-##                [--tile] [--invert] [--size 1024] [--normal-from res://n.png]   estimated PBR maps + material.tres (B-902)
-##   pbr-compare  --normal res://n.png --ref res://scan_n.png [--orm res://orm.png --ref-orm res://scan_arm.png]
-##   pbr-kinds                                                    the kinds of material and their values
 ##   map                                                          static index of the project (B-204): files by kind, dependencies
 ##                                                                both ways, scenes (root, nodes, scripts, instances, signal
 ##                                                                connections), autoloads, global classes, main scene
@@ -143,28 +139,6 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 			var result := UZUMapImport.import_file(_option(args, "in"), _option(args, "for"), _option(args, "out"), kinds[kind], depth_kinds[depth_kind], not args.has("--no-align"))
 			result["command"] = command
 			return result
-		"pbr-make":
-			var options := {"strength": _option(args, "strength", "1.0").to_float(), "delight": _option(args, "delight", "0.7").to_float(), "size": _option(args, "size", "1024").to_int(), "tile": args.has("--tile"), "invert": args.has("--invert")}
-			if not _option(args, "normal-from").is_empty():
-				options["normal_from"] = _option(args, "normal-from")
-			var kind := _option(args, "kind", "stone")
-			if not UZUPBRFromImage.get_kinds().has(kind):
-				return _error("unknown --kind '%s' (see pbr-kinds)" % kind)
-			var made := UZUPBRFromImage.make_file(_option(args, "in"), _option(args, "out"), kind, options)
-			made["command"] = command
-			return made
-		"pbr-compare":
-			var images := {}
-			for key in ["normal", "ref", "orm", "ref-orm"]:
-				var path := _option(args, key)
-				images[key] = Image.load_from_file(ProjectSettings.globalize_path(path)) if not path.is_empty() else null
-			if images["normal"] == null or images["ref"] == null:
-				return _error("pbr-compare needs readable --normal and --ref (and optionally --orm and --ref-orm)")
-			var compared := UZUPBRFromImage.compare(images["normal"], images["ref"], images["orm"], images["ref-orm"])
-			compared["command"] = command
-			return compared
-		"pbr-kinds":
-			return {"ok": true, "command": command, "kinds": UZUPBRFromImage.get_kinds()}
 		"res-new", "res-props", "res-get", "res-set":
 			return _resource_command(command, args)
 		"setting-get", "setting-set":

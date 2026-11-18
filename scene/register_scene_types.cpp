@@ -171,7 +171,6 @@
 #include "scene/resources/texture_rd.h"
 #include "scene/resources/theme.h"
 #include "scene/resources/uzu_map_import.h"
-#include "scene/resources/uzu_pbr_from_image.h"
 #include "scene/resources/uzu_palette_dither.h"
 #include "scene/resources/uzu_post_effect.h"
 #include "scene/resources/uzu_tilt_shift.h"
@@ -475,7 +474,6 @@ void register_scene_types() {
 	GDREGISTER_CLASS(UZUTiltShift);
 	GDREGISTER_CLASS(UZUPaletteDither);
 	GDREGISTER_ABSTRACT_CLASS(UZUMapImport);
-	GDREGISTER_ABSTRACT_CLASS(UZUPBRFromImage);
 	GDREGISTER_CLASS(UZUPicture);
 
 	GDREGISTER_ABSTRACT_CLASS(MultiplayerPeer);
