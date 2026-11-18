@@ -94,4 +94,4 @@
 | B-1204 | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd（rich）, ai_loop/uzu.py（look rich）, ai_loop/rich_probe.gd（新規）, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-19 |
 | B-1207 | Claude Code (cloud) | ai-native（直接） | ai_loop/build_tool.gd（新規）, ai_loop/uzu.py（build）, ai_loop/mcp_server.py, ai_loop/look_samples/specs/village.json（新規）, ai_loop/look_samples/compare/b1207_village.png, ai_loop/iterations/ | 反映済み | 2026-11-19 |
 | B-1208 | Claude Code (cloud) | ai-native（直接） | ai_loop/build_tool.gd（既存シーンへの追加）, ai_loop/presets/（新規、プリセットの JSON）, ai_loop/uzu.py（enrich コマンド）, ai_loop/mcp_server.py, ai_loop/iterations/ | 着手 | 2026-11-19 |
-| B-1201 | Codex | agent/b-1201-codex | ai_loop/blender_bridge.py, ai_loop/blender/（Blender 内の処理、見本、手順）, ai_loop/iterations/2026-11-19-B-1201-codex.md | 作業中。外部 Blender からプロジェクト内の PNG／GLB までを検証 | 2026-11-19 |
+| B-1201 | Codex | agent/b-1201-codex | ai_loop/blender_bridge.py, ai_loop/blender/（Blender 内の処理、見本、手順）, ai_loop/iterations/2026-11-19-B-1201-codex.md | 検証完了・統合待ち。外部 Blender の書き出しから Engine の取り込みまで成功 | 2026-11-19 |
