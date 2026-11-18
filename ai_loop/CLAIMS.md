@@ -7,6 +7,7 @@
 
 | 項目 | 担当 | ブランチ | 触るパス | 状態 | 開始日 |
 |---|---|---|---|---|---|
+| B-904 試作CLIの信頼性補完 | Codex local | agent/b-904-codex-cli | ai_loop/prototypes/picture/picture.py・test_picture_cli.py・README.md, ai_loop/iterations/ | 16回帰試験・6実機コマンド成功、統合待ち | 2026-11-18 |
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
 | B-001 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/LEDGER.md, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-002 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/measure.sh（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
