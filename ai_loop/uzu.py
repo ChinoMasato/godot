@@ -713,6 +713,8 @@ def rich(project, args):
         per = n["triangles"] // max(n["instances"], 1)
         if n["instances"] > 1 and per > 500:
             hints.append(f"{n['node']}: {n['instances']} copies of a {per}-triangle mesh ({n['triangles']} triangles); a low-poly mesh or fewer copies cuts this most")
+        if per > 1000 and not n.get("lods"):
+            hints.append(f"{n['node']}: a {per}-triangle mesh without LOD levels; engine lod adds them (far copies then draw far fewer triangles)")
         elif n["draw_calls"] > 8:
             hints.append(f"{n['node']}: {n['draw_calls']} surfaces (draw calls); merging materials cuts them")
     if metrics.get("texture_mb", 0) > 256:
@@ -1471,6 +1473,13 @@ def selftest_engine():
             c.expect("rich over budget", not r["ok"] and r["failures"][0]["metric"] == "triangles" and r["summary"]["props"] > 0 and any("low-poly" in h for h in r["hints"]), r)
             r = rich(q, ["rich", "--scene", "res://field.tscn", "--no-render", "--budget", '{"max_triangles": 10000000, "min_props_per_m2": 1}'])
             c.expect("rich within budget", r["ok"] and r["failures"] == [] and r["frame"] is None, r)
+            # B-1205: LOD levels for the field's heavy spheres; the report then sees them.
+            r = _call(engine, q, ["lod", "--scene", "res://field.tscn"])
+            c.expect("lod", r.get("ok") and r["meshes"] and r["meshes"][0]["triangles"] > 1000 and len(r["meshes"][0]["levels"]) > 3 and r["meshes"][0]["levels"][-1] < r["meshes"][0]["triangles"] // 10, r)
+            r2 = rich(q, ["rich", "--scene", "res://field.tscn", "--no-render"])
+            c.expect("lod seen by rich", all(t["lods"] > 0 for t in r2["top"] if t["type"] == "MultiMeshInstance3D") and not any("without LOD" in h for h in r2["hints"]), r2)
+            r = _call(engine, q, ["lod", "--scene", "res://field.tscn"])
+            c.expect("lod again skips", r.get("ok") and r["meshes"] == [] and any("has LODs" in x["reason"] for x in r["skipped"]), r)
             try:
                 rich(q, ["rich", "--scene", "res://field.tscn", "--no-render", "--budget", '{"max_polygons": 1}'])
                 c.expect("rich bad budget key", False, "accepted")
