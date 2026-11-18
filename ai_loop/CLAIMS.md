@@ -7,6 +7,7 @@
 
 | 項目 | 担当 | ブランチ | 触るパス | 状態 | 開始日 |
 |---|---|---|---|---|---|
+| B-720 GPU 確認（B-719 比較を併記） | Codex local | agent/b-720-codex-gpu | ai_loop/windows/effects_gpu*, ai_loop/iterations/, ai_loop/look_samples/compare/effects_gpu* | 通常風のみ確認、GPU device loss により残り保留 | 2026-11-18 |
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
 | B-001 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/LEDGER.md, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-002 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/measure.sh（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
