@@ -32,6 +32,7 @@ NODE = _str('Node path relative to the scene root ("." is the root)')
 
 # name: (script, command, description, properties, required)
 TOOLS = {
+    "replay_compare": ("replay-compare", "", "Compare replay JSON or JSONL and report the first differing field. Snapshots matches expected fields at each frame or time.", {"expected": _str("Expected log or snapshot file path"), "actual": _str("Actual log file path"), "snapshots": {"type": "boolean"}}, ["expected", "actual"]),
     "scene_new": ("engine", "new", "Create a new scene file with a root node.", {"scene": SCENE, "type": _str("Root node class, e.g. Node3D"), "name": _str("Root node name")}, ["scene"]),
     "scene_tree": ("engine", "tree", "List the nodes of a scene with their types and scripts.", {"scene": SCENE, "depth": _str("Maximum depth (optional)")}, ["scene"]),
     "node_props": ("engine", "props", "List a node's inspector properties and their values.", {"scene": SCENE, "node": NODE}, ["scene", "node"]),
@@ -99,7 +100,9 @@ TOOLS = {
 
 def call_tool(project, name, arguments):
     script, command, _, _, _ = TOOLS[name]
-    if script == "bench":
+    if script == "replay-compare":
+        argv = [sys.executable, os.path.join(HERE, "uzu.py"), script]
+    elif script == "bench":
         argv = [sys.executable, os.path.join(HERE, "bench.py"), command, "--project", project]
     else:
         argv = [sys.executable, os.path.join(HERE, "uzu.py"), script, project] + ([command] if command else [])  # Cross-platform entry (B-801).

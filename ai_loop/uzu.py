@@ -20,6 +20,7 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
                   [--packet DIR] [--expect-clear]   on failure, a diagnosis packet in DIR (B-308)
+  uzu.py replay-compare --expected PATH --actual PATH [--snapshots]   compare JSON/JSONL logs (B-314)
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
@@ -1555,6 +1556,10 @@ def main(argv):
         print(__doc__)
         return 0 if argv else 2
     tool, rest = argv[0], argv[1:]
+    if tool == "replay-compare":
+        import replay_compare
+
+        return replay_compare.main(rest)
     if tool == "selftest":
         return selftest(rest[0] if rest else "all")
     if tool == "picture":
