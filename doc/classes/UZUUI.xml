@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUUI" inherits="Object" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		A UI kit: procedural panels, a matching theme, and constructors for common parts.
+	</brief_description>
+	<description>
+		[UZUUI] gives a game UI a finished look without drawn assets. Panels are drawn procedurally, each as one 9-slice image: a vertical gradient, rounded corners, a border and a soft shadow. [method create_theme] styles every common control with them: panels, buttons (normal, hover, pressed, disabled), bars, tabs, lists and tooltips. The [code]make_*[/code] methods build the usual parts.
+		[codeblock]
+		var screen = Control.new()
+		screen.theme = UZUUI.create_theme({"accent": "#d9a441", "font_size": 20})
+		var dialog = UZUUI.make_dialog("Elder", "Bring three shards.", ["Accept", "Later"])
+		screen.add_child(dialog)
+		[/codeblock]
+		Screens can also be built from a JSON spec with [code]ai_loop/uzu.py ui[/code], which uses this class.
+		[b]Note:[/b] This class is specific to U.ZU Engine.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="create_panel_style" qualifiers="static">
+			<return type="StyleBox" />
+			<param index="0" name="style" type="Dictionary" />
+			<description>
+				Returns a panel style. Keys (colors are [Color] or [code]"#rrggbb[aa]"[/code]):
+				- [code]bg[/code], or [code]top[/code] and [code]bottom[/code] for a vertical gradient.
+				- [code]radius[/code]: the corner radius.
+				- [code]border[/code] and [code]border_width[/code].
+				- [code]shadow[/code]: the shadow size, drawn outside the control's rectangle.
+				- [code]padding[/code]: the content margin.
+			</description>
+		</method>
+		<method name="create_theme" qualifiers="static">
+			<return type="Theme" />
+			<param index="0" name="options" type="Dictionary" default="{}" />
+			<description>
+				Returns a theme for the common controls. All keys are optional (see [method get_theme_defaults]):
+				- [code]accent[/code]: borders and the bar fill.
+				- [code]text[/code]: the text color.
+				- [code]font[/code] (a [Font]) and [code]font_size[/code].
+				- [code]panel[/code], [code]button[/code] and [code]bar[/code]: style dictionaries as in [method create_panel_style]. Buttons also take [code]hover[/code] and [code]pressed[/code] colors; bars take [code]fill[/code].
+			</description>
+		</method>
+		<method name="draw_panel" qualifiers="static">
+			<return type="Image" />
+			<param index="0" name="radius" type="int" />
+			<param index="1" name="top" type="Color" />
+			<param index="2" name="bottom" type="Color" />
+			<param index="3" name="border" type="Color" />
+			<param index="4" name="border_width" type="int" />
+			<param index="5" name="shadow" type="int" />
+			<description>
+				Draws the 9-slice image of a panel. This is what [method create_panel_style] uses.
+			</description>
+		</method>
+		<method name="get_theme_defaults" qualifiers="static">
+			<return type="Dictionary" />
+			<description>
+				Returns the default options of [method create_theme].
+			</description>
+		</method>
+		<method name="make_bar" qualifiers="static">
+			<return type="Control" />
+			<param index="0" name="value" type="float" />
+			<param index="1" name="max" type="float" default="100.0" />
+			<description>
+				Returns a [ProgressBar] without the percentage text.
+			</description>
+		</method>
+		<method name="make_button" qualifiers="static">
+			<return type="Control" />
+			<param index="0" name="text" type="String" />
+			<description>
+				Returns a [Button].
+			</description>
+		</method>
+		<method name="make_dialog" qualifiers="static">
+			<return type="Control" />
+			<param index="0" name="title" type="String" />
+			<param index="1" name="text" type="String" />
+			<param index="2" name="buttons" type="PackedStringArray" />
+			<description>
+				Returns a panel with a title, wrapped text, and a row of buttons on the right. The parts are [code]Content/Title[/code], [code]Content/Text[/code] and [code]Content/Buttons/&lt;label&gt;[/code].
+			</description>
+		</method>
+		<method name="make_list" qualifiers="static">
+			<return type="Control" />
+			<param index="0" name="items" type="PackedStringArray" />
+			<description>
+				Returns an [ItemList] with the items, as tall as its content.
+			</description>
+		</method>
+		<method name="make_panel" qualifiers="static">
+			<return type="Control" />
+			<param index="0" name="content" type="Control" default="null" />
+			<description>
+				Returns a [PanelContainer], holding [param content] if given.
+			</description>
+		</method>
+		<method name="make_tabs" qualifiers="static">
+			<return type="Control" />
+			<param index="0" name="titles" type="PackedStringArray" />
+			<description>
+				Returns a [TabContainer] with one empty page (a [VBoxContainer]) per title.
+			</description>
+		</method>
+	</methods>
+</class>

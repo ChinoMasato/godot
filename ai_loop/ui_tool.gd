@@ -8,19 +8,21 @@ extends SceneTree
 ## Spec (colors "#rrggbb" or "#rrggbbaa"; an unknown key is an error that names where it is):
 ##   {"scene": "res://ui/hud.tscn",
 ##    "theme": {"font": "res://fonts/x.ttf", "font_size": 20, "font_color": "#f4ead2", "accent": "#d9a441",
-##              "panel": {"bg": "#141b2bdd", "radius": 12, "border": "#d9a441", "border_width": 2, "shadow": 8, "padding": 14},
+##              "panel": {"top": "#1d2740ee", "bottom": "#10162add", "radius": 12, "border": "#d9a441", "shadow": 8, "padding": 14},
 ##              "button": {"bg": "#2b3550", "hover": "#3a4870", "pressed": "#1d2438", "radius": 8, "padding": 10},
 ##              "bar": {"bg": "#00000080", "fill": "#d9a441", "radius": 6}},
 ##    "root": {"type": "Screen", "children": [ ...nodes... ]}}
 ## A node: {"type": T, "name": "...", "children": [...], and the keys of its type}
 ##   types: Screen (full-screen root), Panel, VBox, HBox, Grid, Margin, Center, Scroll, Label,
-##          RichText (BBCode), Button, Bar (progress), Image (TextureRect), Color (ColorRect), Spacer
+##          RichText (BBCode), Button, Bar (progress), Image (TextureRect), Color (ColorRect), Spacer,
+##          Tabs (each child is a page; its name is the tab title), List (ItemList, "items": [...])
 ##   placement (outside containers): "anchor": top_left | top | top_right | left | center | right |
 ##          bottom_left | bottom | bottom_right | full | top_wide | bottom_wide | left_wide | right_wide,
 ##          "offset": [x, y] (inset from the anchored edges; for centers, a shift), "size": [w, h]
 ##   inside containers: "min_size": [w, h], "expand": true (take the free space)
-##   common: "visible", "tooltip", "style" (a panel style for this node: bg, radius, border,
-##          border_width, shadow, padding), "font_size", "font_color", "align" (left | center | right)
+##   common: "visible", "tooltip", "style" (a panel style for this node through UZUUI: bg or a
+##          top/bottom gradient, radius, border, border_width, shadow, padding), "font_size",
+##          "font_color", "align" (left | center | right)
 ##   Label / RichText / Button: "text";  Bar: "value", "max", "show_percent"
 ##   VBox / HBox / Grid: "separation", Grid "columns";  Margin: "padding" (n or [l, t, r, b])
 ##   Image: "texture" (res://), "stretch" (keep | cover | scale);  Color: "color"
@@ -31,12 +33,13 @@ const TYPES := {
 	"Grid": "GridContainer", "Margin": "MarginContainer", "Center": "CenterContainer", "Scroll": "ScrollContainer",
 	"Label": "Label", "RichText": "RichTextLabel", "Button": "Button", "Bar": "ProgressBar",
 	"Image": "TextureRect", "Color": "ColorRect", "Spacer": "Control",
+	"Tabs": "TabContainer", "List": "ItemList",
 }
 const COMMON := ["type", "name", "children", "anchor", "offset", "size", "min_size", "expand", "visible", "tooltip", "style", "font_size", "font_color", "align"]
 const EXTRA := {
 	"Label": ["text"], "RichText": ["text"], "Button": ["text"], "Bar": ["value", "max", "show_percent"],
 	"VBox": ["separation"], "HBox": ["separation"], "Grid": ["separation", "columns"], "Margin": ["padding"],
-	"Image": ["texture", "stretch"], "Color": ["color"],
+	"Image": ["texture", "stretch"], "Color": ["color"], "List": ["items"],
 }
 const ANCHORS := {
 	"top_left": Control.PRESET_TOP_LEFT, "top": Control.PRESET_CENTER_TOP, "top_right": Control.PRESET_TOP_RIGHT,
@@ -45,7 +48,7 @@ const ANCHORS := {
 	"full": Control.PRESET_FULL_RECT, "top_wide": Control.PRESET_TOP_WIDE, "bottom_wide": Control.PRESET_BOTTOM_WIDE,
 	"left_wide": Control.PRESET_LEFT_WIDE, "right_wide": Control.PRESET_RIGHT_WIDE,
 }
-const STYLE_KEYS := ["bg", "radius", "border", "border_width", "shadow", "padding"]
+const STYLE_KEYS := ["bg", "top", "bottom", "radius", "border", "border_width", "shadow", "padding", "hover", "pressed", "fill"]
 const THEME_KEYS := ["font", "font_size", "font_color", "accent", "panel", "button", "bar"]
 
 var errors := []
@@ -78,72 +81,47 @@ func _vec2(where: String, v, fallback := Vector2.ZERO) -> Vector2:
 	return fallback
 
 
-func _stylebox(where: String, d) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
+## A panel style through UZUUI (B-1302): a gradient ("top"/"bottom") or a flat "bg",
+## rounded corners, a border and a soft shadow.
+func _stylebox(where: String, d) -> StyleBox:
 	if not d is Dictionary:
 		_err(where, "must be an object")
-		return sb
+		return StyleBoxEmpty.new()
 	for key in d:
 		if not key in STYLE_KEYS:
 			_err(where, "unknown key '%s' (allowed: %s)" % [key, ", ".join(STYLE_KEYS)])
-	sb.bg_color = _color(where + ".bg", d.get("bg", "#141b2bdd"))
-	sb.set_corner_radius_all(int(d.get("radius", 0)))
-	if d.has("border"):
-		sb.border_color = _color(where + ".border", d.border)
-		sb.set_border_width_all(int(d.get("border_width", 2)))
-	if d.has("shadow"):
-		sb.shadow_size = int(d.shadow)
-		sb.shadow_color = Color(0, 0, 0, 0.45)
-		sb.shadow_offset = Vector2(0, int(d.shadow) * 0.4)
-	var pad := float(d.get("padding", 0))
-	sb.content_margin_left = pad
-	sb.content_margin_right = pad
-	sb.content_margin_top = pad
-	sb.content_margin_bottom = pad
-	sb.anti_aliasing = true
-	return sb
+		elif key in ["bg", "top", "bottom", "border", "hover", "pressed", "fill"]:
+			_color("%s.%s" % [where, key], d[key])
+	return UZUUI.create_panel_style(d)
 
 
+## The screen's theme through UZUUI.create_theme (B-1302): panels, buttons, bars, tabs,
+## lists and tooltips in one look.
 func _theme(d) -> Theme:
-	var theme := Theme.new()
 	if not d is Dictionary:
 		_err("theme", "must be an object")
-		return theme
+		return UZUUI.create_theme()
+	var options := {}
 	for key in d:
 		if not key in THEME_KEYS:
 			_err("theme", "unknown key '%s' (allowed: %s)" % [key, ", ".join(THEME_KEYS)])
 	if d.has("font"):
 		var font = load(d.font) if d.font is String and ResourceLoader.exists(d.font) else null
 		if font is Font:
-			theme.default_font = font
+			options["font"] = font
 		else:
 			_err("theme.font", "needs a res:// font file")
-	theme.default_font_size = int(d.get("font_size", 18))
-	var text := _color("theme.font_color", d.get("font_color", "#f4ead2"))
-	for cls in ["Label", "Button", "RichTextLabel", "ProgressBar"]:
-		theme.set_color("font_color" if cls != "RichTextLabel" else "default_color", cls, text)
-	theme.set_color("font_hover_color", "Button", text)
-	theme.set_color("font_pressed_color", "Button", text)
-	theme.set_color("font_focus_color", "Button", text)
-	var accent := _color("theme.accent", d.get("accent", "#d9a441"))
-	theme.set_stylebox("panel", "PanelContainer", _stylebox("theme.panel", d.get("panel", {"bg": "#141b2bdd", "radius": 12, "border": d.get("accent", "#d9a441"), "border_width": 2, "shadow": 8, "padding": 14})))
-	var b: Dictionary = d.get("button", {}) if d.get("button", {}) is Dictionary else {}
-	var base := {"bg": b.get("bg", "#2b3550"), "radius": b.get("radius", 8), "padding": b.get("padding", 10), "border": d.get("accent", "#d9a441"), "border_width": 1}
-	theme.set_stylebox("normal", "Button", _stylebox("theme.button", base))
-	var hover := base.duplicate()
-	hover.bg = b.get("hover", "#3a4870")
-	theme.set_stylebox("hover", "Button", _stylebox("theme.button.hover", hover))
-	var pressed := base.duplicate()
-	pressed.bg = b.get("pressed", "#1d2438")
-	theme.set_stylebox("pressed", "Button", _stylebox("theme.button.pressed", pressed))
-	theme.set_stylebox("focus", "Button", StyleBoxEmpty.new())
-	var bar: Dictionary = d.get("bar", {}) if d.get("bar", {}) is Dictionary else {}
-	theme.set_stylebox("background", "ProgressBar", _stylebox("theme.bar", {"bg": bar.get("bg", "#00000080"), "radius": bar.get("radius", 6)}))
-	theme.set_stylebox("fill", "ProgressBar", _stylebox("theme.bar.fill", {"bg": bar.get("fill", d.get("accent", "#d9a441")), "radius": bar.get("radius", 6)}))
-	for key in ["button", "bar"]:
-		if d.has(key) and not d[key] is Dictionary:
-			_err("theme." + key, "must be an object")
-	return theme
+	if d.has("font_size"):
+		options["font_size"] = int(d.font_size)
+	if d.has("font_color"):
+		options["text"] = _color("theme.font_color", d.font_color)
+	if d.has("accent"):
+		options["accent"] = _color("theme.accent", d.accent)
+	for key in ["panel", "button", "bar"]:
+		if d.has(key):
+			_stylebox("theme." + key, d[key])  # Checks the keys and colors.
+			options[key] = d[key]
+	return UZUUI.create_theme(options)
 
 
 ## Anchors the control to an edge, corner or the center of its parent, size w x h, inset
@@ -240,6 +218,10 @@ func _node(where: String, d, parent: Control, owner_root: Control) -> Control:
 			c.stretch_mode = {"keep": TextureRect.STRETCH_KEEP_ASPECT_CENTERED, "cover": TextureRect.STRETCH_KEEP_ASPECT_COVERED, "scale": TextureRect.STRETCH_SCALE}.get(d.get("stretch", "keep"), TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
 		"Color":
 			c.color = _color(where + ".color", d.get("color", "#00000080"))
+		"List":
+			for item in d.get("items", []):
+				c.add_item(str(item))
+			c.auto_height = true
 		"Spacer":
 			c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			c.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -251,10 +233,10 @@ func _node(where: String, d, parent: Control, owner_root: Control) -> Control:
 			"Bar":
 				c.add_theme_stylebox_override("background", sb)
 			_:
-				if c is PanelContainer:
+				if c is PanelContainer or c is TabContainer or c is ItemList:
 					c.add_theme_stylebox_override("panel", sb)
 				else:
-					_err(where + ".style", "only Panel, Button and Bar take a style")
+					_err(where + ".style", "only Panel, Tabs, List, Button and Bar take a style")
 	if d.has("font_size"):
 		c.add_theme_font_size_override("font_size" if type != "RichText" else "normal_font_size", int(d.font_size))
 	if d.has("font_color"):
