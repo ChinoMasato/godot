@@ -89,6 +89,28 @@ python picture.py <project> map estimate --kind depth --in res://art.png --out r
 python picture.py <project> pbr make --in res://tex.png --out res://materials/x --kind cobble --normal-from res://normal.png
 ```
 
+### 向きが分かっているモデルを使うとき（B-903 補完）
+
+```sh
+# モデルがDirectX形式の法線を返すと分かっている場合
+python picture.py <project> map import --kind normal --normal-convention directx --in res://model_normal.png --for res://tex.png --out res://normal.png
+# モデルが白＝遠い深度を返すと分かっている場合
+python picture.py <project> map import --kind depth --white-is far --in res://model_depth.png --for res://art.png --out res://depth.png
+```
+
+- `--normal-convention auto|opengl|directx`、`--white-is auto|near|far` を選べる。既定はauto。既知の形式を指定した場合は推測より優先し、JSONの `convention_source`／`direction_source` にexplicitを返す。
+- 自動判定で画像の上下から近遠を判断できないとき、向きを変えず警告する。`found.white_is` と `output_white_is` はunsureになり、既知の形式を指定して再実行できる。一定値の深度も、その値を保ったまま警告する。
+- 互換用の `--depth-kind disparity` は白＝近い、`linear` は白＝遠いという向きの指定として使える。これは画素の範囲合わせと反転であり、メートル単位の線形距離を物理的な逆距離へ変換する処理ではない。新しい指定では `--white-is` を推奨する。矛盾する指定やタイプミスはエラーにする。
+- 元の画像・元のマップを出力先に指定するとエラー。出力はPNG限定で、ディレクトリ作成とPNG保存の結果も検査する。
+- `map estimate` は毎回別のraw画像パスを外部モデルへ渡す。出力画像を作らなかった場合に、前回のraw画像を再利用しない。raw画像のパスは成功時の `raw` に返す。向きの指定と `--no-align` はimport段階へ引き継ぐ。
+- 外部モデルの失敗時は既存の最終出力を維持する。コマンド設定は空でない文字列で、`{in}`／`{out}` の両方が必要。
+
+実エンジンを使う回帰試験（合成画像のみ、GPU不要。`GODOT`でエディタを指定）:
+
+```sh
+python -m unittest discover -s ai_loop/prototypes/picture -p test_map_import.py -v
+```
+
 - `estimators.json` の例: `{"depth": "python my_depth.py {in} {out}", "normal": "python my_normal.py {in} {out}"}`（`{in}`/`{out}` は絶対パスに置き換わる）。
 - import が調べて直すこと（結果の JSON の `found`／`changed`／`warnings` に全部書く）:
   - 大きさ: 元の絵に合わせて拡大縮小。縦横比が違えば、切り取りや余白の疑いを警告。

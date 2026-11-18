@@ -3,7 +3,8 @@ extends SceneTree
 ## The engine does not estimate shape itself; agents run their own estimator and hand the result here.
 ##
 ##   import  --kind normal|depth --in res://model_output.png --for res://picture.png --out res://normal.png
-##           [--depth-kind auto|disparity|linear] [--no-align]
+##           [--depth-kind auto|disparity|linear] [--white-is auto|near|far]
+##           [--normal-convention auto|opengl|directx] [--no-align]
 ##     Checks and fixes: size and aspect (resized to the picture), normal map green direction
 ##     (OpenGL vs DirectX, judged from the picture's own shading), vector length, depth direction
 ##     (white = near or far, judged from bottom vs top), and a small offset against the picture.
@@ -47,22 +48,92 @@ func _run(args: PackedStringArray) -> Dictionary:
 
 
 func _estimate(args: PackedStringArray) -> Dictionary:
+	var invalid := _check_options(args)
+	if not invalid.is_empty():
+		return {"ok": false, "error": invalid}
 	var kind := _opt(args, "kind")
+	var src_path := _opt(args, "in")
+	var out_path := _opt(args, "out")
+	if not FileAccess.file_exists(src_path):
+		return {"ok": false, "error": "input image not found"}
+	invalid = _check_output(src_path, src_path, out_path)
+	if not invalid.is_empty():
+		return {"ok": false, "error": invalid}
 	var conf_path := _opt(args, "config", "res://estimators.json")
+	if not FileAccess.file_exists(conf_path):
+		return {"ok": false, "error": "estimator config not found: " + conf_path}
 	var conf = JSON.parse_string(FileAccess.get_file_as_string(conf_path))
 	if not (conf is Dictionary) or not conf.has(kind):
 		return {"ok": false, "error": "no estimator for '%s' in %s; add e.g. {\"%s\": \"python my_model.py {in} {out}\"}" % [kind, conf_path, kind]}
-	var src := ProjectSettings.globalize_path(_opt(args, "in"))
-	var raw := ProjectSettings.globalize_path(_opt(args, "out")).get_basename() + "_raw.png"
+	if not (conf[kind] is String) or conf[kind].strip_edges().is_empty():
+		return {"ok": false, "error": "estimator command must be a non-empty string"}
+	if not conf[kind].contains("{in}") or not conf[kind].contains("{out}"):
+		return {"ok": false, "error": "estimator command needs {in} and {out} placeholders"}
+	var src := ProjectSettings.globalize_path(src_path)
+	var parent := ProjectSettings.globalize_path(out_path.get_base_dir())
+	var directory_error := DirAccess.make_dir_recursive_absolute(parent)
+	if directory_error != OK:
+		return {"ok": false, "error": "could not create output directory", "code": directory_error}
+	# Use a new path for every invocation. Never accept a stale previous model output.
+	var raw := ProjectSettings.globalize_path(out_path).get_basename() + "_raw_%d_%d.png" % [Time.get_ticks_usec(), randi()]
+	while FileAccess.file_exists(raw):
+		raw = ProjectSettings.globalize_path(out_path).get_basename() + "_raw_%d_%d.png" % [Time.get_ticks_usec(), randi()]
 	var cmd: String = conf[kind].replace("{in}", "\"%s\"" % src).replace("{out}", "\"%s\"" % raw)
 	var output := []
 	var code := OS.execute("cmd.exe" if OS.get_name() == "Windows" else "sh", ["/c", cmd] if OS.get_name() == "Windows" else ["-c", cmd], output, true)
 	if code != 0 or not FileAccess.file_exists(raw):
-		return {"ok": false, "error": "estimator failed (exit %d)" % code, "command": cmd, "log": "".join(output).right(1500)}
-	var a := PackedStringArray(["import", "--kind", kind, "--in", raw, "--for", _opt(args, "in"), "--out", _opt(args, "out")])
+		return {"ok": false, "error": "estimator produced no output image" if code == 0 else "estimator failed", "exit_code": code, "raw": raw, "command": cmd, "log": "".join(output).right(1500)}
+	var a := PackedStringArray(["import", "--kind", kind, "--in", raw, "--for", src_path, "--out", out_path])
+	for option in ["depth-kind", "white-is", "normal-convention"]:
+		if args.has("--" + option):
+			a.append_array(PackedStringArray(["--" + option, _opt(args, option)]))
+	if args.has("--no-align"):
+		a.append("--no-align")
 	var res := _import(a)
 	res["estimator"] = cmd
+	res["raw"] = raw
 	return res
+
+
+func _check_options(args: PackedStringArray) -> String:
+	for option in ["kind", "in", "for", "out", "config", "depth-kind", "white-is", "normal-convention"]:
+		var index := args.find("--" + option)
+		if index >= 0 and (index + 1 >= args.size() or args[index + 1].begins_with("--")):
+			return "--%s needs a value" % option
+	if not _opt(args, "kind") in ["normal", "depth"]:
+		return "--kind must be normal or depth"
+	var depth_kind := _opt(args, "depth-kind", "auto")
+	var white_is := _opt(args, "white-is", "auto")
+	if not depth_kind in ["auto", "disparity", "linear"]:
+		return "--depth-kind must be auto, disparity or linear"
+	if not white_is in ["auto", "near", "far"]:
+		return "--white-is must be auto, near or far"
+	if not _opt(args, "normal-convention", "auto") in ["auto", "opengl", "directx"]:
+		return "--normal-convention must be auto, opengl or directx"
+	if (depth_kind == "disparity" and white_is == "far") or (depth_kind == "linear" and white_is == "near"):
+		return "--depth-kind and --white-is contradict each other"
+	return ""
+
+
+func _check_output(source: String, picture: String, output: String) -> String:
+	if output.get_extension().to_lower() != "png":
+		return "--out must be a PNG file"
+	var destination := ProjectSettings.globalize_path(output).simplify_path()
+	if destination.is_relative_path():
+		destination = DirAccess.open(".").get_current_dir().path_join(destination).simplify_path()
+	if OS.get_name() == "Windows":
+		destination = destination.to_lower()
+	for input_path in [source, picture]:
+		var original := ProjectSettings.globalize_path(input_path).simplify_path()
+		if original.is_relative_path():
+			original = DirAccess.open(".").get_current_dir().path_join(original).simplify_path()
+		if OS.get_name() == "Windows":
+			original = original.to_lower()
+		if destination == original:
+			return "output would overwrite an input image; choose another path"
+	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(output)):
+		return "output path is a directory"
+	return ""
 
 
 # ---------- helpers on small float grids ----------
@@ -144,6 +215,12 @@ func _best_shift(a: PackedFloat32Array, b: PackedFloat32Array, w: int, h: int, r
 # ---------- import ----------
 
 func _import(args: PackedStringArray) -> Dictionary:
+	var invalid := _check_options(args)
+	if not invalid.is_empty():
+		return {"ok": false, "error": invalid}
+	invalid = _check_output(_opt(args, "in"), _opt(args, "for"), _opt(args, "out"))
+	if not invalid.is_empty():
+		return {"ok": false, "error": invalid}
 	var kind := _opt(args, "kind")
 	var src := _load(_opt(args, "in"))
 	var pic := _load(_opt(args, "for"))
@@ -176,6 +253,8 @@ func _import(args: PackedStringArray) -> Dictionary:
 		for i in w * h:
 			map_signal[i] = r[i] + g[i]
 	var shift := [0, 0]
+	found["alignment_enabled"] = not args.has("--no-align")
+	found["applied_offset_px"] = [0, 0]
 	if not args.has("--no-align"):
 		var bs := _best_shift(_edges(lum, w, h), _edges(map_signal, w, h), w, h, 6)
 		found["offset_px"] = [roundi(bs[0] * float(pw) / w), roundi(bs[1] * float(ph) / h)]
@@ -191,6 +270,7 @@ func _import(args: PackedStringArray) -> Dictionary:
 	if shift != [0, 0]:
 		var ox := roundi(shift[0] * float(pw) / w)
 		var oy := roundi(shift[1] * float(ph) / h)
+		found["applied_offset_px"] = [-ox, -oy]
 		var moved := Image.create(pw, ph, false, Image.FORMAT_RGBAF)
 		for y in ph:
 			for x in pw:
@@ -199,18 +279,22 @@ func _import(args: PackedStringArray) -> Dictionary:
 		changed.append("moved by %d, %d px to line up with the picture" % [-ox, -oy])
 
 	if kind == "normal":
-		_fix_normal(img, lum, w, h, found, changed, warnings)
+		_fix_normal(img, lum, w, h, found, changed, warnings, _opt(args, "normal-convention", "auto"))
 	else:
-		_fix_depth(img, w, h, found, changed, warnings, _opt(args, "depth-kind", "auto"))
+		_fix_depth(img, w, h, found, changed, warnings, _opt(args, "depth-kind", "auto"), _opt(args, "white-is", "auto"))
 
 	var out := img
 	out.convert(Image.FORMAT_RGB8 if kind == "normal" else Image.FORMAT_L8)
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out_path.get_base_dir()))
-	out.save_png(out_path)
+	var directory_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out_path.get_base_dir()))
+	if directory_error != OK:
+		return {"ok": false, "error": "could not create output directory", "code": directory_error}
+	var save_error := out.save_png(out_path)
+	if save_error != OK:
+		return {"ok": false, "error": "could not save output PNG", "code": save_error, "out": out_path}
 	return {"ok": true, "command": "import", "kind": kind, "out": out_path, "found": found, "changed": changed, "warnings": warnings}
 
 
-func _fix_normal(img: Image, lum: PackedFloat32Array, w: int, h: int, found: Dictionary, changed: Array, warnings: Array) -> void:
+func _fix_normal(img: Image, lum: PackedFloat32Array, w: int, h: int, found: Dictionary, changed: Array, warnings: Array, convention: String) -> void:
 	# The picture's own shading: brightness slopes. In an OpenGL normal map, R follows -d(height)/dx
 	# and G follows +d(height)/dy (image rows go down). Whether bright means high or low differs per
 	# picture, so judge G relative to R: same relation = OpenGL, opposite = DirectX (green flipped).
@@ -245,12 +329,18 @@ func _fix_normal(img: Image, lum: PackedFloat32Array, w: int, h: int, found: Dic
 	var flip := false
 	if absf(cx) < 0.05 or absf(cy) < 0.05:
 		found["convention"] = "unsure"
-		warnings.append("cannot tell OpenGL from DirectX: the picture's shading barely matches the map; pass the map as-is and check under a raking light")
 	elif signf(cx) == signf(cy):
 		found["convention"] = "opengl"
 	else:
 		found["convention"] = "directx"
-		flip = true
+	found["detected_convention"] = found["convention"]
+	found["convention_source"] = "auto" if convention == "auto" else "explicit"
+	if convention != "auto":
+		found["convention"] = convention
+	elif found["convention"] == "unsure":
+		warnings.append("cannot tell OpenGL from DirectX; pass --normal-convention opengl|directx when known")
+	flip = found["convention"] == "directx"
+	if flip:
 		changed.append("green flipped (DirectX -> OpenGL, which Godot expects)")
 	var renorm := absf(len_sum / n - 1.0) > 0.03
 	if renorm:
@@ -267,7 +357,7 @@ func _fix_normal(img: Image, lum: PackedFloat32Array, w: int, h: int, found: Dic
 			img.set_pixel(x, y, Color(v.x * 0.5 + 0.5, v.y * 0.5 + 0.5, v.z * 0.5 + 0.5))
 
 
-func _fix_depth(img: Image, w: int, h: int, found: Dictionary, changed: Array, warnings: Array, depth_kind: String) -> void:
+func _fix_depth(img: Image, w: int, h: int, found: Dictionary, changed: Array, warnings: Array, depth_kind: String, white_is: String) -> void:
 	var g := _chan_grid(img, w, h, 0)
 	var lo := 1e9
 	var hi := -1e9
@@ -284,24 +374,32 @@ func _fix_depth(img: Image, w: int, h: int, found: Dictionary, changed: Array, w
 			bottom += g[(h - 1 - y) * w + x]
 	top /= band * w
 	bottom /= band * w
-	var white_near := bottom > top
+	var ambiguous := hi - lo < 1e-4 or absf(bottom - top) < 0.05 * maxf(hi - lo, 1e-4)
 	found["bottom_minus_top"] = snappedf(bottom - top, 0.01)
-	found["white_is"] = "near" if white_near else "far"
-	if absf(bottom - top) < 0.05 * maxf(hi - lo, 1e-4):
-		warnings.append("cannot tell whether white is near or far (bottom and top are alike); pass --depth-kind")
-	var to_disparity := not white_near
-	if depth_kind == "disparity":
-		to_disparity = false
-	elif depth_kind == "linear":
-		to_disparity = true
+	found["white_is"] = "unsure" if ambiguous else ("near" if bottom > top else "far")
+	var direction := white_is
+	if direction == "auto" and depth_kind != "auto":
+		direction = "near" if depth_kind == "disparity" else "far"
+	found["direction_source"] = "auto" if direction == "auto" else "explicit"
+	if direction == "auto":
+		direction = found["white_is"]
+	if direction == "unsure":
+		warnings.append("cannot tell whether white is near or far; kept the direction unchanged; pass --white-is near|far when known")
+	found["effective_white_is"] = direction
+	found["output_white_is"] = "unsure" if direction == "unsure" else "near"
+	var to_disparity := direction == "far"
 	found["range_in"] = [snappedf(lo, 0.001), snappedf(hi, 0.001)]
 	if to_disparity:
 		changed.append("inverted so that white = near (what U.ZU Picture reads as disparity)")
-	if hi - lo < 0.5:
+	if hi - lo < 1e-4:
+		warnings.append("depth has no variation; kept its constant value (no geometry can be recovered)")
+	elif hi - lo < 0.5:
 		changed.append("stretched range %.2f..%.2f to 0..1" % [lo, hi])
 	for y in img.get_height():
 		for x in img.get_width():
-			var v := (img.get_pixel(x, y).r - lo) / maxf(hi - lo, 1e-4)
+			var v := img.get_pixel(x, y).r
+			if hi - lo >= 1e-4:
+				v = clampf((v - lo) / (hi - lo), 0.0, 1.0)
 			if to_disparity:
 				v = 1.0 - v
 			img.set_pixel(x, y, Color(v, v, v))
