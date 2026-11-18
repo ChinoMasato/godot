@@ -39,6 +39,9 @@ TEST_FORCE_LINK(test_uzu_juice)
 #include "scene/2d/node_2d.h"
 #include "scene/3d/node_3d.h"
 #include "scene/3d/uzu_juice.h"
+#include "scene/main/scene_tree.h"
+#include "scene/main/window.h"
+#include "scene/resources/uzu_sfx.h"
 
 namespace TestUZUJuice {
 
@@ -214,3 +217,40 @@ TEST_CASE("[Scene][UZUJuice] Burst2D carries the dot texture and the color") {
 }
 
 } // namespace TestUZUJuice
+
+
+TEST_CASE("[Scene][Audio][UZUJuice] impact land: squash, shake and sound only") {
+	Node3D *parent = memnew(Node3D);
+	Node3D *node = memnew(Node3D);
+	parent->add_child(node);
+	CHECK(UZUJuice::impact(node, "land"));
+	CHECK(UZUJuice::get_trauma() > 0.0);
+	UZUJuice::clear_shake();
+	memdelete(parent);
+}
+
+TEST_CASE("[Scene][Audio][UZUJuice] impact pickup: burst and sound, no hitstop") {
+	Node3D *parent = memnew(Node3D);
+	Node3D *node = memnew(Node3D);
+	parent->add_child(node);
+	CHECK(UZUJuice::impact(node, "pickup"));
+	CHECK_FALSE(UZUJuice::is_time_effect_active());
+	memdelete(parent);
+}
+
+TEST_CASE("[Scene][Audio][UZUJuice] impact hit and unknown kinds") {
+	PackedStringArray names = UZUJuice::get_impact_preset_names();
+	CHECK(names.size() == 5);
+	CHECK(names.has("hit"));
+	CHECK(names.has("pickup"));
+
+	Node3D *parent = memnew(Node3D);
+	Node3D *node = memnew(Node3D);
+	parent->add_child(node);
+	CHECK(UZUJuice::impact(node, "hit"));
+	CHECK(UZUJuice::is_time_effect_active()); // hitstop engaged.
+	UZUJuice::cancel_time_effects();
+	CHECK_FALSE(UZUJuice::impact(node, "explode_everything"));
+	memdelete(parent);
+	UZUJuice::cancel_time_effects();
+}
