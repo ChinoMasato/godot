@@ -1,0 +1,31 @@
+{
+ "_about": "Japanese style: deep indigo panels, vermilion buttons, gold edges, small corners.",
+ "font_size": 20,
+ "font_color": "#f1e6cf",
+ "accent": "#c9a063",
+ "panel": {
+  "top": "#22305aee",
+  "bottom": "#141d38ee",
+  "radius": 3,
+  "border": "#c9a063",
+  "border_width": 2,
+  "shadow": 6,
+  "padding": 14
+ },
+ "button": {
+  "top": "#b8432f",
+  "bottom": "#8e2f22",
+  "hover": "#cc5640",
+  "pressed": "#6e2419",
+  "radius": 3,
+  "border": "#e8c48a",
+  "border_width": 1,
+  "shadow": 3,
+  "padding": 10
+ },
+ "bar": {
+  "bg": "#00000080",
+  "fill": "#d2553c",
+  "radius": 2
+ }
+}

@@ -7,7 +7,8 @@ extends SceneTree
 ##
 ## Spec (colors "#rrggbb" or "#rrggbbaa"; an unknown key is an error that names where it is):
 ##   {"scene": "res://ui/hud.tscn",
-##    "theme": {"font": "res://fonts/x.ttf", "font_size": 20, "font_color": "#f4ead2", "accent": "#d9a441",
+##    "theme": {"font": "res://fonts/x.ttf", "font_fallback": "res://fonts/ja.woff2" (glyphs the font lacks),
+##              "font_size": 20, "font_color": "#f4ead2", "accent": "#d9a441",
 ##              "panel": {"top": "#1d2740ee", "bottom": "#10162add", "radius": 12, "border": "#d9a441", "shadow": 8, "padding": 14},
 ##              "button": {"bg": "#2b3550", "hover": "#3a4870", "pressed": "#1d2438", "radius": 8, "padding": 10},
 ##              "bar": {"bg": "#00000080", "fill": "#d9a441", "radius": 6}},
@@ -49,7 +50,7 @@ const ANCHORS := {
 	"left_wide": Control.PRESET_LEFT_WIDE, "right_wide": Control.PRESET_RIGHT_WIDE,
 }
 const STYLE_KEYS := ["bg", "top", "bottom", "radius", "border", "border_width", "shadow", "padding", "hover", "pressed", "fill"]
-const THEME_KEYS := ["font", "font_size", "font_color", "accent", "panel", "button", "bar"]
+const THEME_KEYS := ["font", "font_fallback", "font_size", "font_color", "accent", "panel", "button", "bar"]
 
 var errors := []
 var counts := {}
@@ -111,6 +112,16 @@ func _theme(d) -> Theme:
 			options["font"] = font
 		else:
 			_err("theme.font", "needs a res:// font file")
+	if d.has("font_fallback"):
+		# Glyphs the main font lacks (Japanese, with a Latin main font) come from this one.
+		var fallback = load(d.font_fallback) if d.font_fallback is String and ResourceLoader.exists(d.font_fallback) else null
+		if not fallback is Font or not options.has("font"):
+			_err("theme.font_fallback", "needs a res:// font file, and theme.font")
+		else:
+			var both := FontVariation.new()
+			both.base_font = options["font"]
+			both.fallbacks = [fallback]
+			options["font"] = both
 	if d.has("font_size"):
 		options["font_size"] = int(d.font_size)
 	if d.has("font_color"):
