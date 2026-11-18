@@ -33,6 +33,7 @@
 #include "core/io/dir_access.h"
 #include "core/io/image.h"
 #include "core/io/resource_saver.h"
+#include "core/object/class_db.h"
 #include "core/math/math_funcs.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
@@ -197,7 +198,7 @@ Dictionary UZUPBRFromImage::make(const Ref<Image> &p_image, const String &p_kind
 	{
 		uint8_t *out = albedo_bytes.ptrw();
 		for (int i = 0; i < count; i++) {
-			const float k = CLAMP(Math::pow(mean / MAXF(lit[i], 0.02f), delight), 0.5f, 2.0f);
+			const float k = CLAMP(Math::pow(mean / MAX(lit[i], 0.02f), delight), 0.5f, 2.0f);
 			out[i * 3] = to_byte(CLAMP(src_px[i * 3] * k, 0.0f, 1.0f));
 			out[i * 3 + 1] = to_byte(CLAMP(src_px[i * 3 + 1] * k, 0.0f, 1.0f));
 			out[i * 3 + 2] = to_byte(CLAMP(src_px[i * 3 + 2] * k, 0.0f, 1.0f));
@@ -221,7 +222,7 @@ Dictionary UZUPBRFromImage::make(const Ref<Image> &p_image, const String &p_kind
 	{
 		const float lo = percentile_buf(height, 0.02f);
 		const float hi = percentile_buf(height, 0.98f);
-		const float range = MAXF(hi - lo, 1e-4f);
+		const float range = MAX(hi - lo, 1e-4f);
 		for (int i = 0; i < count; i++) {
 			height.write[i] = CLAMP((height[i] - lo) / range, 0.0f, 1.0f);
 		}
@@ -271,7 +272,7 @@ Dictionary UZUPBRFromImage::make(const Ref<Image> &p_image, const String &p_kind
 	{
 		uint8_t *out = orm_bytes.ptrw();
 		for (int i = 0; i < count; i++) {
-			const float cavity = MAXF(0.0f, around[i] - height[i]);
+			const float cavity = MAX(0.0f, around[i] - height[i]);
 			const float ao = CLAMP(1.0f - cavity * 1.6f, 0.35f, 1.0f);
 			const float r = CLAMP(kind->rough + kind->spread * (cavity * 2.0f - (height[i] - 0.5f) * 0.6f), 0.04f, 1.0f);
 			rough_sum += r;
@@ -446,7 +447,7 @@ Dictionary UZUPBRFromImage::compare(const Ref<Image> &p_normal, const Ref<Image>
 		}
 		result["roughness_mean"] = float(Math::snapped(double(float(ma)), 0.01));
 		result["ref_roughness_mean"] = float(Math::snapped(double(float(mb)), 0.01));
-		result["roughness_correlation"] = float(Math::snapped(cov / Math::sqrt(MAXF(va * vb, 1e-9)), 0.01));
+		result["roughness_correlation"] = float(Math::snapped(cov / Math::sqrt(MAX(va * vb, 1e-9)), 0.01));
 	}
 	return result;
 }
