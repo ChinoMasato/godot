@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUMapImport" inherits="Object" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Brings normal and depth maps made outside the engine into line with a picture.
+	</brief_description>
+	<description>
+		Normal and depth maps estimated by outside models or tools (no model ships with the engine) often come at another size, a few pixels off, in the DirectX normal convention, with denormalized vectors, with white meaning far, or with a narrow range. [UZUMapImport] checks and fixes each of these against the picture they belong to and reports what it found and what it changed, so an agent can trust or override it.
+		- Size: resized to the picture (a different aspect ratio is reported as a warning).
+		- Offset: the cross-correlation of the edges of the picture and of the map. The [code]found.offset_px[/code] value is where the picture's content sits in the map (map pixel = picture pixel + offset); the map is moved back when the match is clearly better.
+		- Normal convention: judged from the picture's own shading; DirectX maps get their green flipped to OpenGL, which Godot expects. When the shading does not tell, the map is kept as is with a warning. Vectors are normalized.
+		- Depth: white = near or far is judged from the bottom vs the top of the picture (or given with [enum DepthKind]); the result is a disparity map (white = near) stretched to 0..1.
+		[b]Note:[/b] This class is specific to U.ZU Engine (U.ZU Picture).
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="import_file" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="map_path" type="String" />
+			<param index="1" name="picture_path" type="String" />
+			<param index="2" name="out_path" type="String" />
+			<param index="3" name="kind" type="int" enum="UZUMapImport.MapKind" />
+			<param index="4" name="depth_kind" type="int" enum="UZUMapImport.DepthKind" default="0" />
+			<param index="5" name="align" type="bool" default="true" />
+			<description>
+				Like [method import_map] with files: loads the map and the picture, saves the fixed map as a PNG to [param out_path]. Returns the same [Dictionary] with [code]"out"[/code] in place of [code]"image"[/code].
+			</description>
+		</method>
+		<method name="import_map" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="map" type="Image" />
+			<param index="1" name="picture" type="Image" />
+			<param index="2" name="kind" type="int" enum="UZUMapImport.MapKind" />
+			<param index="3" name="depth_kind" type="int" enum="UZUMapImport.DepthKind" default="0" />
+			<param index="4" name="align" type="bool" default="true" />
+			<description>
+				Returns [code]{"ok", "kind", "image", "found", "changed", "warnings"}[/code]: the fixed map (RGB8 for normals, L8 for depth, at the picture's size), what was found ([code]convention[/code], [code]offset_px[/code], [code]white_is[/code], ...), what was changed and anything to check by eye. [param align] [code]false[/code] skips the offset search.
+			</description>
+		</method>
+	</methods>
+	<constants>
+		<constant name="MAP_NORMAL" value="0" enum="MapKind">
+			A tangent-space normal map.
+		</constant>
+		<constant name="MAP_DEPTH" value="1" enum="MapKind">
+			A depth map.
+		</constant>
+		<constant name="DEPTH_AUTO" value="0" enum="DepthKind">
+			Judge from the picture whether white is near or far.
+		</constant>
+		<constant name="DEPTH_DISPARITY" value="1" enum="DepthKind">
+			White is near (disparity) already.
+		</constant>
+		<constant name="DEPTH_LINEAR" value="2" enum="DepthKind">
+			White is far (linear depth): inverted.
+		</constant>
+	</constants>
+</class>

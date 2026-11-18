@@ -32,6 +32,7 @@
 
 | エージェント | 担当 | ブランチ | 状態 | 次の一手 | 最終更新 |
 |---|---|---|---|---|---|
+| Codex local | B-005 Windows アイコン補完 | agent/b-005-codex-windows | 通常版とconsole版のICOをU.ZUへ更新。PE資源全10サイズ・splash・runtime icon一致、全1487 pass | リードが差分を統合。ローカルに修正版exeを用意済み。B-720 GPU確認はデバイス喪失で一部保留（別ブランチ） | 2026-11-18 |
 | Muse（リード） | 統合／台帳 | ai-native | win-gpu ブランチの残り（GPU 道具と記録）と Codex の B-101 を統合済み。影の対策は B-714 として決定・登録 | B-714 の実施待ち。B-005（Codex）の申告待ち | 2026-11-18 |
 | Claude Code | Phase 2〜8・HD-2D・Wave 3・上流追随 | claude/uzu-engine-briefing-rrno7b | 2026-11-18: B-721、B-723／B-724、B-307／B-309／B-308、B-204、B-205、B-806、B-106（予行: 競合 0、1498 pass、rehearsal/upstream-2026-11-18）を反映。全テスト 1497 pass（ai-native） | 待ち: B-107 はオーナーの Actions 有効化（Q14）。B-723 は GPU 再撮影（ローカル）。残り: Phase 9（B-901〜B-904）、テスト総数の環境差の突き合わせ | 2026-11-18 |
 | Codex | B-725 | agent/b-725-codex | 人物の描画レイヤー20を BlobShadow のマスクから除外。見本への再適用で3体と既存の影3個の保存を確認。全1497件 pass | Windows GPU で base と no_blob を比較し、胴の明るさ差が約5で地面の丸い影が残ることを確認。リードが統合。B-108 は別ブランチ a6cfd72911 | 2026-11-18 JST |
