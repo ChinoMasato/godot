@@ -138,4 +138,115 @@ TEST_CASE("[SceneTree][UZUUI] Parts") {
 	}
 }
 
+TEST_CASE("[SceneTree][UZUUI] World frames: texture that repeats, shapes, ornaments") {
+	Dictionary wood;
+	wood["material"] = "wood";
+	wood["base"] = "#6b4a2e";
+	wood["edge"] = "#2e1d10";
+	wood["accent"] = "#e6c36a";
+	wood["ornament"] = "brackets";
+	wood["radius"] = 10;
+	wood["border_width"] = 3;
+	wood["shadow"] = 8;
+	const Ref<Image> img = UZUUI::draw_frame(wood);
+	const int w = img->get_width();
+	const int m = (w - 32) / 2; // The margin the 9-slice keeps; the middle 32 px repeat.
+	// The middle repeats every 32 px: the row through the middle matches itself 32 px on.
+	const int y = w / 2;
+	for (int x = m; x < m + 4; x++) {
+		CHECK(close(img->get_pixel(x, y), img->get_pixel(x + 32, y)));
+	}
+	// The wood is not flat: the middle has some variation.
+	float lo = 1.0f, hi = 0.0f;
+	for (int x = m; x < m + 32; x++) {
+		const float l = img->get_pixel(x, y).get_luminance();
+		lo = MIN(lo, l);
+		hi = MAX(hi, l);
+	}
+	CHECK(hi - lo > 0.03f);
+	// A bracket ornament in the accent color sits in the top-left corner.
+	bool gold = false;
+	for (int yy = 8; yy < m; yy++) {
+		for (int x = 8; x < m; x++) {
+			gold = gold || close(img->get_pixel(x, yy), Color::html("#e6c36a"));
+		}
+	}
+	CHECK(gold);
+
+	// Pixel frames: no half-transparent edge pixels inside the frame's own area.
+	Dictionary pixel;
+	pixel["shape"] = "pixel";
+	pixel["shadow"] = 0;
+	pixel["base"] = "#1b1f3a";
+	pixel["edge"] = "#f4f4f4";
+	const Ref<Image> px = UZUUI::draw_frame(pixel);
+	int partial = 0;
+	for (int yy = 0; yy < px->get_height(); yy++) {
+		for (int x = 0; x < px->get_width(); x++) {
+			const float a = px->get_pixel(x, yy).a;
+			partial += a > 0.02f && a < 0.98f;
+		}
+	}
+	CHECK(partial == 0);
+	CHECK(px->get_pixel(0, 0).a < 0.02f); // The notched corner.
+
+	// Glass: the edge glows in the accent color, brighter near the edge than in the middle.
+	Dictionary glass;
+	glass["material"] = "glass";
+	glass["base"] = "#07141e";
+	glass["accent"] = "#38e1ff";
+	glass["shape"] = "chamfer";
+	glass["shadow"] = 0;
+	const Ref<Image> gl = UZUUI::draw_frame(glass);
+	const int gm = gl->get_width() / 2;
+	CHECK(gl->get_pixel(gm, 4).b > gl->get_pixel(gm, gm).b);
+	CHECK(gl->get_pixel(0, 0).a < 0.02f); // The cut corner.
+}
+
+TEST_CASE("[SceneTree][UZUUI] World themes and game parts") {
+	const PackedStringArray worlds = UZUUI::get_world_names();
+	CHECK(worlds.size() == 6);
+	for (const String &world : worlds) {
+		const Ref<Theme> theme = UZUUI::create_world_theme(world);
+		REQUIRE_MESSAGE(theme.is_valid(), world);
+		for (const char *variation : { "UZUGauge", "UZUTalk", "UZUNameTag", "UZUSlot", "UZURibbon" }) {
+			CHECK_MESSAGE(theme->is_type_variation(variation, String(variation) == "UZUGauge" ? "ProgressBar" : "PanelContainer"), world);
+		}
+		CHECK(String(theme->get_meta("uzu_world")) == world);
+		CHECK(Dictionary(theme->get_meta("uzu_motion")).has("duration"));
+	}
+	// Different worlds, different frames.
+	const Ref<StyleBoxTexture> fantasy = UZUUI::create_world_theme("fantasy")->get_stylebox("panel", "PanelContainer");
+	const Ref<StyleBoxTexture> sf = UZUUI::create_world_theme("sf")->get_stylebox("panel", "PanelContainer");
+	REQUIRE(fantasy.is_valid());
+	REQUIRE(sf.is_valid());
+	CHECK(fantasy->get_texture()->get_image()->get_data() != sf->get_texture()->get_image()->get_data());
+	CHECK(fantasy->get_h_axis_stretch_mode() == StyleBoxTexture::AXIS_STRETCH_MODE_TILE_FIT);
+	// Motion follows the world: persona snaps with a big overshoot, pixel steps, sf has none.
+	CHECK(double(UZUUI::get_world_motion("persona")["overshoot"]) > double(UZUUI::get_world_motion("fantasy")["overshoot"]));
+	CHECK(int(UZUUI::get_world_motion("pixel")["steps"]) > 0);
+	CHECK(double(UZUUI::get_world_motion("sf")["overshoot"]) == doctest::Approx(0.0));
+	ERR_PRINT_OFF;
+	CHECK(UZUUI::create_world_theme("steampunk").is_null());
+	ERR_PRINT_ON;
+
+	Control *gauge = UZUUI::make_gauge(30, 60, 12);
+	CHECK(gauge->get_theme_type_variation() == "UZUGauge");
+	CHECK(gauge->get_custom_minimum_size().x == doctest::Approx(144));
+	Control *talk = UZUUI::make_talk_window("Elder", "Bring three shards.");
+	CHECK(Object::cast_to<Label>(talk->get_node(NodePath("TagMargin/NameTag/Speaker")))->get_text() == "Elder");
+	CHECK(Object::cast_to<Label>(talk->get_node(NodePath("Window/Body/Line")))->get_text() == "Bring three shards.");
+	CHECK(Object::cast_to<Label>(talk->get_node(NodePath("Window/Body/Next")))->get_text() == String::utf8("▼"));
+	Control *slot = UZUUI::make_item_slot("Key", 3);
+	CHECK(Object::cast_to<Label>(slot->get_node(NodePath("Box/Count")))->get_text() == "3");
+	CHECK(slot->get_theme_type_variation() == "UZUSlot");
+	Control *ribbon = UZUUI::make_ribbon("Chapter 1");
+	CHECK(Object::cast_to<Label>(ribbon->get_node(NodePath("Title")))->get_text() == "Chapter 1");
+	Control *sep = UZUUI::make_separator();
+	CHECK(sep->get_custom_minimum_size().y == doctest::Approx(12));
+	for (Control *c : { gauge, talk, slot, ribbon, sep }) {
+		memdelete(c);
+	}
+}
+
 } // namespace TestUZUUI

@@ -15,7 +15,7 @@ or through ai_loop\\windows\\uzu.bat.
                   [--density-scale 1] [--shot out.png] [--no-render]   a richness preset in one call (B-1208), with the
                   report before and after and the difference (presets: ai_loop/presets/rich/)
   uzu.py ui       <project> --spec ui.json [--shot out.png [--over res://game.tscn]] [--theme wafu|sf|fantasy]
-                  [--font-subset]   a UI screen (Control tree with layout and theme) from one JSON spec (B-1301,
+                  [--world fantasy|wafu|sf|horror|persona|pixel] [--font-subset]   a UI screen (Control tree with layout and theme) from one JSON spec (B-1301,
                   see ai_loop/ui_tool.gd); genre themes (ai_loop/presets/ui/) and a bundled Japanese font
                   subset for web builds (B-1303, ai_loop/ui_font.py; needs fonttools and brotli)
   uzu.py map      <project> nature|city --scene res://main.tscn [--spec JSON-or-file] [--set key=value ...]
@@ -841,6 +841,9 @@ def ui(project, args):
             preset = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
         data["theme"] = {**data.get("theme", {}), **preset}
         extra["theme"] = theme_name
+    if opt(args, "world"):
+        data["theme"] = {**data.get("theme", {}), "world": opt(args, "world")}  # B-1307: one name switches the world.
+        extra["world"] = opt(args, "world")
     if "--font-subset" in args:
         import ui_font
         scene_name = os.path.splitext(os.path.basename(data.get("scene", "ui.tscn")))[0]
@@ -1547,6 +1550,23 @@ def selftest_engine():
                 c.expect("ui font subset", r.get("ok") and r["fonts"]["ok"] and r["fonts"]["size_kb"] < 100 and os.path.exists(os.path.join(q, "fonts", "screen_ja.woff2")), r)
             except ImportError:
                 print("skip ui font subset (no fonttools/brotli)")
+            # B-1307: one parameter switches the world; the game parts are saved with their variations.
+            world_spec = {"scene": "res://ui/world.tscn", "root": {"type": "Screen", "children": [
+                {"type": "Ribbon", "anchor": "top", "offset": [0, 20], "size": [300, 0], "text": "Title"},
+                {"type": "Panel", "anchor": "top_left", "offset": [20, 20], "size": [260, 0], "children": [{"type": "VBox", "children": [
+                    {"type": "Gauge", "value": 50, "segments": 8}, {"type": "Slot", "text": "A", "count": 2}, {"type": "Separator"}]}]},
+                {"type": "Talk", "anchor": "bottom_wide", "offset": [30, 20], "size": [0, 160], "speaker": "Elder", "text": "Hello."}]}}
+            with open(os.path.join(q, "world.json"), "w", encoding="utf-8") as f:
+                json.dump(world_spec, f)
+            saved = {}
+            for world in ("fantasy", "sf"):
+                r = ui(q, ["--spec", "res://world.json", "--world", world])
+                with open(os.path.join(q, "ui", "world.tscn"), encoding="utf-8") as f:
+                    saved[world] = f.read()
+                c.expect(f"ui world {world}", r.get("ok") and r["world"] == world and all(v in saved[world] for v in ('"UZUGauge"', '"UZUTalk"', '"UZUSlot"', '"UZURibbon"', 'name="NameTag"')), r)
+            c.expect("ui worlds differ", saved["fantasy"] != saved["sf"])
+            r = ui(q, ["--spec", "res://world.json", "--world", "steampunk"])
+            c.expect("ui unknown world", not r["ok"] and "theme.world" in " ".join(r.get("problems", [])), r)
             # B-1305: the UI report finds the problems of a deliberately poor screen, and none of
             # them on the styled screen built above.
             shutil.copyfile(os.path.join(HERE, "look_samples", "specs", "poor_ui.tscn"), os.path.join(q, "ui", "poor.tscn"))
