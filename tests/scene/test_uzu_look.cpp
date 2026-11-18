@@ -153,6 +153,10 @@ TEST_CASE("[SceneTree][UZULook] HD-2D in one call") {
 		CHECK((blob->get_cull_mask() & sprite->get_layer_mask()) == 0);
 		CHECK((blob->get_cull_mask() & 1u) != 0); // Ground on the default layer still receives the decal.
 		CHECK(sprite->get_cast_shadows_setting() == GeometryInstance3D::SHADOW_CASTING_SETTING_ON);
+		if (blob != saved_blob) {
+			CHECK(blob->get_position().y == doctest::Approx(-0.72));
+			CHECK(blob->get_size().x == doctest::Approx(0.768));
+		}
 		CHECK(sprite->get_pixel_size() == doctest::Approx(0.06));
 		CHECK(sprite->get_scale().is_equal_approx(Vector3(1, 1, 1)));
 	}
