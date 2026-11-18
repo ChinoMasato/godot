@@ -194,3 +194,5 @@
 - B-1215: 登録（オーナーの原則「常にどこかが動いているとリッチ」から、常時モーションキット＋動きの監査）。
 
 - 2026-11-19: B-1104（粒子バースト＋カメラキック）を ai-native へ統合。CI 全テスト 1537 pass。CI は4周: テスト API 名（get_one_shot／delay_usec）→ CPUParticles の世代 API（Parameter enum／set_mesh）→ 全テスト pass 後の終了時クラッシュ（静的キャッシュしたテクスチャがサーバー解体後に破棄）を順に修正。
+
+- 2026-11-19: B-1106（impact プリセット）を ai-native へ統合。CI 全テスト 1540 pass。過程で本物のバグを発見: AudioServer のない環境で UZUSfx::generate が AudioStreamWAV::set_data の null 参照で落ちる → generate にガードを追加（UZUSfx 側の修正として同梱）。
