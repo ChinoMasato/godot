@@ -683,6 +683,8 @@ void configure_lit_sprite(Sprite3D *p_sprite, const Ref<Texture2D> &p_normal_map
 	p_sprite->set_draw_flag(SpriteBase3D::FLAG_SHADED, true);
 	p_sprite->set_draw_flag(SpriteBase3D::FLAG_DOUBLE_SIDED, true);
 	p_sprite->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_ON);
+	// A decal projects if any layer overlaps. Use only the sprite layer.
+	p_sprite->set_layer_mask(LIT_SPRITE_LAYER_MASK);
 	p_sprite->set_material_override(create_lit_sprite_material(p_sprite->get_texture(), p_normal_map, p_outline_width));
 }
 
@@ -703,6 +705,7 @@ Decal *create_blob_shadow(float p_radius) {
 
 	Decal *decal = memnew(Decal);
 	decal->set_name("BlobShadow");
+	decal->set_cull_mask(decal->get_cull_mask() & ~LIT_SPRITE_LAYER_MASK);
 	decal->set_texture(Decal::TEXTURE_ALBEDO, texture);
 	decal->set_size(Vector3(radius * 2.0, 1.0, radius * 2.0)); // Projects down onto the ground below.
 	decal->set_lower_fade(0.5);

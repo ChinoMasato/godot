@@ -153,6 +153,9 @@ int get_shadow_filter_quality(Quality p_quality);
 // up to the caller) and, when a renderer runs, for the current run.
 void apply_shadow_filter_quality(Quality p_quality);
 
+// Render layer 20 is reserved by the HD-2D preset for sprites that reject blob decals.
+constexpr uint32_t LIT_SPRITE_LAYER_MASK = 1u << 19;
+
 // Lit sprites (B-716): pixel-art sprites that stand in the 3D world. The material
 // is a spatial shader, so sprites take the scene's light, shadows and fog; it faces
 // the camera around Y (also in shadow passes), cuts the alpha sharply (so the shadow

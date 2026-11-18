@@ -213,9 +213,13 @@ Dictionary UZULook::apply_hd2d(Node *p_root, Atmosphere p_atmosphere, bool p_cam
 			sprite->set_texture_filter(StandardMaterial3D::TEXTURE_FILTER_NEAREST);
 			sprite->set_draw_flag(SpriteBase3D::FLAG_SHADED, true);
 			sprite->set_alpha_cut_mode(SpriteBase3D::ALPHA_CUT_DISCARD);
+			sprite->set_layer_mask(LookPreset3D::LIT_SPRITE_LAYER_MASK);
 		}
-		if (!sprite->has_node(NodePath("BlobShadow"))) {
+		Node *blob = sprite->get_node_or_null(NodePath("BlobShadow"));
+		if (!blob) {
 			add_blob_shadow(sprite, MAX(sprite->get_aabb().size.x * 0.4f, 0.1f));
+		} else if (Decal *decal = Object::cast_to<Decal>(blob)) {
+			decal->set_cull_mask(decal->get_cull_mask() & ~LookPreset3D::LIT_SPRITE_LAYER_MASK);
 		}
 		sprite_paths.push_back(String(p_root->get_path_to(sprite)));
 	}

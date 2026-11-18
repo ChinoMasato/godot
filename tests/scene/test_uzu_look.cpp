@@ -37,6 +37,7 @@ TEST_FORCE_LINK(test_uzu_look)
 #include "core/config/project_settings.h"
 #include "core/object/class_db.h"
 #include "scene/3d/camera_3d.h"
+#include "scene/3d/decal.h"
 #include "scene/3d/light_3d.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/sprite_3d.h"
@@ -119,6 +120,11 @@ TEST_CASE("[SceneTree][UZULook] HD-2D in one call") {
 		root->add_child(sprites[i]);
 	}
 	sprites[1]->set_scale(Vector3(1.3, 1.3, 1.3)); // Out of line: bigger texels.
+	Decal *saved_blob = memnew(Decal);
+	saved_blob->set_name("BlobShadow");
+	const uint32_t saved_ground_layers = 0b101;
+	saved_blob->set_cull_mask(saved_ground_layers | (1u << 19));
+	sprites[0]->add_child(saved_blob);
 	const String filter_setting = "rendering/textures/canvas_textures/default_texture_filter";
 	const Variant saved_filter = GLOBAL_GET(filter_setting);
 
@@ -141,10 +147,17 @@ TEST_CASE("[SceneTree][UZULook] HD-2D in one call") {
 		Ref<ShaderMaterial> material = sprite->get_material_override();
 		REQUIRE(material.is_valid());
 		CHECK(float(material->get_shader_parameter("outline_width")) == doctest::Approx(1.0));
-		CHECK(sprite->has_node(NodePath("BlobShadow")));
+		Decal *blob = Object::cast_to<Decal>(sprite->get_node_or_null(NodePath("BlobShadow")));
+		REQUIRE(blob);
+		CHECK(sprite->get_layer_mask() == (1u << 19));
+		CHECK((blob->get_cull_mask() & sprite->get_layer_mask()) == 0);
+		CHECK((blob->get_cull_mask() & 1u) != 0); // Ground on the default layer still receives the decal.
+		CHECK(sprite->get_cast_shadows_setting() == GeometryInstance3D::SHADOW_CASTING_SETTING_ON);
 		CHECK(sprite->get_pixel_size() == doctest::Approx(0.06));
 		CHECK(sprite->get_scale().is_equal_approx(Vector3(1, 1, 1)));
 	}
+	CHECK(sprites[0]->get_node_or_null(NodePath("BlobShadow")) == saved_blob);
+	CHECK(saved_blob->get_cull_mask() == saved_ground_layers);
 	CHECK(int(GLOBAL_GET(filter_setting)) == 0); // Nearest.
 	ProjectSettings::get_singleton()->set_setting(filter_setting, saved_filter);
 
