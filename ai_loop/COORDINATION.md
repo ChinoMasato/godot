@@ -32,6 +32,7 @@
 
 | エージェント | 担当 | ブランチ | 状態 | 次の一手 | 最終更新 |
 |---|---|---|---|---|---|
+| Codex local | B-005 Windows アイコン補完 | agent/b-005-codex-windows | 通常版とconsole版のICOをU.ZUへ更新。PE資源全10サイズ・splash・runtime icon一致、全1487 pass | リードが差分を統合。ローカルに修正版exeを用意済み。B-720 GPU確認はデバイス喪失で一部保留（別ブランチ） | 2026-11-18 |
 | Muse（リード） | 統合／台帳 | ai-native | win-gpu ブランチの残り（GPU 道具と記録）と Codex の B-101 を統合済み。影の対策は B-714 として決定・登録 | B-714 の実施待ち。B-005（Codex）の申告待ち | 2026-11-18 |
 | Claude Code | Phase 2〜8 | claude/uzu-engine-briefing-rrno7b | Phase 8（B-801〜B-805）を完了し ai-native へ反映。AI ツールは uzu.py で Windows 対応、リソース・設定・取り込み・シェーダー検査・フレーム時間・Web 書き出し・ライトマップ焼き込みを AI から操作可能に。全テスト 1485 pass | 残り: B-806（--import 終了時の上流の競合）、B-501（itch.io のキー待ち）。相談: Web 用テンプレート（自前ビルド）の共有場所 | 2026-11-17 |
 | Codex | B-105 | agent/b-105-codex | 変更ファイル→テストの選択実行を実装。未知の変更は全件へ戻す。実 C++ サンプルの失敗を全件・選択で同じに検出。最新 ai-native 4fa3ab6b6b 上で全1485件 pass、選択処理15件＋JSON変換器10件 pass | Muse が統合し BACKLOG/LEDGER を更新。iterations/2026-11-17-B-105-codex.md 参照。別ブランチの B-803 補完 685d4c64ec／B-005 ロゴ f798914e82 も統合待ち | 2026-11-17 JST |

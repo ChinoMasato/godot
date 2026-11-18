@@ -7,7 +7,7 @@
 
 | 項目 | 担当 | ブランチ | 触るパス | 状態 | 開始日 |
 |---|---|---|---|---|---|
-| B-005 Windows アイコン補完（オーナー依頼） | Codex local | agent/b-005-codex-windows | platform/windows/*.ico, misc/logo/uzu/windows_icons.py・README.md, ai_loop/iterations/ | 作業中 | 2026-11-18 |
+| B-005 Windows アイコン補完（オーナー依頼） | Codex local | agent/b-005-codex-windows | platform/windows/*.ico・SCsub, misc/logo/uzu/windows_icons.py・README.md, ai_loop/iterations/ | バイナリ資源検証済み、統合待ち | 2026-11-18 |
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
 | B-001 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/LEDGER.md, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-002 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/measure.sh（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |

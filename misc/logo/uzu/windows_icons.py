@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 import struct
 
-from PIL import Image, ImageChops
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[3]
 SIZES = (16, 20, 24, 32, 40, 48, 64, 96, 128, 256)
@@ -29,7 +29,7 @@ def generate():
             icon.save(destination, format="ICO", sizes=[(size, size) for size in SIZES])
             with Image.open(destination) as saved:
                 assert saved.ico.sizes() == {(size, size) for size in SIZES}
-                assert ImageChops.difference(saved.ico.getimage((256, 256)).convert("RGBA"), icon).getbbox() is None
+                assert saved.ico.getimage((256, 256)).convert("RGBA").tobytes() == icon.tobytes()
     return {"ok": True, "files": list(ICONS), "sizes": SIZES}
 
 
