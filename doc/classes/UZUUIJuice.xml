@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUUIJuice" inherits="Object" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		UI motion: named movement curves and one-call animations for panels, dialogs, hover and numbers.
+	</brief_description>
+	<description>
+		[UZUUIJuice] is the UI counterpart of [UZUJuice]: the movements that make a UI feel like a game, behind static calls. A runtime node is created in the scene tree on first use and advances the animations; every animation is a pure state value (elapsed time through a named curve), so it behaves the same in self-verifying play and its start and finish are written to an event log ([method get_event_log]).
+		The motion vocabulary (from gameanimation.info, "UI no komakai ugoki") is a set of named curves, see [method get_preset_names]: [code]anticipation[/code] (a small move opposite to the main one first), [code]overshoot[/code] (past the goal, then back, with strength levels), [code]ease_in[/code] (a mechanical, braking stop), [code]bounce[/code], and [code]step[/code] (held frames, for pixel art). Which curve a world uses is decided by [method UZUUI.get_world_motion]; [method apply_world_motion] reads it, so a world's look and motion stay together.
+		[codeblock]
+		var dialog = UZUUI.make_dialog("Elder", "Bring three shards.", ["Accept"])
+		add_child(dialog)
+		UZUUIJuice.open_panel(dialog) # overshoot by default
+		UZUUIJuice.count_up(score_label, 0, 1200)
+		UZUUIJuice.close_panel(dialog) # anticipation by default: a breath in, then out
+		[/codeblock]
+		Animations capture the control's scale, pivot and modulate and restore them exactly when they end or are cancelled.
+		[b]Note:[/b] This class is specific to U.ZU Engine.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="apply_animations" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="dt" type="float" />
+			<description>
+				Advances every running animation by [param dt] seconds. Called by the runtime node each frame; tests and tools can call it directly with fixed steps.
+			</description>
+		</method>
+		<method name="apply_world_motion" qualifiers="static">
+			<return type="bool" />
+			<param index="0" name="control" type="Control" />
+			<param index="1" name="world" type="String" />
+			<param index="2" name="open" type="bool" default="true" />
+			<description>
+				Opens (or closes, with [param open] false) [param control] with the motion of a [UZUUI] world: the duration, overshoot and steps of [method UZUUI.get_world_motion] become the curve (a stepped world moves frame by frame, a world with a big overshoot snaps). Returns [code]false[/code] for an unknown world.
+			</description>
+		</method>
+		<method name="cancel" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="control" type="Control" />
+			<description>
+				Stops the control's animation, restoring exactly what was captured when it started.
+			</description>
+		</method>
+		<method name="cancel_all" qualifiers="static">
+			<return type="void" />
+			<description>
+				Stops every running animation, restoring each control.
+			</description>
+		</method>
+		<method name="clear_event_log" qualifiers="static">
+			<return type="void" />
+			<description>
+				Empties the event log (see [method get_event_log]).
+			</description>
+		</method>
+		<method name="close_panel" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="control" type="Control" />
+			<param index="1" name="preset" type="String" default="&quot;anticipation&quot;" />
+			<param index="2" name="duration" type="float" default="0.22" />
+			<param index="3" name="strength" type="float" default="1.0" />
+			<description>
+				Closes [param control]: shrinks it through the curve, then hides it, restoring its scale and pivot exactly. With the default [code]anticipation[/code] curve it first swells a little -- the classic dialog close.
+			</description>
+		</method>
+		<method name="count_up" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="control" type="Control" />
+			<param index="1" name="from" type="int" />
+			<param index="2" name="to" type="int" />
+			<param index="3" name="duration" type="float" default="0.6" />
+			<param index="4" name="preset" type="String" default="&quot;ease_in&quot;" />
+			<param index="5" name="strength" type="float" default="1.0" />
+			<description>
+				Counts a [Label]'s text (or a [Range]'s value) from [param from] to [param to] through the curve. The final value is exact.
+			</description>
+		</method>
+		<method name="get_active_animation_count" qualifiers="static">
+			<return type="int" />
+			<description>
+				Returns how many animations are running.
+			</description>
+		</method>
+		<method name="get_event_log" qualifiers="static">
+			<return type="Array" />
+			<description>
+				Returns the event log: one dictionary per animation start and finish, with [code]event[/code] ([code]open[/code], [code]close[/code], [code]hover[/code], [code]count_up[/code], [code]transition[/code]), [code]phase[/code] ([code]start[/code] or [code]end[/code]), [code]preset[/code] and [code]target[/code] (the control's name). Self-verifying play (and tests) read this to confirm UI events fired. Capped at the newest 256 entries.
+			</description>
+		</method>
+		<method name="get_preset" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="preset" type="String" />
+			<description>
+				Returns one curve as data: [code]name[/code], the default [code]duration[/code] and [code]strength[/code]. [code]overshoot[/code] also carries [code]overshoot_by_level[/code], the back constants of strength levels 1 to 3; [code]step[/code] carries [code]steps[/code]. An empty dictionary for an unknown name.
+			</description>
+		</method>
+		<method name="get_preset_names" qualifiers="static">
+			<return type="PackedStringArray" />
+			<description>
+				Returns the named motion curves: [code]anticipation[/code], [code]overshoot[/code], [code]ease_in[/code], [code]bounce[/code], [code]step[/code].
+			</description>
+		</method>
+		<method name="hover_pulse" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="control" type="Control" />
+			<param index="1" name="strength" type="float" default="1.0" />
+			<param index="2" name="duration" type="float" default="0.18" />
+			<description>
+				A one-shot swell for hover and presses: the control grows by 10% times [param strength] and comes back, ending at exactly the captured scale. Call it from a [code]mouse_entered[/code] or [code]pressed[/code] handler.
+			</description>
+		</method>
+		<method name="is_animating" qualifiers="static">
+			<return type="bool" />
+			<param index="0" name="control" type="Control" />
+			<description>
+				Returns whether [param control] has a running animation (including as the incoming side of a [method transition]).
+			</description>
+		</method>
+		<method name="motion_value" qualifiers="static">
+			<return type="float" />
+			<param index="0" name="preset" type="String" />
+			<param index="1" name="t" type="float" />
+			<param index="2" name="strength" type="float" default="1.0" />
+			<description>
+				The curve itself: the progress at time [param t] (0 to 1). The result may dip below 0 (anticipation) or rise above 1 (overshoot, bounce); both ends are exact (0 at 0, 1 at 1). [param strength] scales the anticipation dip and the overshoot. Pure math, with no scene tree or clock involved.
+			</description>
+		</method>
+		<method name="open_panel" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="control" type="Control" />
+			<param index="1" name="preset" type="String" default="&quot;overshoot&quot;" />
+			<param index="2" name="duration" type="float" default="0.25" />
+			<param index="3" name="strength" type="float" default="1.0" />
+			<description>
+				Opens [param control]: shows it and grows it from nothing through the curve. The control's own scale and pivot are restored exactly when the animation ends.
+			</description>
+		</method>
+		<method name="overshoot_value" qualifiers="static">
+			<return type="float" />
+			<param index="0" name="t" type="float" />
+			<param index="1" name="level" type="int" default="2" />
+			<description>
+				The overshoot curve at a strength level: 1 is soft, 2 is the classic back curve, 3 is sharp (the persona world's snap). Pure math.
+			</description>
+		</method>
+		<method name="transition" qualifiers="static">
+			<return type="bool" />
+			<param index="0" name="from_control" type="Control" />
+			<param index="1" name="to_control" type="Control" />
+			<param index="2" name="duration" type="float" default="0.3" />
+			<param index="3" name="preset" type="String" default="&quot;ease_in&quot;" />
+			<param index="4" name="strength" type="float" default="1.0" />
+			<description>
+				The minimal screen transition: [param from_control] fades out and hides while [param to_control] fades in, both through the curve. Both controls' modulate and scale are restored exactly; the incoming control stays visible. Returns [code]false[/code] if either control is missing.
+			</description>
+		</method>
+	</methods>
+</class>
