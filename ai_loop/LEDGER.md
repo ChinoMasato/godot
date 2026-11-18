@@ -174,3 +174,8 @@
 ## 2026-11-18 — B-902 完了（リード）
 - B-902（画像からの PBR 生成 `UZUPBRFromImage`）を実装し ai-native へ統合した: 試作 pbr_tool.gd の計算と Poly Haven 実スキャン合わせの種類表を C++ 静的 API へ移植し、ai_loop コマンド `picture.py pbrmake` を追加。検証は Actions で green（全テスト 1513 件 pass、うち新規7件）。途中の失敗3回（Math::absf／MAXF と class_db.h／予測値2件の較正）も含め記録は iterations/2026-11-18-B-902-muse.md。
 - これで Phase 9（U.ZU Picture）は全項目完了。エンジン側の未完了は B-109（macOS icns）と B-726 の見本再保存＋GPU 再確認（ローカル）、B-501（itch 実証、オーナー作業）、Phase 10 の B-1001〜1003（サンプルゲーム検証はこの VM のビルド完了待ち）。
+
+## 2026-11-18 — B-726 完了の締めと B-902 追補（リード）
+- B-726: ローカル GPU 再確認の記録・画像はローカルセッションが ai-native へ統合済み（e165e44）。リード側の締めとして BACKLOG を完了にし、本項を追記した。判定の詳細は iterations/2026-11-18-B-726-GPU-claude-local.md。
+- B-902 追補: クラウドセッションの重複実装からの指摘（ぼかしの縮小が点サンプリングで、規則模様の目地に同期して光推定が外れる）を正と判断し、縮小を区画の平均に変更した（agent/b-902-blurfix-muse、Actions green、新規回帰テスト1件＝規則格子を光と誤認しないこと）。実測の裏付け（本当の法線との誤差 10.00°→9.54°）は iterations/2026-11-18-B-902-dup-claude.md。
+- B-109: 実装はクラウドセッションが反映済み。残りは macOS 実機での表示確認のみ。B-110: ワークフロー変更の差分を ai_loop/uzu_verify_artifact.patch に置き、push 代行をクラウドセッションへ依頼した（COORDINATION）。

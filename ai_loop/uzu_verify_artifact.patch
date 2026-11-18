@@ -1,0 +1,19 @@
+diff --git a/.github/workflows/uzu_verify.yml b/.github/workflows/uzu_verify.yml
+index 42ede6a5ade..3be6c92449c 100644
+--- a/.github/workflows/uzu_verify.yml
++++ b/.github/workflows/uzu_verify.yml
+@@ -46,6 +46,14 @@ jobs:
+             cache_path=.scons_cache cache_limit=7 -j"$(nproc)"
+           echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+ 
++      - name: Upload the built editor binary
++        uses: actions/upload-artifact@v7
++        with:
++          name: uzu-engine-editor-linux-${{ github.sha }}
++          path: bin/godot.linuxbsd.editor.x86_64
++          retention-days: 30
++          if-no-files-found: error
++
+       - name: Save the SCons cache
+         if: always()
+         uses: actions/cache/save@v6

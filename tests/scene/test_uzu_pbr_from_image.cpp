@@ -157,6 +157,40 @@ TEST_CASE("[UZUPBRFromImage] Delight removes a lighting ramp from the albedo") {
 	CHECK(flat_diff < lit_diff * 0.5f);
 }
 
+TEST_CASE("[UZUPBRFromImage] Delight does not mistake a regular pattern for light") {
+	// A regular 32 px grid (bright stones, dark mortar) has no slow light in
+	// it, so delight must leave its contrast alone. A point-sampling shrink
+	// can land every sample on the mortar lines and read the pattern as
+	// light; the block average cannot (each 64 px block holds exactly two
+	// periods, so every block mean is the same).
+	Ref<Image> image = Image::create_empty(256, 64, false, Image::FORMAT_RGB8);
+	for (int y = 0; y < 64; y++) {
+		for (int x = 0; x < 256; x++) {
+			const float v = (x % 32) < 4 ? 0.15f : 0.85f;
+			image->set_pixel(x, y, Color(v, v, v));
+		}
+	}
+	const Dictionary result = UZUPBRFromImage::make(image, "stone", 1.0f, 1.0f);
+	REQUIRE(bool(result["ok"]));
+	Ref<Image> albedo = result["albedo"];
+	auto window_mean = [](const Ref<Image> &p_img, int p_x0, int p_x1) {
+		double sum = 0.0;
+		int n = 0;
+		for (int y = 0; y < p_img->get_height(); y++) {
+			for (int x = p_x0; x < p_x1; x++) {
+				sum += p_img->get_pixel(x, y).r;
+				n++;
+			}
+		}
+		return float(sum / n);
+	};
+	const float stone = window_mean(albedo, 44, 60); // Inside one stone.
+	const float mortar = window_mean(albedo, 64, 68); // One mortar line.
+	CHECK(stone > 0.72f);
+	CHECK(mortar < 0.25f);
+	CHECK(stone / mortar > 3.5f);
+}
+
 TEST_CASE("[UZUPBRFromImage] Compare measures known angles") {
 	Ref<Image> flat = flat_image(64, 64, Color(0.5, 0.5, 1.0));
 	Ref<Image> tilt = flat_image(64, 64, Color(0.5, 0.8536, 0.8536)); // 45 degrees in +y.
