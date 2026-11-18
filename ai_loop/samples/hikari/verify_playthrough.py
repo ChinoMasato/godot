@@ -26,7 +26,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", ".."))
 from aiplayer import Game  # noqa: E402
 
-STATE = ["Main/Player:global_position", "Main:shards", "Main:cleared"]
+STATE = ["Main/Player:global_position", "Main:shards", "Main:cleared", "Main:juice_events"]
 # (name, [waypoints (x, z) ..., target], shards expected after interacting)
 # Waypoints follow the village's open lanes; every leg keeps clear of the
 # obstacle radii in main.gd (houses 2.75, pond 2.65, trees 1.0, NPCs 0.85).
@@ -37,6 +37,7 @@ ROUTE = [
     ("lantern", [(-2.2, -8.2), (0.0, -8.0)], 3),
 ]
 EXPECTED_EVENTS = ["start", "shard_1", "shard_2", "shard_3", "lantern_lit"]
+EXPECTED_JUICE = ["pickup", "pickup", "pickup", "lantern"]
 
 
 def event_names(events):
@@ -169,6 +170,8 @@ def main():
             "checkpoints_in_order": subseq == EXPECTED_EVENTS,
             "final_shards": run["final_state"].get("Main:shards"),
             "final_cleared": run["final_state"].get("Main:cleared"),
+            "juice_events": run["final_state"].get("Main:juice_events"),
+            "juice_fired": run["final_state"].get("Main:juice_events") == EXPECTED_JUICE,
         })
     report = {
         "game": "hikari no kakera (ai_loop/samples/hikari)",
@@ -179,6 +182,7 @@ def main():
     }
     report["passed"] = all(
         c["checkpoints_in_order"] and c["final_shards"] == 3 and c["final_cleared"] is True
+        and c["juice_fired"]
         for c in checks
     ) and report["start_hash_deterministic"]
     with open(out_path, "w", encoding="utf-8") as f:

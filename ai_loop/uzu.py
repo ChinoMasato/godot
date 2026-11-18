@@ -16,10 +16,15 @@ or through ai_loop\\windows\\uzu.bat.
                   report before and after and the difference (presets: ai_loop/presets/rich/)
   uzu.py ui       <project> --spec ui.json [--shot out.png [--over res://game.tscn]]   a UI screen (Control tree with
                   layout and theme) from one JSON spec (B-1301, see ai_loop/ui_tool.gd)
+  uzu.py map      <project> nature|city --scene res://main.tscn [--spec JSON-or-file] [--set key=value ...]
+                  [--overview top.png] [--replace] [--camera] [--look golden_hour] [--shot out.png] [--inline]
+                  a natural map or a city from a short spec (UZUWorldGen); every key is optional (presets)
+  uzu.py map      options [nature|city]           every map key with its default, range and meaning, and the presets
   uzu.py picture  <project> <command> [options]   Picture prototype: doctor, schema, analyze, snap, adopt, validate, shot, map, pbr
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
                   [--packet DIR] [--expect-clear]   on failure, a diagnosis packet in DIR (B-308)
+  uzu.py replay-compare --expected PATH --actual PATH [--snapshots]   compare JSON/JSONL logs (B-314)
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
@@ -683,6 +688,69 @@ def rich(project, args):
             "note": static.get("note", "")}
 
 
+def map_(project, args):
+    """Map generation (UZUWorldGen, ai_loop/map_tool.gd): a natural map or a city from a short
+    spec. --spec is inline JSON ({...}) or a file; --set key=value overrides one key. --look
+    applies the U.ZU look (an atmosphere) to the scene afterwards, --shot saves a screenshot."""
+    command = args[0] if args and not args[0].startswith("--") else "options"
+    tool_args = [command]
+    rest = args[1:] if args and not args[0].startswith("--") else list(args)
+    i = 0
+    temp_spec = None
+    while i < len(rest):
+        a = rest[i]
+        value = rest[i + 1] if i + 1 < len(rest) else None
+        if a == "--spec" and value is not None:
+            if value.lstrip().startswith("{"):
+                try:
+                    json.loads(value)
+                except ValueError as e:
+                    raise ToolError(f"--spec is not valid JSON: {e}")
+                temp_spec = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8")
+                temp_spec.write(value)
+                temp_spec.close()
+                value = temp_spec.name
+            elif value.startswith("res://"):
+                value = os.path.join(project, value[len("res://"):])
+            else:
+                value = os.path.abspath(value)
+            if not os.path.exists(value):
+                raise ToolError(f"no spec at {value}")
+            tool_args += [a, value]
+            i += 2
+        elif a == "--overview" and value is not None:
+            tool_args += [a, os.path.abspath(value)]
+            i += 2
+        elif a in ("--look", "--shot", "--frames"):
+            i += 2
+        else:
+            tool_args.append(a)
+            i += 1
+    try:
+        result, _ = gd_tool(project, "map_tool.gd", tool_args, "UZU_RESULT ", timeout=900)
+    finally:
+        if temp_spec:
+            os.unlink(temp_spec.name)
+    if not result.get("ok") or command == "options":
+        return result
+    if opt(args, "look"):
+        applied, _ = gd_tool(project, "look_tool.gd", ["apply", "--scene", result["scene"], "--atmosphere", opt(args, "look")], "UZU_RESULT ")
+        result["look"] = applied
+        result["ok"] = bool(applied.get("ok"))
+    if opt(args, "shot") and result["ok"]:
+        result["shot"] = screenshot(project, os.path.abspath(opt(args, "shot")), int(opt(args, "frames", "8")), scene=result["scene"])["image"]
+    return result
+
+
+def map_options():
+    """`map options` needs no project: run it in an empty one."""
+    with tempfile.TemporaryDirectory() as project:
+        with open(os.path.join(project, "project.godot"), "w") as f:
+            f.write('config_version=5\n\n[application]\n\nconfig/name="map options"\n')
+        result, _ = gd_tool(project, "map_tool.gd", ["options"] + [a for a in sys.argv[3:4] if a in ("nature", "city")], "UZU_RESULT ")
+        return result
+
+
 def build(project, args):
     """Declarative scene building (B-1207): ai_loop/build_tool.gd makes the scene from a JSON
     spec, then the richness report (B-1204) of the result comes back with it, and a
@@ -1233,6 +1301,17 @@ def selftest_engine():
         c.expect("look water", r["ok"] and r["node"] == "Water" and r["size"] == [8, 4] and "foam_width" in saved and "hint_depth_texture" in saved, r)
         r = _call(look, p, ["water", "--scene", "res://sprites.tscn", "--deep", "blue-ish"])
         c.expect("look water bad color", not r["ok"] and "--deep" in r["error"], r)
+        # Map generation (UZUWorldGen): a small island and a village into their own scenes,
+        # with places to use next; a typo comes back with the closest key and builds nothing.
+        r = _call(map_, p, ["nature", "--scene", "res://isle.tscn", "--spec", '{"preset": "island", "size": 64, "seed": 2}', "--set", "grass=3"])
+        c.expect("map nature", r["ok"] and r["places"]["spawn"]["position"][1] > r["water_y"] and r["counts"]["grass"] > 0
+                 and os.path.exists(os.path.join(p, "isle_maps", "Nature", "Terrain.res")), r)
+        r = _call(map_, p, ["city", "--scene", "res://village.tscn", "--set", "preset=village", "--set", "seed=4"])
+        c.expect("map city", r["ok"] and r["counts"]["buildings"] > 0 and "plaza" in r["places"], r)
+        r = _call(map_, p, ["city", "--scene", "res://village.tscn", "--set", "preset=village"])
+        c.expect("map city twice needs --replace", not r["ok"] and "--replace" in r.get("hint", ""), r)
+        r = _call(map_, p, ["nature", "--scene", "res://isle2.tscn", "--set", "tress=2"])
+        c.expect("map typo", not r["ok"] and r.get("key") == "tress" and '"trees"' in r.get("hint", "") and not os.path.exists(os.path.join(p, "isle2.tscn")), r)
         # B-204: the project map (a separate small project: scenes, an instanced scene, a
         # script with preload and class_name, signal connections, an autoload).
         with tempfile.TemporaryDirectory() as m:
@@ -1555,6 +1634,10 @@ def main(argv):
         print(__doc__)
         return 0 if argv else 2
     tool, rest = argv[0], argv[1:]
+    if tool == "replay-compare":
+        import replay_compare
+
+        return replay_compare.main(rest)
     if tool == "selftest":
         return selftest(rest[0] if rest else "all")
     if tool == "picture":
@@ -1566,7 +1649,14 @@ def main(argv):
         import client
 
         return client.main(["publish"] + rest)
-    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui") or not rest:
+    if tool == "map" and (not rest or rest[0] == "options"):
+        try:
+            result = map_options()
+        except ToolError as e:
+            result = {"ok": False, "error": e.message}
+        print(json.dumps(result, ensure_ascii=False))
+        return 0 if result.get("ok") else 1
+    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui", "map") or not rest:
         print(__doc__, file=sys.stderr)
         return 2
     project = os.path.abspath(rest[0])
@@ -1574,7 +1664,7 @@ def main(argv):
         print(json.dumps({"ok": False, "error": f"{rest[0]} is not a project (no project.godot)"}))
         return 2
     try:
-        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui}[tool](project, rest[1:])
+        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui, "map": map_}[tool](project, rest[1:])
     except ToolError as e:
         result = {"ok": False, "error": e.message, **e.extra}
         print(json.dumps(result, ensure_ascii=False))

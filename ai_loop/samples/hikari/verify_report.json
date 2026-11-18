@@ -24,6 +24,12 @@
      -8.14390659332275
     ],
     "Main:cleared": true,
+    "Main:juice_events": [
+     "pickup",
+     "pickup",
+     "pickup",
+     "lantern"
+    ],
     "Main:shards": 3
    }
   },
@@ -49,6 +55,12 @@
      -8.14390659332275
     ],
     "Main:cleared": true,
+    "Main:juice_events": [
+     "pickup",
+     "pickup",
+     "pickup",
+     "lantern"
+    ],
     "Main:shards": 3
    }
   }
@@ -58,13 +70,27 @@
    "run": 1,
    "checkpoints_in_order": true,
    "final_shards": 3,
-   "final_cleared": true
+   "final_cleared": true,
+   "juice_events": [
+    "pickup",
+    "pickup",
+    "pickup",
+    "lantern"
+   ],
+   "juice_fired": true
   },
   {
    "run": 2,
    "checkpoints_in_order": true,
    "final_shards": 3,
-   "final_cleared": true
+   "final_cleared": true,
+   "juice_events": [
+    "pickup",
+    "pickup",
+    "pickup",
+    "lantern"
+   ],
+   "juice_fired": true
   }
  ],
  "start_hash_deterministic": true,

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUWorldGen" inherits="Object" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../doc/class.xsd">
+	<brief_description>
+		Generates a natural map or a city from one short spec, made for an AI to ask for.
+	</brief_description>
+	<description>
+		A natural map has terrain with water (lakes, sea or a river), meadows, rock and snow, forests with clearings, rocks and grass. A city has streets (grid or organic), raised sidewalks, blocks with buildings (floors, flat or gable roofs, windows that glow), a plaza with a fountain, street lamps and street trees. Both get static bodies for collision.
+		Every key of the spec is optional: a preset gives the rest, and any key overrides it. The same spec always gives the same map. A wrong spec builds nothing and says what to change (the unknown key with the closest valid one, the expected type or the allowed range). The result names places to use next with their positions, counts what was made, and holds a small top-down overview image.
+		[codeblock]
+		var result = UZUWorldGen.generate_nature(self, {"preset": "island", "seed": 7})
+		if result.ok:
+		    $Player.position = Vector3(result.places.spawn.position[0], result.places.spawn.position[1], result.places.spawn.position[2])
+		[/codeblock]
+		From the agent tools: [code]uzu.py map &lt;project&gt; nature|city --scene res://main.tscn --spec '{...}'[/code], or the MCP tools map_nature, map_city and map_options.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="generate_city" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="root" type="Node" />
+			<param index="1" name="spec" type="Dictionary" default="{}" />
+			<description>
+				Builds a city under [param root]. New nodes are owned by [param root]'s owner (or [param root]), so they are saved with the scene. Returns [code]{"ok", "kind", "node", "counts", "places", "hints", "overview", "options", ...}[/code], or [code]{"ok": false, "error", "key", "hint"}[/code] without building anything. See [method get_options] for the keys.
+			</description>
+		</method>
+		<method name="generate_nature" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="root" type="Node" />
+			<param index="1" name="spec" type="Dictionary" default="{}" />
+			<description>
+				Builds a natural map under [param root], like [method generate_city]. The places are [code]spawn[/code] (flat dry ground near the center), [code]peak[/code], [code]water[/code] and [code]shore[/code] (when there is water) and [code]clearings[/code].
+			</description>
+		</method>
+		<method name="get_options" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="kind" type="String" />
+			<description>
+				Every key of a [code]"nature"[/code] or [code]"city"[/code] spec, with its type, default, what it accepts and what it does.
+			</description>
+		</method>
+		<method name="get_presets" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="kind" type="String" />
+			<description>
+				The presets of a kind and the keys each one sets.
+			</description>
+		</method>
+		<method name="height_at" qualifiers="static">
+			<return type="float" />
+			<param index="0" name="nature" type="Node3D" />
+			<param index="1" name="x" type="float" />
+			<param index="2" name="z" type="float" />
+			<description>
+				The ground height of a generated natural map at [param x], [param z] (in the map node's parent space, which must not be rotated or scaled), exactly on the terrain's triangles. NaN outside the map.
+			</description>
+		</method>
+		<method name="resolve" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="kind" type="String" />
+			<param index="1" name="spec" type="Dictionary" />
+			<description>
+				Checks a spec without building: [code]{"ok": true, "options"}[/code] with every key filled (defaults, then the preset, then the spec), or what to change.
+			</description>
+		</method>
+	</methods>
+</class>

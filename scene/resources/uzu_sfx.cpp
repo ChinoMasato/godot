@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "uzu_sfx.h"
+#include "servers/audio/audio_server.h"
 
 #include "core/math/random_pcg.h"
 #include "core/object/callable_mp.h"
@@ -137,6 +138,11 @@ Dictionary UZUSfx::get_preset(const String &p_name, int p_seed) {
 }
 
 Ref<AudioStreamWAV> UZUSfx::generate(const Dictionary &p_params) {
+	// AudioStreamWAV::set_data locks the AudioServer; without one (unit-test
+	// harnesses, audio-less tooling) it would dereference a null singleton.
+	if (AudioServer::get_singleton() == nullptr) {
+		return fail("no AudioServer is available in this environment.");
+	}
 	Dictionary params = defaults();
 	for (const Variant &key : p_params.keys()) {
 		if (!params.has(key)) {

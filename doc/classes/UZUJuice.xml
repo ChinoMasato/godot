@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUJuice" inherits="Object" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Game feel effects (hitstop, slow motion, and more) behind single static calls.
+	</brief_description>
+	<description>
+		[UZUJuice] is U.ZU Engine's game-feel toolkit: the small effects that make actions feel good, callable in one line from anywhere. A runtime node is created in the scene tree on first use and drives the effects by wall-clock deadlines, so durations are real seconds regardless of the time scale the effects themselves set.
+		This class currently provides the time effects: [method hitstop] and [method slowmo]. While an effect is active, UZUJuice owns [member Engine.time_scale]; when the last effect ends, the scale that was in place before the first effect started is restored. A running hitstop wins over a running slow motion.
+		[codeblock]
+		# A heavy hit: freeze for a blink, with the matching sound (UZUSfx).
+		UZUJuice.hitstop(0.06)
+		UZUSfx.play(self, UZUSfx.generate_preset("hit"))
+		# A near miss: a moment of slow motion.
+		UZUJuice.slowmo(0.25, 0.4)
+		[/codeblock]
+		[b]Note:[/b] This class is specific to U.ZU Engine (UZUJuice, BACKLOG Phase 11).
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="applied_time_scale" qualifiers="static">
+			<return type="float" />
+			<description>
+				The time scale UZUJuice is applying right now: the hitstop scale while a hitstop runs, else the slow-motion scale while one runs, else the scale that was in place before the effects started (1.0 when nothing ever ran).
+			</description>
+		</method>
+		<method name="cancel_time_effects" qualifiers="static">
+			<return type="void" />
+			<description>
+				Ends all running time effects immediately and restores the time scale from before they started.
+			</description>
+		</method>
+		<method name="hitstop" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="duration" type="float" />
+			<param index="1" name="scale" type="float" default="0.0" />
+			<description>
+				Freezes the game's time for [param duration] real seconds, running it at [param scale] meanwhile (0.0 is a full stop; a small value like 0.05 keeps a hint of motion). The classic pause that sells a hit landing. If a slow motion is running, the hitstop takes over and the slow motion resumes afterwards if its duration has not elapsed.
+			</description>
+		</method>
+		<method name="is_time_effect_active" qualifiers="static">
+			<return type="bool" />
+			<description>
+				True while a hitstop or slow motion is still running.
+			</description>
+		</method>
+		<method name="slowmo" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="scale" type="float" />
+			<param index="1" name="duration" type="float" />
+			<description>
+				Runs the game's time at [param scale] (for example 0.25) for [param duration] real seconds, then restores the previous scale.
+			</description>
+		</method>
+		<method name="clear_shake" qualifiers="static">
+			<return type="void" />
+			<description>
+				Stops the screen shake immediately and restores the camera's own offset exactly.
+			</description>
+		</method>
+		<method name="get_trauma" qualifiers="static">
+			<return type="float" />
+			<description>
+				The current shake trauma (0..1). The applied offset scales with trauma squared, so a trauma of 0.5 shakes a quarter as much as 1.0.
+			</description>
+		</method>
+		<method name="shake" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="amount" type="float" />
+			<description>
+				Adds [param amount] of screen-shake trauma (clamped to 1.0 in total): about 0.3 for a normal hit, 0.7 for a big explosion. Trauma decays at 1.6 per second on its own. The shake is applied to the current camera (Camera3D h/v offset or Camera2D offset), preserving and later restoring the camera's own offset.
+			</description>
+		</method>
+		<method name="flash" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="node" type="Node" />
+			<param index="1" name="color" type="Color" default="Color(1, 1, 1, 1)" />
+			<param index="2" name="duration" type="float" default="0.08" />
+			<description>
+				Tints [param node] toward [param color] and fades back over [param duration] seconds, restoring the node exactly. Works on [CanvasItem]s and [Sprite3D] (their modulate) and on other [GeometryInstance3D]s (a fading material overlay). Flashing the same node again restarts the flash from the new color, keeping the original base.
+			</description>
+		</method>
+		<method name="squash" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="node" type="Node" />
+			<param index="1" name="amount" type="float" default="0.3" />
+			<description>
+				Squashes [param node] (a [Node2D] or [Node3D]) flat by [param amount] and lets a spring bring it back with a wobble, roughly preserving volume (wider as it gets flatter). The node's own scale is captured and restored exactly when the spring settles.
+			</description>
+		</method>
+		<method name="burst2d" qualifiers="static">
+			<return type="CPUParticles2D" />
+			<param index="0" name="parent" type="Node" />
+			<param index="1" name="global_position" type="Vector2" />
+			<param index="2" name="color" type="Color" />
+			<param index="3" name="count" type="int" default="14" />
+			<param index="4" name="power" type="float" default="1.0" />
+			<description>
+				Spawns a one-shot burst of [param count] particles at [param global_position] under [param parent], flying outward and falling, in [param color]; the node frees itself when the burst ends. [param power] scales the speed and the lifetime. The particles use a small generated dot texture, so no assets are needed.
+			</description>
+		</method>
+		<method name="burst3d" qualifiers="static">
+			<return type="CPUParticles3D" />
+			<param index="0" name="parent" type="Node" />
+			<param index="1" name="global_position" type="Vector3" />
+			<param index="2" name="color" type="Color" />
+			<param index="3" name="count" type="int" default="14" />
+			<param index="4" name="power" type="float" default="1.0" />
+			<description>
+				The 3D form of [method burst2d]: billboarded quads in [param color], world-space (they do not follow the parent after spawning).
+			</description>
+		</method>
+		<method name="get_kick" qualifiers="static">
+			<return type="float" />
+			<description>
+				The current camera-kick displacement (0 when settled).
+			</description>
+		</method>
+		<method name="kick" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="amount" type="float" default="0.5" />
+			<description>
+				Punches the current camera's zoom: a Camera3D's field of view dips by up to 8 × [param amount] degrees (a Camera2D's zoom rises by up to 25 × [param amount] percent) and a spring brings it back. The camera's own field of view / zoom is captured and restored exactly.
+			</description>
+		</method>
+	</methods>
+</class>

@@ -98,4 +98,13 @@
 | B-311 | Muse (lead) | agent/b-310-muse | ai_loop/aiplayer.py, ai_loop/uzu.py, ai_loop/iterations/ | 反映済み | 2026-11-19 |
 | B-1002 | Muse (lead) | agent/b-310-muse | ai_loop/samples/hikari/（verify_playthrough.py 新規, verify_report.json, main.gd の uzu_state 宣言と物理ステップ化）, ai_loop/iterations/ | 反映済み | 2026-11-19 |
 | B-1301 | Claude Code (cloud) | ai-native（直接） | ai_loop/ui_tool.gd（新規）, ai_loop/uzu.py（ui コマンド）, ai_loop/mcp_server.py, ai_loop/look_samples/specs/（UI 仕様の例）, ai_loop/iterations/ | 反映済み | 2026-11-19 |
-| B-1302 | Claude Code (cloud) | ai-native（直接） | scene/gui/uzu_ui.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUUI.xml（新規）, tests/scene/test_uzu_ui.cpp（新規）, ai_loop/ui_tool.gd（UZUUI を使う形に）, ai_loop/look_samples/, ai_loop/iterations/ | 着手 | 2026-11-19 |
+| B-1302 | Claude Code (cloud) | ai-native（直接） | scene/gui/uzu_ui.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUUI.xml（新規）, tests/scene/test_uzu_ui.cpp（新規）, ai_loop/ui_tool.gd（UZUUI を使う形に）, ai_loop/look_samples/, ai_loop/iterations/ | 反映済み | 2026-11-19 |
+| B-1102 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19、CI 1531 pass） |
+| B-1103 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19、CI 1534 pass） |
+| B-1104 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 着手（2026-11-19） |
+- B-1106 イベントプリセット（impact）: 完了（2026-11-19 ai-native 統合、CI 全テスト 1540 pass）
+- B-727（GPU 確認）: 記録済み（Claude Code ローカル、agent/b727gpu-claude-local を 2026-11-19 に統合。水は3レンダラーで動作・速さ OK、波の格子と反射の段差を報告 → B-728 へ）
+- B-314 ログ照合（リプレイ判定）: 完了（Codex、agent/b-314-codex を 2026-11-19 に統合。最初の不一致を CLI／MCP で報告）
+- B-728 水シェーダーの見た目修正: 完了（Codex、agent/b-728-codex を 2026-11-19 に統合。全テスト pass、GPU 再確認はローカルで別途）
+- B-1201 Blender ブリッジ: 完了（Codex、agent/b-1201-codex を 2026-11-19 に統合。Blender 資産の描画・書き出しとリグ付きキャラクターの待機／歩行クリップ検証）
+- UZUWorldGen（マップ自動生成）: 完了（Claude Code ローカル、agent/worldgen-claude-local を 2026-11-19 に統合。短い仕様から自然マップと街を生成）

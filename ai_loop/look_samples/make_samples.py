@@ -125,6 +125,8 @@ def water():
     length = 18.0 / ca
     cz, cy = -6.0, (0.15 - 3.0) / 2 - 0.5 * ca
     nodes.append(node("Bottom", "MeshInstance3D", f"16, 0, 0, 0, {ca:.6f}, {sa * length:.6f}, 0, {-sa:.6f}, {ca * length:.6f}, 0, {cy:.6f}, {cz}", 'mesh = SubResource("box")\nmaterial_override = SubResource("m_sand")\n'))
+    # Close the join at the near shore so the front edge of the water plane is hidden.
+    nodes.append(node("NearShore", "MeshInstance3D", scaled(14, 1, 6, 0, -0.35, 5.85), 'mesh = SubResource("box")\nmaterial_override = SubResource("m_sand")\n'))
     # Light stripes across the bottom, to see depth color and refraction on.
     for i, z in enumerate([1.0, -2.0, -5.0, -8.0, -11.0]):
         y = 0.15 - 3.15 * (3.0 - z) / 18.0
