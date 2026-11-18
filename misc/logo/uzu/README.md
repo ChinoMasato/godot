@@ -37,9 +37,27 @@ the dialog is hidden; reopening restarts the motion. Splash images stay static
 and do not add startup delays. Game/project settings and compatibility names
 are unchanged.
 
-This does not regenerate native platform packaging files (`.ico`, `.icns`,
-Apple Icon Composer layers), or overwrite existing games' custom/project
-icons. Those are distinct distribution assets.
+Windows packaging icons (`platform/windows/godot.ico` and `godot_console.ico`)
+also use the official U.ZU icon. The window class uses the embedded `GODOT_ICON`
+before the runtime PNG is applied; both assets must therefore be branded.
+The historical resource identifier is retained for compatibility. macOS `.icns`
+and Apple Icon Composer layers remain separate distribution assets. Existing
+games' custom/project icons are not overwritten.
+
+Windows icon generation and binary verification (Python + Pillow):
+
+```powershell
+python misc/logo/uzu/windows_icons.py
+python misc/logo/uzu/windows_icons.py --verify-exe bin/godot.windows.editor.x86_64.exe
+python misc/logo/uzu/windows_icons.py --verify-exe bin/godot.windows.editor.x86_64.console.exe
+```
+
+The generator converts the committed `misc/logo/icon.png` into ten ICO sizes
+(16–256 px); no artwork is fetched. The Windows-only verifier reads native PE
+resources without running the executable, compares every icon size, and checks
+that the main executable embeds the current startup splash and runtime icon PNGs.
+Both resource objects explicitly depend on their ICO files so incremental builds
+also pick up artwork updates.
 
 Editor logo variants supply the official navy background so their light
 metallic colors remain legible with light editor themes.
