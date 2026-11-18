@@ -32,7 +32,11 @@
 
 TEST_FORCE_LINK(test_uzu_juice)
 
+#include "core/os/os.h"
+#include "scene/2d/cpu_particles_2d.h"
 #include "scene/2d/sprite_2d.h"
+#include "scene/3d/cpu_particles_3d.h"
+#include "scene/2d/node_2d.h"
 #include "scene/3d/node_3d.h"
 #include "scene/3d/uzu_juice.h"
 
@@ -168,6 +172,45 @@ TEST_CASE("[Scene][UZUJuice] Squash deforms a Node3D and the spring restores it"
 	CHECK(node->get_scale() == Vector3(1, 1, 1));
 	memdelete(node);
 	UZUJuice::apply_node_effects(0.0);
+}
+
+TEST_CASE("[Scene][UZUJuice] Kick punches the zoom and springs back") {
+	UZUJuice::kick(0.5);
+	CHECK(UZUJuice::get_kick() == doctest::Approx(0.5));
+	CHECK(UZUJuice::kick_state().fov_delta() == doctest::Approx(-4.0));
+	CHECK(UZUJuice::kick_state().zoom_factor() == doctest::Approx(1.125));
+	for (int i = 0; i < 600; i++) {
+		UZUJuice::kick_state().update(1.0 / 60.0);
+	}
+	CHECK(UZUJuice::kick_state().settled());
+	CHECK(Math::abs(UZUJuice::get_kick()) < 0.01);
+}
+
+TEST_CASE("[Scene][UZUJuice] Burst3D is configured one-shot and frees itself") {
+	Node3D *parent = memnew(Node3D);
+	CPUParticles3D *burst = UZUJuice::burst3d(parent, Vector3(1, 2, 3), Color(1, 0.5, 0), 20, 0.25);
+	REQUIRE(burst != nullptr);
+	CHECK(burst->get_amount() == 20);
+	CHECK(burst->is_one_shot());
+	CHECK(burst->is_emitting());
+	CHECK(burst->get_lifetime() == doctest::Approx(0.55 * 0.25));
+	ObjectID id = burst->get_instance_id();
+	OS::get_singleton()->delay_msec(500); // Past the burst's free-at time.
+	UZUJuice::apply_node_effects(0.0);
+	CHECK(ObjectDB::get_instance(id) == nullptr);
+	memdelete(parent);
+}
+
+TEST_CASE("[Scene][UZUJuice] Burst2D carries the dot texture and the color") {
+	Node2D *parent = memnew(Node2D);
+	CPUParticles2D *burst = UZUJuice::burst2d(parent, Vector2(4, 5), Color(0, 1, 0), 9, 1.0);
+	REQUIRE(burst != nullptr);
+	CHECK(burst->get_amount() == 9);
+	CHECK(burst->is_one_shot());
+	CHECK(burst->get_texture().is_valid());
+	CHECK(burst->get_color() == Color(0, 1, 0));
+	memdelete(parent);
+	UZUJuice::apply_node_effects(0.0); // Purges the stale entry.
 }
 
 } // namespace TestUZUJuice

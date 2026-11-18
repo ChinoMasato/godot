@@ -36,7 +36,12 @@
 #include "core/os/os.h"
 #include "core/os/time.h"
 #include "core/templates/vector.h"
+#include "core/io/image.h"
 #include "scene/2d/camera_2d.h"
+#include "scene/2d/cpu_particles_2d.h"
+#include "scene/3d/cpu_particles_3d.h"
+#include "scene/resources/3d/primitive_meshes.h"
+#include "scene/resources/image_texture.h"
 #include "scene/2d/node_2d.h"
 #include "scene/3d/node_3d.h"
 #include "scene/3d/sprite_3d.h"
@@ -180,9 +185,12 @@ static T *_instance_or_null(ObjectID p_id) {
 	return Object::cast_to<T>(ObjectDB::get_instance(p_id));
 }
 
+void _apply_kick(Viewport *p_viewport);
+
 void UZUJuice::apply_shake(double p_real_dt, double p_now_sec) {
 	UZUJuiceShakeState &state = shake_state();
 	state.update(p_real_dt);
+	kick_state().update(p_real_dt);
 	SceneTree *tree = Object::cast_to<SceneTree>(OS::get_singleton()->get_main_loop());
 	if (!tree) {
 		return;
@@ -225,6 +233,45 @@ void UZUJuice::apply_shake(double p_real_dt, double p_now_sec) {
 		cam2->set_offset(shaking ? _shake_cam2d_base + offset * 64.0 : _shake_cam2d_base);
 		if (!shaking) {
 			_shake_cam2d_id = ObjectID();
+		}
+	}
+	_apply_kick(viewport);
+}
+
+// The kick's captured camera bases (independent of the shake's offsets).
+static ObjectID _kick_cam3d_id;
+static double _kick_cam3d_base_fov = 75.0;
+static ObjectID _kick_cam2d_id;
+static Vector2 _kick_cam2d_base_zoom = Vector2(1, 1);
+
+void _apply_kick(Viewport *p_viewport) {
+	bool active = !UZUJuice::kick_state().settled();
+	Camera3D *cam3 = p_viewport->get_camera_3d();
+	if (cam3 && (active || _kick_cam3d_id.is_valid())) {
+		if (_kick_cam3d_id != cam3->get_instance_id()) {
+			if (Camera3D *old = _instance_or_null<Camera3D>(_kick_cam3d_id)) {
+				old->set_fov(_kick_cam3d_base_fov);
+			}
+			_kick_cam3d_id = cam3->get_instance_id();
+			_kick_cam3d_base_fov = cam3->get_fov();
+		}
+		cam3->set_fov(active ? _kick_cam3d_base_fov + UZUJuice::kick_state().fov_delta() : _kick_cam3d_base_fov);
+		if (!active) {
+			_kick_cam3d_id = ObjectID();
+		}
+	}
+	Camera2D *cam2 = p_viewport->get_camera_2d();
+	if (cam2 && (active || _kick_cam2d_id.is_valid())) {
+		if (_kick_cam2d_id != cam2->get_instance_id()) {
+			if (Camera2D *old = _instance_or_null<Camera2D>(_kick_cam2d_id)) {
+				old->set_zoom(_kick_cam2d_base_zoom);
+			}
+			_kick_cam2d_id = cam2->get_instance_id();
+			_kick_cam2d_base_zoom = cam2->get_zoom();
+		}
+		cam2->set_zoom(active ? _kick_cam2d_base_zoom * UZUJuice::kick_state().zoom_factor() : _kick_cam2d_base_zoom);
+		if (!active) {
+			_kick_cam2d_id = ObjectID();
 		}
 	}
 }
@@ -358,6 +405,20 @@ void UZUJuice::apply_node_effects(double p_real_dt) {
 			_flash_entries.remove_at(i);
 		}
 	}
+	for (int i = _burst_entries.size() - 1; i >= 0; i--) {
+		if (now < _burst_entries[i].free_at_msec) {
+			continue;
+		}
+		Object *obj = ObjectDB::get_instance(_burst_entries[i].id);
+		if (Node *node = Object::cast_to<Node>(obj)) {
+			if (node->is_inside_tree()) {
+				node->queue_free();
+			} else {
+				memdelete(node);
+			}
+		}
+		_burst_entries.remove_at(i);
+	}
 	for (int i = _squash_entries.size() - 1; i >= 0; i--) {
 		UZUJuiceSquashEntry &e = _squash_entries.write[i];
 		Object *obj = ObjectDB::get_instance(e.id);
@@ -383,6 +444,111 @@ void UZUJuice::apply_node_effects(double p_real_dt) {
 	}
 }
 
+UZUJuiceKickState &UZUJuice::kick_state() {
+	static UZUJuiceKickState state;
+	return state;
+}
+
+void UZUJuice::kick(double p_amount) {
+	kick_state().punch(CLAMP(p_amount, 0.0, 2.0));
+	ensure_runtime();
+}
+
+double UZUJuice::get_kick() {
+	return kick_state().spring.x;
+}
+
+// Bursts waiting to be freed: {instance id, free-at msec}, advanced by
+// apply_node_effects alongside the other node effects.
+struct UZUJuiceBurstEntry {
+	ObjectID id;
+	uint64_t free_at_msec = 0;
+};
+static Vector<UZUJuiceBurstEntry> _burst_entries;
+
+CPUParticles3D *UZUJuice::burst3d(Node *p_parent, const Vector3 &p_global_position, const Color &p_color, int p_count, double p_power) {
+	ERR_FAIL_NULL_V(p_parent, nullptr);
+	double power = CLAMP(p_power, 0.25, 4.0);
+	double lifetime = 0.55 * power;
+	CPUParticles3D *particles = memnew(CPUParticles3D);
+	particles->set_amount(MAX(p_count, 1));
+	particles->set_lifetime(lifetime);
+	particles->set_one_shot(true);
+	particles->set_explosiveness(0.92);
+	particles->set_local_coords(false);
+	particles->set_direction(Vector3(0, 1, 0));
+	particles->set_spread(180.0);
+	particles->set_initial_velocity_min(2.2 * power);
+	particles->set_initial_velocity_max(3.8 * power);
+	particles->set_gravity(Vector3(0, -5, 0));
+	particles->set_damping_min(0.5);
+	particles->set_damping_max(1.5);
+	Ref<StandardMaterial3D> mat;
+	mat.instantiate();
+	mat->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+	mat->set_billboard_mode(BaseMaterial3D::BILLBOARD_ENABLED);
+	mat->set_albedo(p_color);
+	Ref<QuadMesh> quad;
+	quad.instantiate();
+	quad->set_size(Vector2(0.07, 0.07));
+	quad->set_material(mat);
+	particles->set_draw_pass_1(quad);
+	p_parent->add_child(particles);
+	particles->set_global_position(p_global_position);
+	particles->set_emitting(true);
+	_burst_entries.push_back({ particles->get_instance_id(), _now_msec() + uint64_t(lifetime * 1000.0) + 250 });
+	ensure_runtime();
+	return particles;
+}
+
+static Ref<ImageTexture> _dot_texture() {
+	static Ref<ImageTexture> texture;
+	if (texture.is_valid()) {
+		return texture;
+	}
+	Ref<Image> img = Image::create_empty(12, 12, false, Image::FORMAT_RGBA8);
+	img->fill(Color(0, 0, 0, 0));
+	for (int y = 0; y < 12; y++) {
+		for (int x = 0; x < 12; x++) {
+			double d = Vector2(x - 5.5, y - 5.5).length();
+			if (d <= 5.0) {
+				img->set_pixel(x, y, Color(1, 1, 1, CLAMP(1.5 - d / 5.0, 0.0, 1.0)));
+			}
+		}
+	}
+	texture = ImageTexture::create_from_image(img);
+	return texture;
+}
+
+CPUParticles2D *UZUJuice::burst2d(Node *p_parent, const Vector2 &p_global_position, const Color &p_color, int p_count, double p_power) {
+	ERR_FAIL_NULL_V(p_parent, nullptr);
+	double power = CLAMP(p_power, 0.25, 4.0);
+	double lifetime = 0.55 * power;
+	CPUParticles2D *particles = memnew(CPUParticles2D);
+	particles->set_amount(MAX(p_count, 1));
+	particles->set_lifetime(lifetime);
+	particles->set_one_shot(true);
+	particles->set_explosiveness(0.92);
+	particles->set_local_coords(false);
+	particles->set_direction(Vector2(1, 0));
+	particles->set_spread(180.0);
+	particles->set_initial_velocity_min(90.0 * power);
+	particles->set_initial_velocity_max(170.0 * power);
+	particles->set_gravity(Vector2(0, 220));
+	particles->set_damping_min(20.0);
+	particles->set_damping_max(60.0);
+	particles->set_scale_amount_min(0.5);
+	particles->set_scale_amount_max(1.0);
+	particles->set_texture(_dot_texture());
+	particles->set_color(p_color);
+	p_parent->add_child(particles);
+	particles->set_global_position(p_global_position);
+	particles->set_emitting(true);
+	_burst_entries.push_back({ particles->get_instance_id(), _now_msec() + uint64_t(lifetime * 1000.0) + 250 });
+	ensure_runtime();
+	return particles;
+}
+
 void UZUJuice::_bind_methods() {
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("hitstop", "duration", "scale"), &UZUJuice::hitstop, DEFVAL(0.0));
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("slowmo", "scale", "duration"), &UZUJuice::slowmo);
@@ -394,4 +560,8 @@ void UZUJuice::_bind_methods() {
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("get_trauma"), &UZUJuice::get_trauma);
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("flash", "node", "color", "duration"), &UZUJuice::flash, DEFVAL(Color(1, 1, 1)), DEFVAL(0.08));
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("squash", "node", "amount"), &UZUJuice::squash, DEFVAL(0.3));
+	ClassDB::bind_static_method("UZUJuice", D_METHOD("burst3d", "parent", "global_position", "color", "count", "power"), &UZUJuice::burst3d, DEFVAL(14), DEFVAL(1.0));
+	ClassDB::bind_static_method("UZUJuice", D_METHOD("burst2d", "parent", "global_position", "color", "count", "power"), &UZUJuice::burst2d, DEFVAL(14), DEFVAL(1.0));
+	ClassDB::bind_static_method("UZUJuice", D_METHOD("kick", "amount"), &UZUJuice::kick, DEFVAL(0.5));
+	ClassDB::bind_static_method("UZUJuice", D_METHOD("get_kick"), &UZUJuice::get_kick);
 }

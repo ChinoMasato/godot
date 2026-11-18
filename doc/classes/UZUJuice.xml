@@ -88,5 +88,40 @@
 				Squashes [param node] (a [Node2D] or [Node3D]) flat by [param amount] and lets a spring bring it back with a wobble, roughly preserving volume (wider as it gets flatter). The node's own scale is captured and restored exactly when the spring settles.
 			</description>
 		</method>
+		<method name="burst2d" qualifiers="static">
+			<return type="CPUParticles2D" />
+			<param index="0" name="parent" type="Node" />
+			<param index="1" name="global_position" type="Vector2" />
+			<param index="2" name="color" type="Color" />
+			<param index="3" name="count" type="int" default="14" />
+			<param index="4" name="power" type="float" default="1.0" />
+			<description>
+				Spawns a one-shot burst of [param count] particles at [param global_position] under [param parent], flying outward and falling, in [param color]; the node frees itself when the burst ends. [param power] scales the speed and the lifetime. The particles use a small generated dot texture, so no assets are needed.
+			</description>
+		</method>
+		<method name="burst3d" qualifiers="static">
+			<return type="CPUParticles3D" />
+			<param index="0" name="parent" type="Node" />
+			<param index="1" name="global_position" type="Vector3" />
+			<param index="2" name="color" type="Color" />
+			<param index="3" name="count" type="int" default="14" />
+			<param index="4" name="power" type="float" default="1.0" />
+			<description>
+				The 3D form of [method burst2d]: billboarded quads in [param color], world-space (they do not follow the parent after spawning).
+			</description>
+		</method>
+		<method name="get_kick" qualifiers="static">
+			<return type="float" />
+			<description>
+				The current camera-kick displacement (0 when settled).
+			</description>
+		</method>
+		<method name="kick" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="amount" type="float" default="0.5" />
+			<description>
+				Punches the current camera's zoom: a Camera3D's field of view dips by up to 8 × [param amount] degrees (a Camera2D's zoom rises by up to 25 × [param amount] percent) and a spring brings it back. The camera's own field of view / zoom is captured and restored exactly.
+			</description>
+		</method>
 	</methods>
 </class>
