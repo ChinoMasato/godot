@@ -276,6 +276,9 @@ def main(argv=None):
             result = script_tool(project, "map_tool.gd", rest)
         elif command == "pbr":
             result = pbr(project, rest)
+        elif command == "pbrmake":
+            # B-902: the engine's UZUPBRFromImage (C++) instead of pbr_tool.gd.
+            result = script_tool(project, "pbr_engine.gd", rest)
         else:
             result = shot(project, rest) if command == "shot" else tool(project, [command] + rest)
     except (OSError, ValueError, subprocess.SubprocessError) as error:
