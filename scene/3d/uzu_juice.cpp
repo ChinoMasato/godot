@@ -35,7 +35,14 @@
 #include "core/math/math_funcs.h"
 #include "core/os/os.h"
 #include "core/os/time.h"
+#include "core/templates/vector.h"
 #include "scene/2d/camera_2d.h"
+#include "scene/2d/node_2d.h"
+#include "scene/3d/node_3d.h"
+#include "scene/3d/sprite_3d.h"
+#include "scene/3d/visual_instance_3d.h"
+#include "scene/main/canvas_item.h"
+#include "scene/resources/material.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/main/node.h"
 #include "scene/main/viewport.h"
@@ -66,6 +73,7 @@ public:
 			double dt = last_msec ? double(now - last_msec) / 1000.0 : 0.0;
 			last_msec = now;
 			UZUJuice::apply_shake(dt, double(now) / 1000.0);
+			UZUJuice::apply_node_effects(dt);
 		}
 	}
 };
@@ -221,6 +229,160 @@ void UZUJuice::apply_shake(double p_real_dt, double p_now_sec) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Node effects: hit flashes and squash springs (B-1103). The entries live here,
+// keyed by instance id; the runtime advances them every frame and each one
+// restores exactly what it captured when it ends.
+
+enum UZUJuiceFlashKind {
+	FLASH_CANVAS_ITEM,
+	FLASH_SPRITE_3D,
+	FLASH_OVERLAY,
+};
+
+struct UZUJuiceFlashEntry {
+	ObjectID id;
+	UZUJuiceFlashKind kind = FLASH_CANVAS_ITEM;
+	Color base;
+	Color color;
+	uint64_t start_msec = 0;
+	uint64_t until_msec = 0;
+	Ref<Material> base_overlay;
+	Ref<StandardMaterial3D> overlay_mat;
+};
+
+struct UZUJuiceSquashEntry {
+	ObjectID id;
+	bool is_2d = false;
+	Vector3 base_scale;
+	UZUJuiceSpringState spring;
+};
+
+static Vector<UZUJuiceFlashEntry> _flash_entries;
+static Vector<UZUJuiceSquashEntry> _squash_entries;
+
+void UZUJuice::flash(Node *p_node, const Color &p_color, double p_duration) {
+	ERR_FAIL_NULL(p_node);
+	for (UZUJuiceFlashEntry &e : _flash_entries) {
+		if (e.id == p_node->get_instance_id()) {
+			e.color = p_color;
+			e.start_msec = _now_msec();
+			e.until_msec = e.start_msec + uint64_t(CLAMP(p_duration, 0.0, 10.0) * 1000.0);
+			ensure_runtime();
+			return;
+		}
+	}
+	UZUJuiceFlashEntry entry;
+	entry.id = p_node->get_instance_id();
+	entry.color = p_color;
+	entry.start_msec = _now_msec();
+	entry.until_msec = entry.start_msec + uint64_t(CLAMP(p_duration, 0.0, 10.0) * 1000.0);
+	if (CanvasItem *ci = Object::cast_to<CanvasItem>(p_node)) {
+		entry.kind = FLASH_CANVAS_ITEM;
+		entry.base = ci->get_modulate();
+	} else if (SpriteBase3D *sb = Object::cast_to<SpriteBase3D>(p_node)) {
+		entry.kind = FLASH_SPRITE_3D;
+		entry.base = sb->get_modulate();
+	} else if (GeometryInstance3D *gi = Object::cast_to<GeometryInstance3D>(p_node)) {
+		entry.kind = FLASH_OVERLAY;
+		entry.base_overlay = gi->get_material_overlay();
+		Ref<StandardMaterial3D> mat;
+		mat.instantiate();
+		mat->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+		mat->set_albedo(p_color);
+		entry.overlay_mat = mat;
+		gi->set_material_overlay(mat);
+	} else {
+		ERR_PRINT("UZUJuice.flash needs a CanvasItem, a sprite or a GeometryInstance3D.");
+		return;
+	}
+	_flash_entries.push_back(entry);
+	ensure_runtime();
+}
+
+void UZUJuice::squash(Node *p_node, double p_amount) {
+	ERR_FAIL_NULL(p_node);
+	bool is_2d = Object::cast_to<Node2D>(p_node) != nullptr;
+	bool is_3d = Object::cast_to<Node3D>(p_node) != nullptr;
+	ERR_FAIL_COND_MSG(!is_2d && !is_3d, "UZUJuice.squash needs a Node2D or Node3D.");
+	for (UZUJuiceSquashEntry &e : _squash_entries) {
+		if (e.id == p_node->get_instance_id()) {
+			e.spring.displace(p_amount);
+			ensure_runtime();
+			return;
+		}
+	}
+	UZUJuiceSquashEntry entry;
+	entry.id = p_node->get_instance_id();
+	entry.is_2d = is_2d;
+	entry.base_scale = is_2d ? Vector3(Object::cast_to<Node2D>(p_node)->get_scale().x, Object::cast_to<Node2D>(p_node)->get_scale().y, 1.0)
+							 : Object::cast_to<Node3D>(p_node)->get_scale();
+	entry.spring.displace(p_amount);
+	_squash_entries.push_back(entry);
+	ensure_runtime();
+}
+
+void UZUJuice::apply_node_effects(double p_real_dt) {
+	uint64_t now = _now_msec();
+	for (int i = _flash_entries.size() - 1; i >= 0; i--) {
+		UZUJuiceFlashEntry &e = _flash_entries.write[i];
+		Object *obj = ObjectDB::get_instance(e.id);
+		if (!obj) {
+			_flash_entries.remove_at(i);
+			continue;
+		}
+		double total = double(e.until_msec - e.start_msec);
+		double mix = total > 0.0 ? 1.0 - double(now - e.start_msec) / total : 0.0;
+		bool done = now >= e.until_msec || mix <= 0.0;
+		switch (e.kind) {
+			case FLASH_CANVAS_ITEM: {
+				CanvasItem *ci = Object::cast_to<CanvasItem>(obj);
+				ci->set_modulate(done ? e.base : e.base.lerp(e.color, CLAMP(mix, 0.0, 1.0)));
+			} break;
+			case FLASH_SPRITE_3D: {
+				SpriteBase3D *sb = Object::cast_to<SpriteBase3D>(obj);
+				sb->set_modulate(done ? e.base : e.base.lerp(e.color, CLAMP(mix, 0.0, 1.0)));
+			} break;
+			case FLASH_OVERLAY: {
+				GeometryInstance3D *gi = Object::cast_to<GeometryInstance3D>(obj);
+				if (done) {
+					gi->set_material_overlay(e.base_overlay);
+				} else {
+					Color c = e.color;
+					c.a *= float(CLAMP(mix, 0.0, 1.0));
+					e.overlay_mat->set_albedo(c);
+				}
+			} break;
+		}
+		if (done) {
+			_flash_entries.remove_at(i);
+		}
+	}
+	for (int i = _squash_entries.size() - 1; i >= 0; i--) {
+		UZUJuiceSquashEntry &e = _squash_entries.write[i];
+		Object *obj = ObjectDB::get_instance(e.id);
+		if (!obj) {
+			_squash_entries.remove_at(i);
+			continue;
+		}
+		e.spring.update(p_real_dt);
+		double s = e.spring.x;
+		bool done = e.spring.settled();
+		if (e.is_2d) {
+			Node2D *n2 = Object::cast_to<Node2D>(obj);
+			n2->set_scale(done ? Vector2(e.base_scale.x, e.base_scale.y)
+								: Vector2(e.base_scale.x * (1.0 + s), e.base_scale.y * (1.0 - s * 0.8)));
+		} else {
+			Node3D *n3 = Object::cast_to<Node3D>(obj);
+			n3->set_scale(done ? e.base_scale
+								: Vector3(e.base_scale.x * (1.0 + s), e.base_scale.y * (1.0 - s * 0.8), e.base_scale.z * (1.0 + s)));
+		}
+		if (done) {
+			_squash_entries.remove_at(i);
+		}
+	}
+}
+
 void UZUJuice::_bind_methods() {
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("hitstop", "duration", "scale"), &UZUJuice::hitstop, DEFVAL(0.0));
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("slowmo", "scale", "duration"), &UZUJuice::slowmo);
@@ -230,4 +392,6 @@ void UZUJuice::_bind_methods() {
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("shake", "amount"), &UZUJuice::shake);
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("clear_shake"), &UZUJuice::clear_shake);
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("get_trauma"), &UZUJuice::get_trauma);
+	ClassDB::bind_static_method("UZUJuice", D_METHOD("flash", "node", "color", "duration"), &UZUJuice::flash, DEFVAL(Color(1, 1, 1)), DEFVAL(0.08));
+	ClassDB::bind_static_method("UZUJuice", D_METHOD("squash", "node", "amount"), &UZUJuice::squash, DEFVAL(0.3));
 }

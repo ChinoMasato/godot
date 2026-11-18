@@ -32,6 +32,8 @@
 
 TEST_FORCE_LINK(test_uzu_juice)
 
+#include "scene/2d/sprite_2d.h"
+#include "scene/3d/node_3d.h"
 #include "scene/3d/uzu_juice.h"
 
 namespace TestUZUJuice {
@@ -120,6 +122,52 @@ TEST_CASE("[Scene][UZUJuice] Shake static API drives the shared state") {
 	CHECK(UZUJuice::get_trauma() == doctest::Approx(0.8));
 	UZUJuice::clear_shake();
 	CHECK(UZUJuice::get_trauma() == doctest::Approx(0.0));
+}
+
+TEST_CASE("[Scene][UZUJuice] Spring state: displaced spring overshoots and settles") {
+	UZUJuiceSpringState spring;
+	spring.displace(0.3);
+	CHECK(spring.x == doctest::Approx(0.3));
+	bool crossed_zero = false;
+	for (int i = 0; i < 600; i++) {
+		spring.update(1.0 / 60.0);
+		CHECK(Math::abs(spring.x) <= 0.31);
+		if (spring.x < 0.0) {
+			crossed_zero = true;
+		}
+	}
+	CHECK(crossed_zero); // Underdamped: it wobbles back past zero.
+	CHECK(spring.settled());
+}
+
+TEST_CASE("[Scene][UZUJuice] Flash tints a sprite and restores it exactly") {
+	Sprite2D *sprite = memnew(Sprite2D);
+	sprite->set_modulate(Color(0.5, 0.5, 0.5, 1.0));
+	UZUJuice::flash(sprite, Color(1, 0, 0), 5.0);
+	UZUJuice::apply_node_effects(0.0);
+	Color during = sprite->get_modulate();
+	CHECK(during.r == doctest::Approx(1.0).epsilon(0.01));
+	CHECK(during.g == doctest::Approx(0.0).epsilon(0.01));
+	UZUJuice::flash(sprite, Color(1, 0, 0), 0.0); // Zero duration: ends at once.
+	UZUJuice::apply_node_effects(0.0);
+	CHECK(sprite->get_modulate() == Color(0.5, 0.5, 0.5, 1.0));
+	memdelete(sprite);
+	UZUJuice::apply_node_effects(0.0); // Purges the stale entry.
+}
+
+TEST_CASE("[Scene][UZUJuice] Squash deforms a Node3D and the spring restores it") {
+	Node3D *node = memnew(Node3D);
+	UZUJuice::squash(node, 0.3);
+	UZUJuice::apply_node_effects(0.0);
+	Vector3 during = node->get_scale();
+	CHECK(during.x == doctest::Approx(1.3));
+	CHECK(during.y == doctest::Approx(0.76));
+	for (int i = 0; i < 600; i++) {
+		UZUJuice::apply_node_effects(1.0 / 60.0);
+	}
+	CHECK(node->get_scale() == Vector3(1, 1, 1));
+	memdelete(node);
+	UZUJuice::apply_node_effects(0.0);
 }
 
 } // namespace TestUZUJuice

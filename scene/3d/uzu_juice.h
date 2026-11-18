@@ -31,7 +31,9 @@
 #pragma once
 
 #include "core/math/math_funcs.h"
+#include "core/math/color.h"
 #include "core/math/vector2.h"
+#include "core/math/vector3.h"
 #include "core/object/object.h"
 
 // U.ZU game feel (BACKLOG Phase 11, UZUJuice): the small effects that make a game
@@ -108,6 +110,24 @@ struct UZUJuiceShakeState {
 	}
 };
 
+// Spring state for squash & stretch (BACKLOG B-1103): a slightly underdamped
+// spring; give it a displacement and it overshoots back through zero and
+// settles. Pure math, unit-testable without a node.
+struct UZUJuiceSpringState {
+	double x = 0.0; // Displacement: + stretches wide, - squashes flat (by convention of the applier).
+	double v = 0.0;
+	void displace(double p_amount) { x = p_amount; }
+	void update(double p_dt) {
+		// Semi-implicit Euler; stiffness 180, damping 14 (underdamped).
+		double a = -180.0 * x - 14.0 * v;
+		v += a * p_dt;
+		x += v * p_dt;
+	}
+	bool settled() const { return Math::abs(x) < 0.001 && Math::abs(v) < 0.01; }
+};
+
+class Node;
+
 class UZUJuice : public Object {
 	GDCLASS(UZUJuice, Object);
 
@@ -153,4 +173,17 @@ public:
 	// capturing the camera's own offset first and restoring it when the shake
 	// ends. Called by the runtime node each frame.
 	static void apply_shake(double p_real_dt, double p_now_sec);
+
+	// Tints p_node toward p_color for p_duration seconds, then restores it
+	// exactly. Works on CanvasItem and Sprite3D (their modulate) and on other
+	// GeometryInstance3D (a fading material overlay).
+	static void flash(Node *p_node, const Color &p_color = Color(1, 1, 1), double p_duration = 0.08);
+	// Squashes p_node (Node2D or Node3D) by p_amount (0.3 is a firm landing)
+	// and lets a spring bring it back with a wobble, roughly preserving
+	// volume. The node's own scale is captured and restored exactly.
+	static void squash(Node *p_node, double p_amount = 0.3);
+
+	// Advances the node effects (flashes and springs) by p_real_dt seconds.
+	// Called by the runtime node each frame.
+	static void apply_node_effects(double p_real_dt);
 };
