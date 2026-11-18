@@ -217,7 +217,26 @@ TEST_CASE("[Scene][UZUJuice] Burst2D carries the dot texture and the color") {
 
 } // namespace TestUZUJuice
 
-TEST_CASE("[UZUJuice] impact presets fire their parts and reject unknown kinds") {
+TEST_CASE("[UZUJuice] impact land: squash, shake and sound only") {
+	Node3D *parent = memnew(Node3D);
+	Node3D *node = memnew(Node3D);
+	parent->add_child(node);
+	CHECK(UZUJuice::impact(node, "land"));
+	CHECK(UZUJuice::get_trauma() > 0.0);
+	UZUJuice::clear_shake();
+	memdelete(parent);
+}
+
+TEST_CASE("[UZUJuice] impact pickup: burst and sound, no hitstop") {
+	Node3D *parent = memnew(Node3D);
+	Node3D *node = memnew(Node3D);
+	parent->add_child(node);
+	CHECK(UZUJuice::impact(node, "pickup"));
+	CHECK_FALSE(UZUJuice::is_time_effect_active());
+	memdelete(parent);
+}
+
+TEST_CASE("[UZUJuice] impact hit and unknown kinds") {
 	PackedStringArray names = UZUJuice::get_impact_preset_names();
 	CHECK(names.size() == 5);
 	CHECK(names.has("hit"));
@@ -226,17 +245,10 @@ TEST_CASE("[UZUJuice] impact presets fire their parts and reject unknown kinds")
 	Node3D *parent = memnew(Node3D);
 	Node3D *node = memnew(Node3D);
 	parent->add_child(node);
-	// Tree-less on purpose (like the other juice tests): deleting an in-tree
-	// node mid-test crashes the harness. In-tree firing is covered by the
-	// sample-game run (B-1107).
-
 	CHECK(UZUJuice::impact(node, "hit"));
 	CHECK(UZUJuice::is_time_effect_active()); // hitstop engaged.
 	UZUJuice::cancel_time_effects();
-	CHECK(UZUJuice::impact(node, "pickup"));
-	CHECK_FALSE(UZUJuice::is_time_effect_active()); // pickup has no hitstop.
 	CHECK_FALSE(UZUJuice::impact(node, "explode_everything"));
-
 	memdelete(parent);
 	UZUJuice::cancel_time_effects();
 }
