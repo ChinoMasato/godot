@@ -157,14 +157,16 @@ TEST_CASE("[UZUPBRFromImage] Delight removes a lighting ramp from the albedo") {
 	CHECK(flat_diff < lit_diff * 0.5f);
 }
 
-TEST_CASE("[UZUPBRFromImage] Delight does not mistake a coarse pattern for light") {
-	// Vertical stripes with a 32 px period sit below the 64 px light scale,
-	// so they are albedo, not light. A point-sampling shrink reads them as
-	// light and distorts their ratio; the block average must keep it.
-	Ref<Image> image = Image::create_empty(64, 64, false, Image::FORMAT_RGB8);
+TEST_CASE("[UZUPBRFromImage] Delight does not mistake a regular pattern for light") {
+	// A regular 32 px grid (bright stones, dark mortar) has no slow light in
+	// it, so delight must leave its contrast alone. A point-sampling shrink
+	// can land every sample on the mortar lines and read the pattern as
+	// light; the block average cannot (each 64 px block holds exactly two
+	// periods, so every block mean is the same).
+	Ref<Image> image = Image::create_empty(256, 64, false, Image::FORMAT_RGB8);
 	for (int y = 0; y < 64; y++) {
-		for (int x = 0; x < 64; x++) {
-			const float v = x < 32 ? 0.2f : 0.8f;
+		for (int x = 0; x < 256; x++) {
+			const float v = (x % 32) < 4 ? 0.15f : 0.85f;
 			image->set_pixel(x, y, Color(v, v, v));
 		}
 	}
@@ -182,9 +184,11 @@ TEST_CASE("[UZUPBRFromImage] Delight does not mistake a coarse pattern for light
 		}
 		return float(sum / n);
 	};
-	const float ratio = window_mean(albedo, 40, 56) / window_mean(albedo, 8, 24);
-	CHECK(ratio > 3.2f);
-	CHECK(ratio < 4.8f);
+	const float stone = window_mean(albedo, 44, 60); // Inside one stone.
+	const float mortar = window_mean(albedo, 64, 68); // One mortar line.
+	CHECK(stone > 0.72f);
+	CHECK(mortar < 0.25f);
+	CHECK(stone / mortar > 3.5f);
 }
 
 TEST_CASE("[UZUPBRFromImage] Compare measures known angles") {
