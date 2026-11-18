@@ -42,6 +42,7 @@ TEST_FORCE_LINK(test_uzu_juice)
 #include "scene/main/scene_tree.h"
 #include "scene/main/window.h"
 #include "scene/resources/uzu_sfx.h"
+#include <cstdio>
 
 namespace TestUZUJuice {
 
