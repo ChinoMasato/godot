@@ -92,7 +92,7 @@
 
 - [x] B-903 外部推定マップの取り込み `UZUMapImport`（P-3）: 外部モデル（Depth Anything 等）が出した法線・深度を、寸法合わせ・ずれ補正（エッジ相互相関）・法線の流儀判定（OpenGL／DirectX）・深度の向き判定・正規化をして取り込む C++ 静的 API ＋ ai_loop コマンド。estimate は設定ファイルの外部コマンドを呼ぶだけで、**モデルはエンジンに同梱しない**（Q13-b リード決定）。試作は ai_loop/prototypes/picture/map_tool.gd。判定: 試作の測定（流儀判定・ずれ回復・深度変種の一致）を C++ 版でも再現＋全テスト pass。
 - [x] B-901 `UZUPicture` ノード（P-1）: 絵＋深度＋任意の法線・マスクの JSON／Resource 仕様から、起伏メッシュ（深度の段差で裂く＋穴埋め済み背景の多重パララックス）・素材・ライト・効果（雨、火の粉、霧の板、雲、稲光、揺れ、カメラの寄り）を組み立てる C++ ノード。シェーダーは試作の2本が出発点。試作の穴埋めは GDScript で約220ms、C++ 化で縮める。判定: 仕様 JSON からの組み立ての単体テスト＋全テスト pass＋GPU での見た目確認（ローカル担当）。
-- [ ] B-902 画像からの PBR 生成 `UZUPBRFromImage`（P-2）: 1枚の画像から albedo／normal／ORM／height／material.tres を作る C++ 静的 API ＋ ai_loop コマンド。種類（stone／brick／wood 等）ごとの値は試作の表（Poly Haven 実スキャン合わせ）を使う。正直な前提: 1枚からの法線推定は実スキャン比で「平らな法線」と同程度が限界（試作測定）。判定: 生成マップの単体テスト＋実スキャンとの角度誤差の測定記録＋全テスト pass。
+- [x] B-902 画像からの PBR 生成 `UZUPBRFromImage`（P-2）: 1枚の画像から albedo／normal／ORM／height／material.tres を作る C++ 静的 API ＋ ai_loop コマンド。種類（stone／brick／wood 等）ごとの値は試作の表（Poly Haven 実スキャン合わせ）を使う。正直な前提: 1枚からの法線推定は実スキャン比で「平らな法線」と同程度が限界（試作測定）。判定: 生成マップの単体テスト＋実スキャンとの角度誤差の測定記録＋全テスト pass。【完了 2026-11-18（リード）: C++ 静的 API＋ai_loop コマンド（pbrmake）を実装、単体テスト7件＋全テスト 1513 件 pass（Actions green）。角度誤差は試作のフィッティング測定が正で表を複製、C++ compare は既知角度で検証済み。記録 iterations/2026-11-18-B-902-muse.md】
 - [x] B-904 Picture のエージェントコマンド（P-4）: analyze／snap／adopt／validate／shot を ai_loop の流儀（UZU_RESULT の JSON 1行）に合わせて正式化する。座標はすべて絵のピクセル。判定: 試作プロジェクトで一連の流れが通り、shot の PNG と motion.png が得られること。
 
 ## Phase 5（パブリッシング）／Phase 6（コミュニティ、Gogashare 型）

@@ -170,3 +170,7 @@
 ## 2026-11-18 — B-107 完了と B-726 エンジン側の統合（リード）
 - B-107 を完了にした: 検証ワークフロー（uzu_verify.yml）は green 2回（ai-native 4.2分、agent/hikari-muse 3.0分。どちらもキャッシュあり）に加え、意図的に落とすテストだけを入れた使い捨てブランチ agent/ci-red-check で **red を正しく検出**（2.8分で failure）した。red→green の判定を満たしたのでブランチは削除した。キャッシュが効く push では 3〜4分で検証が回ることが分かった。
 - B-726 のエンジン側を実装・統合した（agent/b-726-muse、Actions green 2.7分）: add_blob_shadow が既存の BlobShadow を再計算して直す形にし、保存済み影の古い形状が再適用で直るようにした。項目自体は、hd2d 見本の保存済み影の作り直しと GPU 再確認（ローカル）が残るため未完了のまま。
+
+## 2026-11-18 — B-902 完了（リード）
+- B-902（画像からの PBR 生成 `UZUPBRFromImage`）を実装し ai-native へ統合した: 試作 pbr_tool.gd の計算と Poly Haven 実スキャン合わせの種類表を C++ 静的 API へ移植し、ai_loop コマンド `picture.py pbrmake` を追加。検証は Actions で green（全テスト 1513 件 pass、うち新規7件）。途中の失敗3回（Math::absf／MAXF と class_db.h／予測値2件の較正）も含め記録は iterations/2026-11-18-B-902-muse.md。
+- これで Phase 9（U.ZU Picture）は全項目完了。エンジン側の未完了は B-109（macOS icns）と B-726 の見本再保存＋GPU 再確認（ローカル）、B-501（itch 実証、オーナー作業）、Phase 10 の B-1001〜1003（サンプルゲーム検証はこの VM のビルド完了待ち）。
