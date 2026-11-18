@@ -28,7 +28,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import uzu  # noqa: E402  Finds the editor binary for this OS and sets up rendering (B-801).
 PREFIX = "UZU_STEP "
-AUTOLOADS = 'UZUControl="*res://addons/uzu_selfplay/control.gd"\nUZUTelemetry="*res://addons/uzu_selfplay/telemetry.gd"\n'
+AUTOLOADS = 'UZUControl="*res://addons/uzu_selfplay/control.gd"\nUZUTelemetry="*res://addons/uzu_selfplay/telemetry.gd"\nUZUStateHash="*res://addons/uzu_selfplay/state_hash.gd"\n'
 
 
 class Game:
@@ -40,6 +40,7 @@ class Game:
         os.makedirs(addon, exist_ok=True)
         shutil.copy(os.path.join(HERE, "selfplay", "control.gd"), addon)
         shutil.copy(os.path.join(HERE, "telemetry", "telemetry.gd"), addon)
+        shutil.copy(os.path.join(HERE, "selfplay", "state_hash.gd"), addon)  # State hashes and save states (B-307, B-309).
         cfg = os.path.join(game, "project.godot")
         with open(cfg, encoding="utf-8") as f:
             text = f.read()
@@ -86,6 +87,18 @@ class Game:
         if image:
             command["image"] = os.path.abspath(image)
         return self._send(command)
+
+    def save(self, name="default"):
+        """Snapshots the declared game state into a slot (B-309); the game advances one frame."""
+        return self._send({"save": name, "frames": 1})
+
+    def restore(self, name="default"):
+        """Puts a saved state back, with the actions that were pressed then (B-309)."""
+        return self._send({"restore": name, "frames": 1})
+
+    def state_hash(self):
+        """The hash of the declared game state (B-307) after one more frame."""
+        return self._send({"hash": True, "frames": 1})["state_hash"]
 
     def reset(self):
         return self._send({"reset": True})
@@ -152,6 +165,29 @@ def self_test():
         # A policy that never jumps dies at the first pit, and the deaths arrive in the observations.
         cleared, deaths, checkpoints, _ = _play(game, lambda x: False, max_steps=200)
         assert not cleared and deaths >= 2 and checkpoints == ["cp1"], (cleared, deaths, checkpoints)
+        # Save states (B-309): play on from a save, then restore and play the same
+        # input again: the state hashes match, and the player is back where it was.
+        game.reset()
+        game.step(frames=100, press=["move_right"], state=["Main/Player:position"])
+        at_save = game.save("before_pit")["state"]["Main/Player:position"]
+        plan = [(60, []), (1, ["jump"]), (1, []), (90, [])]  # Jump over the first pit, run on.
+        def play_plan():
+            for frames, press in plan:
+                game.step(frames=frames, press=press, release=[] if press else ["jump"])
+            return game.state_hash()
+        first = play_plan()
+        restored = game.restore("before_pit")
+        assert restored.get("restored") == "before_pit" and restored["restored_nodes"] >= 2, restored
+        assert game.step(state=["Main/Player:position"])["state"]["Main/Player:position"][0] == at_save[0] + 4.0, "back at the save (one frame on)"
+        game.restore("before_pit")
+        second = play_plan()
+        assert first == second, (first, second)
+        # A different input from the same save gives a different state (the hash is not trivial).
+        game.restore("before_pit")
+        game.step(frames=152)
+        assert game.state_hash() != first
+        assert game.step(press=["jump"]).get("error") is None
+        assert "error" in game._send({"restore": "nope", "frames": 1})
         # Several frames per step.
         before = game.step(frames=1)["frame"]
         assert game.step(frames=10)["frame"] == before + 10

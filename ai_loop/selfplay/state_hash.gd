@@ -9,6 +9,12 @@ extends Node
 ## Dictionary its uzu_state() method returns, or the properties named in its metadata
 ## "uzu_state" (an Array of names). Values are written in Godot's text format in node
 ## path order, so the same state always gives the same hash.
+##
+## Save states (B-309): snapshot() copies the same declared state (raw values, deep
+## copies) and restore() puts it back: transforms, the declared properties, and for
+## nodes with uzu_state(), their uzu_restore(Dictionary). Both reseed the global
+## random numbers from the snapshot frame, so playing on from a save and playing on
+## after a restore draw the same numbers.
 
 var _every := 0
 var _path := ""
@@ -73,3 +79,67 @@ func _exit_tree() -> void:
 	var f := FileAccess.open(_path, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify({"every": _every, "hashes": _hashes, "state": _last_state}))
+
+
+func _frame() -> int:
+	return Engine.get_physics_frames() - _start
+
+
+func _declared_nodes() -> Dictionary:
+	var nodes := {}
+	for group in ["uzu_state", "uzu_player"]:
+		for node in get_tree().get_nodes_in_group(group):
+			nodes[str(node.get_path())] = node
+	return nodes
+
+
+func _copy(value: Variant) -> Variant:
+	return value.duplicate(true) if value is Array or value is Dictionary else value
+
+
+func snapshot() -> Dictionary:
+	var nodes := _declared_nodes()
+	var saved := {}
+	for path in nodes:
+		var node: Node = nodes[path]
+		var entry := {}
+		if node is Node3D:
+			entry["transform"] = (node as Node3D).global_transform
+		elif node is Node2D:
+			entry["transform"] = (node as Node2D).global_transform
+		if node.has_method("uzu_state"):
+			entry["custom"] = _copy(node.call("uzu_state"))
+		elif node.has_meta("uzu_state"):
+			var props := {}
+			for property in node.get_meta("uzu_state"):
+				props[property] = _copy(node.get(property))
+			entry["props"] = props
+		saved[path] = entry
+	var snap := {"frame": _frame(), "nodes": saved}
+	_reseed(snap["frame"])
+	return snap
+
+
+func restore(snap: Dictionary) -> int:
+	var restored := 0
+	for path in snap.get("nodes", {}):
+		var node := get_node_or_null(NodePath(path))
+		if node == null:
+			continue
+		var entry: Dictionary = snap["nodes"][path]
+		if entry.has("transform"):
+			if node is Node3D:
+				(node as Node3D).global_transform = entry["transform"]
+			elif node is Node2D:
+				(node as Node2D).global_transform = entry["transform"]
+		if entry.has("custom") and node.has_method("uzu_restore"):
+			node.call("uzu_restore", _copy(entry["custom"]))
+		for property in entry.get("props", {}):
+			node.set(property, _copy(entry["props"][property]))
+		restored += 1
+	_reseed(int(snap.get("frame", 0)))
+	return restored
+
+
+func _reseed(frame: int) -> void:
+	seed(hash("uzu-save-state-%d" % frame))

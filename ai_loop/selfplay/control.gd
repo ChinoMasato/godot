@@ -11,6 +11,9 @@ extends Node
 ##   state    "NodePath:property" under /root, read in the next observation
 ##   image    save the next observation's frame there (needs a renderer, not --headless)
 ##   reset    reload the current scene and release all actions
+##   save     "name": snapshot the declared state into a slot (B-309; needs UZUStateHash)
+##   restore  "name": put a saved state back, with the actions pressed at the time
+##   hash     true: add "state_hash" (B-307) to the next observation
 ## "--uzu-seed <n>" after "--" fixes the global random seed (B-305).
 ## Observation: {"frame", "events": [telemetry events since the last one],
 ##   "state": {"Main/Player:position": [x, y]}, "image": path or null, "done": cleared,
@@ -26,6 +29,9 @@ var _pressed := {}
 var _done := false
 var _reset := false
 var _ended := false
+var _slots := {}
+var _notes := {}
+var _want_hash := false
 
 
 func _ready() -> void:
@@ -99,6 +105,12 @@ func _observe() -> void:
 			image.save_png(_image)
 			image_path = _image
 	var observation := {"frame": Engine.get_physics_frames(), "events": _events, "state": state, "image": image_path, "done": _done, "reset": _reset, "ended": _ended}
+	var hasher := get_node_or_null("/root/UZUStateHash")
+	if _want_hash and hasher:
+		observation["state_hash"] = hasher.state_hash()
+	observation.merge(_notes)
+	_notes = {}
+	_want_hash = false
 	print(PREFIX + JSON.stringify(observation))
 	_events = []
 	_image = ""
@@ -122,6 +134,26 @@ func _command() -> void:
 		return
 	_state_keys = cmd.get("state", _state_keys)
 	_image = cmd.get("image", "")
+	_want_hash = cmd.get("hash", false)
+	var hasher := get_node_or_null("/root/UZUStateHash")
+	if cmd.has("save") or cmd.has("restore"):
+		if hasher == null:
+			_notes["error"] = "save states need the UZUStateHash autoload"
+		elif cmd.has("save"):
+			_slots[str(cmd["save"])] = {"snapshot": hasher.snapshot(), "pressed": _pressed.duplicate(), "done": _done}
+			_notes["saved"] = str(cmd["save"])
+		elif _slots.has(str(cmd["restore"])):
+			var slot: Dictionary = _slots[str(cmd["restore"])]
+			for action in _pressed:
+				Input.action_release(action)
+			_pressed = slot["pressed"].duplicate()
+			for action in _pressed:
+				Input.action_press(action)
+			_done = slot["done"]
+			_notes["restored"] = str(cmd["restore"])
+			_notes["restored_nodes"] = hasher.restore(slot["snapshot"])
+		else:
+			_notes["error"] = "no saved state named '%s'" % cmd["restore"]
 	if cmd.get("reset", false):
 		for action in _pressed:
 			Input.action_release(action)
