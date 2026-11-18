@@ -42,6 +42,7 @@
 #include "scene/3d/cpu_particles_3d.h"
 #include "scene/resources/3d/primitive_meshes.h"
 #include "scene/resources/image_texture.h"
+#include "scene/resources/uzu_sfx.h"
 #include "scene/2d/node_2d.h"
 #include "scene/3d/node_3d.h"
 #include "scene/3d/sprite_3d.h"
@@ -547,6 +548,70 @@ CPUParticles2D *UZUJuice::burst2d(Node *p_parent, const Vector2 &p_global_positi
 	return particles;
 }
 
+PackedStringArray UZUJuice::get_impact_preset_names() {
+	PackedStringArray names;
+	names.push_back("hit");
+	names.push_back("kill");
+	names.push_back("land");
+	names.push_back("pickup");
+	names.push_back("damage");
+	return names;
+}
+
+bool UZUJuice::impact(Node *p_node, const String &p_kind, double p_power) {
+	ERR_FAIL_NULL_V(p_node, false);
+	const double power = CLAMP(p_power, 0.0, 4.0);
+	Node *host = p_node->get_parent() != nullptr ? p_node->get_parent() : p_node;
+	String sfx;
+	if (p_kind == "hit") {
+		hitstop(0.045);
+		shake(0.25 * power);
+		flash(p_node, Color(1, 1, 1), 0.08);
+		sfx = "hit";
+	} else if (p_kind == "kill") {
+		hitstop(0.09);
+		shake(0.5 * power);
+		squash(p_node, 0.35);
+		sfx = "explosion";
+	} else if (p_kind == "land") {
+		squash(p_node, 0.3);
+		shake(0.12 * power);
+		sfx = "land";
+	} else if (p_kind == "pickup") {
+		flash(p_node, Color(1.0, 0.85, 0.3), 0.12);
+		sfx = "pickup";
+	} else if (p_kind == "damage") {
+		hitstop(0.03);
+		shake(0.35 * power);
+		flash(p_node, Color(1, 0.25, 0.2), 0.15);
+		sfx = "hit";
+	} else {
+		return false;
+	}
+	// Bursts for the violent kinds, dispatched by the node's dimension.
+	if (p_kind == "hit" || p_kind == "kill" || p_kind == "pickup") {
+		const double burst_power = p_kind == "kill" ? 1.2 * power : 0.7 * power;
+		Node3D *node3d = Object::cast_to<Node3D>(p_node);
+		Node3D *host3d = Object::cast_to<Node3D>(host);
+		if (node3d != nullptr && host3d != nullptr) {
+			const Vector3 pos = node3d->is_inside_tree() ? node3d->get_global_position() : node3d->get_position();
+			burst3d(host3d, pos, p_kind == "pickup" ? Color(1.0, 0.85, 0.3) : Color(1, 0.9, 0.6), burst_power);
+		} else {
+			Node2D *node2d = Object::cast_to<Node2D>(p_node);
+			Node2D *host2d = Object::cast_to<Node2D>(host);
+			if (node2d != nullptr && host2d != nullptr) {
+				const Vector2 pos = node2d->is_inside_tree() ? node2d->get_global_position() : node2d->get_position();
+				burst2d(host2d, pos, p_kind == "pickup" ? Color(1.0, 0.85, 0.3) : Color(1, 0.9, 0.6), burst_power);
+			}
+		}
+	}
+	Ref<AudioStreamWAV> stream = UZUSfx::generate_preset(sfx);
+	if (stream.is_valid()) {
+		UZUSfx::play(host, stream);
+	}
+	return true;
+}
+
 void UZUJuice::_bind_methods() {
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("hitstop", "duration", "scale"), &UZUJuice::hitstop, DEFVAL(0.0));
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("slowmo", "scale", "duration"), &UZUJuice::slowmo);
@@ -562,4 +627,6 @@ void UZUJuice::_bind_methods() {
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("burst2d", "parent", "global_position", "color", "count", "power"), &UZUJuice::burst2d, DEFVAL(14), DEFVAL(1.0));
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("kick", "amount"), &UZUJuice::kick, DEFVAL(0.5));
 	ClassDB::bind_static_method("UZUJuice", D_METHOD("get_kick"), &UZUJuice::get_kick);
+	ClassDB::bind_static_method("UZUJuice", D_METHOD("impact", "node", "kind", "power"), &UZUJuice::impact, DEFVAL(1.0));
+	ClassDB::bind_static_method("UZUJuice", D_METHOD("get_impact_preset_names"), &UZUJuice::get_impact_preset_names);
 }

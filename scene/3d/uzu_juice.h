@@ -212,6 +212,13 @@ public:
 	// The current kick displacement (0 when settled).
 	static double get_kick();
 
+	// Event presets (B-1106): one call that fires the right combination of
+	// parts plus a synthesized sound: "hit", "kill", "land", "pickup",
+	// "damage". Returns false for an unknown kind. p_power scales the
+	// violent parts (shake, bursts, sound volume stays constant).
+	static bool impact(Node *p_node, const String &p_kind, double p_power = 1.0);
+	static PackedStringArray get_impact_preset_names();
+
 	// The shared kick state, exposed for the runtime and the unit tests.
 	static UZUJuiceKickState &kick_state();
 };

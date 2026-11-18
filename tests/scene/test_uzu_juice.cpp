@@ -214,3 +214,25 @@ TEST_CASE("[Scene][UZUJuice] Burst2D carries the dot texture and the color") {
 }
 
 } // namespace TestUZUJuice
+
+TEST_CASE("[UZUJuice] impact presets fire their parts and reject unknown kinds") {
+	PackedStringArray names = UZUJuice::get_impact_preset_names();
+	CHECK(names.size() == 5);
+	CHECK(names.has("hit"));
+	CHECK(names.has("pickup"));
+
+	Node3D *parent = memnew(Node3D);
+	Node3D *node = memnew(Node3D);
+	parent->add_child(node);
+	SceneTree::get_singleton()->get_root()->add_child(parent);
+
+	CHECK(UZUJuice::impact(node, "hit"));
+	CHECK(UZUJuice::is_time_effect_active()); // hitstop engaged.
+	UZUJuice::cancel_time_effects();
+	CHECK(UZUJuice::impact(node, "pickup"));
+	CHECK_FALSE(UZUJuice::is_time_effect_active()); // pickup has no hitstop.
+	CHECK_FALSE(UZUJuice::impact(node, "explode_everything"));
+
+	memdelete(parent);
+	UZUJuice::cancel_time_effects();
+}
