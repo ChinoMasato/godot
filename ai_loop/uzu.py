@@ -857,6 +857,10 @@ def selfplay(project, args):
             files.append("selfplay/state_hash.gd")
             autoloads += 'UZUStateHash="*res://addons/uzu_selfplay/state_hash.gd"\n'
         install_addons(game, files, autoloads)
+        # B-311: a copy without .godot cannot load imported resources (a
+        # preloading script fails to parse); import the copy first.
+        if not os.path.exists(os.path.join(game, ".godot", "imported")):
+            import_assets(game)
         log, errors_path = os.path.join(work, "events.jsonl"), os.path.join(work, "errors.jsonl")
         hash_path = os.path.join(work, "state_hash.json")
         base = ["--path", game, "--fixed-fps", "60", "--quit-after", frames, "--log-json", errors_path]

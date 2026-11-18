@@ -47,6 +47,12 @@ class Game:
         text = text.replace("\n[autoload]\n", "\n[autoload]\n\n" + AUTOLOADS, 1) if "\n[autoload]\n" in text else text + "\n[autoload]\n\n" + AUTOLOADS
         with open(cfg, "w", encoding="utf-8") as f:
             f.write(text)
+        # B-311: the copy has no .godot, so imported resources (fonts,
+        # textures) have no loaders and scripts that preload them fail to
+        # parse. Import the copy once before running it.
+        if not os.path.exists(os.path.join(game, ".godot", "imported")):
+            subprocess.run([uzu.find_godot(), "--headless", "--path", game, "--import"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
         user_args = ["--uzu-telemetry", telemetry_log or os.path.join(self.work, "events.jsonl")]
         if seed is not None:
             user_args += ["--uzu-seed", str(seed)]  # control.gd fixes the global random seed (B-305).
