@@ -473,9 +473,9 @@ def import_assets(project):
             jsonl = os.path.join(tmp, "errors.jsonl")
             rc, out = run([find_godot(), "--headless", "--path", project, "--import", "--log-json", jsonl], timeout=1800)
             errors = [e for e in read_jsonl(jsonl) if e.get("level") != "warning"]
-        # Known engine race (upstream): the editor's file system can run a deferred update after
-        # the editor has gone at exit ("Parameter singleton is null" in is_cmdline_mode) and
-        # abort. The import itself has finished by then, so a crash on exit is retried once.
+        # An engine race at exit (upstream; fixed in this fork by B-806: late updates reached the
+        # freed editor, "Parameter singleton is null" in is_cmdline_mode, and aborted). The import
+        # has finished by then, so a crash on exit is still retried once, as a safety net.
         crashed_on_exit = rc < 0 and all("is_cmdline_mode" in e.get("function", "") or "singleton" in e.get("message", "") for e in errors)
         if not crashed_on_exit or attempt == 1:
             break

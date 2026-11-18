@@ -383,6 +383,10 @@ public:
 	static inline String CACHE_FILE_NAME = "filesystem_cache10";
 
 	static EditorFileSystem *get_singleton() { return singleton; }
+	// U.ZU Engine (B-806): whether the updates that need the editor (script documentation,
+	// scene groups) can run. Not when the editor node is gone, as at the exit of --import,
+	// where a late update otherwise reached freed editor parts and aborted.
+	static bool can_update_editor_data();
 
 	EditorFileSystemDirectory *get_filesystem();
 	bool is_scanning() const;
