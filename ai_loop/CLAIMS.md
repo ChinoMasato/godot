@@ -12,7 +12,7 @@
 | B-720 GPU 確認（B-719 比較を併記） | Codex local | agent/b-720-codex-gpu | ai_loop/windows/effects_gpu*, ai_loop/iterations/, ai_loop/look_samples/compare/effects_gpu* | 通常風のみ確認、GPU device loss により残り保留 | 2026-11-18 |
 | B-903 試作取り込みの正確性補完 | Codex local | agent/b-903-codex-map | ai_loop/prototypes/picture/map_tool.gd・test_map_import.py・README.md, ai_loop/iterations/ | 実エンジン14件成功、C++移植向け統合待ち | 2026-11-18 |
 | B-726 BlobShadow 再適用時の再計算 | Muse (lead) | agent/b-726-muse | scene/3d/uzu_look.cpp, tests/scene/test_uzu_look.cpp, ai_loop/iterations/ | 完了（GPU 再確認済み: agent/b726gpu-claude-local） | 2026-11-18 |
-| B-110 検証済みバイナリの配布 | Muse (lead) | agent/verify-artifact-muse | .github/workflows/uzu_verify.yml, ai_loop/build_locked.sh | ワークフロー変更はクラウドが push 代行（アップロードはテストと自己テストの後に置いた）、Actions の artifact 確認中 | 2026-11-18 |
+| B-110 検証済みバイナリの配布 | Muse (lead) | agent/verify-artifact-muse | .github/workflows/uzu_verify.yml, ai_loop/build_locked.sh | ワークフロー変更はクラウドが push 済み（実行 #68 success、artifact あり）。ダウンロードしたバイナリの起動確認はローカル | 2026-11-18 |
 | B-902 画像からの PBR 生成 | Muse (lead) | agent/b-902-muse | scene/resources/uzu_pbr_from_image.{h,cpp}, scene/register_scene_types.cpp, doc/classes/UZUPBRFromImage.xml, tests/scene/test_uzu_pbr_from_image.cpp, ai_loop/prototypes/picture/pbr_engine.gd・picture.py | 完了（Actions green、全テスト 1513 件 pass、ai-native 統合済み） | 2026-11-18 |
 | B-902 追補 ぼかしの縮小を区画の平均に | Muse (lead) | agent/b-902-blurfix-muse | scene/resources/uzu_pbr_from_image.{h,cpp}, tests/scene/test_uzu_pbr_from_image.cpp | 完了（Actions green、ai-native 統合済み） | 2026-11-18 |
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
