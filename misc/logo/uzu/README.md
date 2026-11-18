@@ -40,9 +40,26 @@ are unchanged.
 Windows packaging icons (`platform/windows/godot.ico` and `godot_console.ico`)
 also use the official U.ZU icon. The window class uses the embedded `GODOT_ICON`
 before the runtime PNG is applied; both assets must therefore be branded.
-The historical resource identifier is retained for compatibility. macOS `.icns`
-and Apple Icon Composer layers remain separate distribution assets. Existing
+The historical resource identifier is retained for compatibility. Existing
 games' custom/project icons are not overwritten.
+
+macOS bundle icons (B-109) also use the official U.ZU icon:
+`misc/dist/macos_template.app/Contents/Resources/icon.icns` (exported games that
+set no icon of their own) and `misc/dist/macos_tools.app/Contents/Resources/GodotLG.icns`
+(the editor bundle; the historical file name is kept). The editor plists no
+longer set `CFBundleIconName`, so macOS uses that `.icns` instead of the old
+Icon Composer icon in `Assets.car` (which cannot be rebuilt off macOS; it stays
+in the tree, unused, to keep upstream merges simple). Document-type icons
+(`Project.icns`, `Scene.icns`, ...) are unchanged.
+
+```sh
+python misc/logo/uzu/macos_icons.py          # regenerate both .icns files
+python misc/logo/uzu/macos_icons.py --check  # check them against the artwork
+```
+
+The generator renders `misc/logo/icon.svg` at 824 px on a 1024 px canvas
+(Apple's icon grid) with Playwright/Chromium (Python, or Node's `playwright`
+as a fallback) and writes every `.icns` size with Pillow.
 
 Windows icon generation and binary verification (Python + Pillow):
 
