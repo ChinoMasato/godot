@@ -98,3 +98,4 @@
 | B-311 | Muse (lead) | agent/b-310-muse | ai_loop/aiplayer.py, ai_loop/uzu.py, ai_loop/iterations/ | 反映済み | 2026-11-19 |
 | B-1002 | Muse (lead) | agent/b-310-muse | ai_loop/samples/hikari/（verify_playthrough.py 新規, verify_report.json, main.gd の uzu_state 宣言と物理ステップ化）, ai_loop/iterations/ | 反映済み | 2026-11-19 |
 | B-1301 | Claude Code (cloud) | ai-native（直接） | ai_loop/ui_tool.gd（新規）, ai_loop/uzu.py（ui コマンド）, ai_loop/mcp_server.py, ai_loop/look_samples/specs/（UI 仕様の例）, ai_loop/iterations/ | 反映済み | 2026-11-19 |
+| B-1302 | Claude Code (cloud) | ai-native（直接） | scene/gui/uzu_ui.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUUI.xml（新規）, tests/scene/test_uzu_ui.cpp（新規）, ai_loop/ui_tool.gd（UZUUI を使う形に）, ai_loop/look_samples/, ai_loop/iterations/ | 着手 | 2026-11-19 |
