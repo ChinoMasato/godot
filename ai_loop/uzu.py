@@ -14,6 +14,8 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py enrich   <project> --preset village_rich|meadow|ruins [--scene res://x.tscn] [--surface Ground] [--seed N]
                   [--density-scale 1] [--shot out.png] [--no-render]   a richness preset in one call (B-1208), with the
                   report before and after and the difference (presets: ai_loop/presets/rich/)
+  uzu.py ui       <project> --spec ui.json [--shot out.png [--over res://game.tscn]]   a UI screen (Control tree with
+                  layout and theme) from one JSON spec (B-1301, see ai_loop/ui_tool.gd)
   uzu.py picture  <project> <command> [options]   Picture prototype: doctor, schema, analyze, snap, adopt, validate, shot, map, pbr
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
@@ -711,6 +713,43 @@ def build(project, args):
     return result
 
 
+def ui(project, args):
+    """Declarative UI (B-1301): ai_loop/ui_tool.gd builds a Control scene from a JSON spec;
+    --shot renders it (over a game scene with --over res://game.tscn, on a CanvasLayer)."""
+    spec = opt(args, "spec")
+    if not spec:
+        raise ToolError("ui needs --spec ui.json (res:// or a path)")
+    path = os.path.join(project, spec[len("res://"):]) if spec.startswith("res://") else os.path.abspath(spec)
+    if not os.path.exists(path):
+        raise ToolError(f"no spec at {path}")
+    result, _ = gd_tool(project, "ui_tool.gd", ["--spec", path], "UI_RESULT ")
+    if not result:
+        raise ToolError("the UI tool printed no result", command="ui")
+    result["command"] = "ui"
+    if not result.get("ok") or not opt(args, "shot"):
+        return result
+    scene = result["scene"]
+    over = opt(args, "over")
+    preview = os.path.join(project, "uzu_ui_preview.tscn")
+    try:
+        if over:
+            with open(preview, "w", encoding="utf-8") as f:
+                f.write('[gd_scene format=3]\n\n'
+                        f'[ext_resource type="PackedScene" path="{over}" id="1"]\n'
+                        f'[ext_resource type="PackedScene" path="{scene}" id="2"]\n\n'
+                        '[node name="Preview" type="Node"]\n\n'
+                        '[node name="Game" parent="." instance=ExtResource("1")]\n\n'
+                        '[node name="UI" type="CanvasLayer" parent="."]\n\n'
+                        '[node name="Screen" parent="UI" instance=ExtResource("2")]\n')
+            run([find_godot(), "--headless", "--path", project, "--import"], timeout=1800)
+        result["shot"] = screenshot(project, os.path.abspath(opt(args, "shot")), int(opt(args, "frames", "8")), scene="res://uzu_ui_preview.tscn" if over else scene)["image"]
+    finally:
+        for f in (preview, preview + ".uid"):
+            if os.path.exists(f):
+                os.remove(f)
+    return result
+
+
 PRESETS_DIR = os.path.join(HERE, "presets", "rich")
 
 
@@ -1318,6 +1357,27 @@ def selftest_engine():
             c.expect("enrich again replaces", r.get("ok") and r["diff"] == {}, r)
             r = enrich(q, ["--preset", "jungle", "--scene", "res://built.tscn", "--no-render"])
             c.expect("enrich unknown preset", not r["ok"] and "meadow" in r["error"], r)
+            # B-1301: a UI screen from a spec, and a spec with mistakes.
+            ui_spec = {"scene": "res://ui/screen.tscn", "theme": {"font_size": 18, "accent": "#d9a441"},
+                       "root": {"type": "Screen", "children": [
+                           {"type": "Panel", "name": "Status", "anchor": "top_left", "offset": [20, 20], "size": [240, 0], "children": [
+                               {"type": "VBox", "children": [{"type": "Label", "name": "Name", "text": "Mina"}, {"type": "Bar", "name": "HP", "value": 70, "min_size": [0, 14]}]}]},
+                           {"type": "Panel", "name": "Dialog", "anchor": "bottom_wide", "offset": [40, 20], "size": [0, 150], "children": [
+                               {"type": "HBox", "children": [{"type": "Spacer"}, {"type": "Button", "name": "OK", "text": "OK"}]}]}]}}
+            with open(os.path.join(q, "ui.json"), "w", encoding="utf-8") as f:
+                json.dump(ui_spec, f)
+            r = ui(q, ["--spec", "res://ui.json"])
+            with open(os.path.join(q, "ui", "screen.tscn"), encoding="utf-8") as f:
+                screen = f.read()
+            c.expect("ui", r.get("ok") and r["nodes"].get("Panel") == 2 and all(n in screen for n in ('name="Status"', 'name="HP"', 'name="OK"', "StyleBoxFlat", "anchor_top = 1.0")), r)
+            ui_spec["root"]["children"][0]["anchor"] = "middle"
+            ui_spec["root"]["children"][1]["children"][0]["children"][1]["txt"] = "OK"
+            ui_spec["root"]["children"][0]["children"][0]["children"][0]["offset"] = [1, 1]
+            with open(os.path.join(q, "ui.json"), "w", encoding="utf-8") as f:
+                json.dump(ui_spec, f)
+            r = ui(q, ["--spec", "res://ui.json"])
+            problems = " | ".join(r.get("problems", []))
+            c.expect("ui spec mistakes", not r["ok"] and "root.children[0].anchor" in problems and "unknown key 'txt' for Button" in problems and "inside a container" in problems, r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))
@@ -1506,7 +1566,7 @@ def main(argv):
         import client
 
         return client.main(["publish"] + rest)
-    if tool not in ("engine", "look", "selfplay", "build", "enrich") or not rest:
+    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui") or not rest:
         print(__doc__, file=sys.stderr)
         return 2
     project = os.path.abspath(rest[0])
@@ -1514,7 +1574,7 @@ def main(argv):
         print(json.dumps({"ok": False, "error": f"{rest[0]} is not a project (no project.godot)"}))
         return 2
     try:
-        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich}[tool](project, rest[1:])
+        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui}[tool](project, rest[1:])
     except ToolError as e:
         result = {"ok": False, "error": e.message, **e.extra}
         print(json.dumps(result, ensure_ascii=False))
