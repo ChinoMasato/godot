@@ -30,6 +30,8 @@
 
 #pragma once
 
+#include "core/math/math_funcs.h"
+#include "core/math/vector2.h"
 #include "core/object/object.h"
 
 // U.ZU game feel (BACKLOG Phase 11, UZUJuice): the small effects that make a game
@@ -87,6 +89,25 @@ struct UZUJuiceTimeState {
 	}
 };
 
+// Screen shake state (BACKLOG B-1102): "trauma" rises with impacts and decays
+// linearly; the applied offset scales with trauma squared, so small shakes
+// stay subtle and big ones saturate. The offset itself is a deterministic
+// pseudo-noise of time, so it is unit-testable without a camera.
+struct UZUJuiceShakeState {
+	double trauma = 0.0;
+
+	void add(double p_amount) { trauma = CLAMP(trauma + p_amount, 0.0, 1.0); }
+	void update(double p_dt) { trauma = MAX(0.0, trauma - 1.6 * MAX(p_dt, 0.0)); }
+	void clear() { trauma = 0.0; }
+	double strength() const { return trauma * trauma; }
+	Vector2 offset_at(double p_t, double p_max_offset) const {
+		double s = strength() * p_max_offset;
+		double nx = Math::sin(p_t * 41.0) * 0.6 + Math::sin(p_t * 83.0 + 1.7) * 0.4;
+		double ny = Math::cos(p_t * 53.0 + 0.6) * 0.6 + Math::sin(p_t * 97.0 + 4.1) * 0.4;
+		return Vector2(nx * s, ny * s);
+	}
+};
+
 class UZUJuice : public Object {
 	GDCLASS(UZUJuice, Object);
 
@@ -115,4 +136,21 @@ public:
 	// Creates the runtime node in the scene tree if there is none yet. Safe to
 	// call without a running scene tree (it simply does nothing then).
 	static void ensure_runtime();
+
+	// Adds screen shake: p_amount of trauma (0..1; a normal hit is about 0.3,
+	// a big explosion 0.7). Trauma decays on its own; the offset it produces
+	// scales with trauma squared.
+	static void shake(double p_amount);
+	// Stops the shake now, restoring the camera exactly.
+	static void clear_shake();
+	// The current trauma (0..1).
+	static double get_trauma();
+
+	// The shared shake state, exposed for the runtime node and the unit tests.
+	static UZUJuiceShakeState &shake_state();
+	// Decays the shake by p_real_dt seconds and applies the offset for time
+	// p_now_sec to the current camera (Camera3D h/v offset, Camera2D offset),
+	// capturing the camera's own offset first and restoring it when the shake
+	// ends. Called by the runtime node each frame.
+	static void apply_shake(double p_real_dt, double p_now_sec);
 };
