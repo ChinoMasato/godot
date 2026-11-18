@@ -1,0 +1,248 @@
+{
+ "scene": "res://ui/kit.tscn",
+ "theme": {
+  "font_size": 18,
+  "font_color": "#f4ead2",
+  "accent": "#d9a441"
+ },
+ "root": {
+  "type": "Screen",
+  "children": [
+   {
+    "type": "Color",
+    "name": "Backdrop",
+    "anchor": "full",
+    "color": "#2a3346"
+   },
+   {
+    "type": "Label",
+    "name": "Title",
+    "anchor": "top",
+    "offset": [
+     0,
+     18
+    ],
+    "size": [
+     600,
+     40
+    ],
+    "text": "UZUUI kit (B-1302)",
+    "font_size": 26,
+    "align": "center"
+   },
+   {
+    "type": "Panel",
+    "name": "Panel",
+    "anchor": "top_left",
+    "offset": [
+     40,
+     80
+    ],
+    "size": [
+     330,
+     0
+    ],
+    "children": [
+     {
+      "type": "VBox",
+      "children": [
+       {
+        "type": "Label",
+        "text": "Panel: gradient, border, shadow"
+       },
+       {
+        "type": "Button",
+        "text": "Button"
+       },
+       {
+        "type": "Button",
+        "name": "Wide",
+        "text": "Expanding button",
+        "expand": true
+       },
+       {
+        "type": "HBox",
+        "children": [
+         {
+          "type": "Label",
+          "text": "HP",
+          "min_size": [
+           36,
+           0
+          ]
+         },
+         {
+          "type": "Bar",
+          "value": 72,
+          "min_size": [
+           0,
+           16
+          ],
+          "expand": true
+         }
+        ]
+       },
+       {
+        "type": "HBox",
+        "children": [
+         {
+          "type": "Label",
+          "text": "XP",
+          "min_size": [
+           36,
+           0
+          ]
+         },
+         {
+          "type": "Bar",
+          "value": 30,
+          "min_size": [
+           0,
+           16
+          ],
+          "expand": true
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "Tabs",
+    "name": "Tabs",
+    "anchor": "top",
+    "offset": [
+     0,
+     80
+    ],
+    "size": [
+     380,
+     240
+    ],
+    "children": [
+     {
+      "type": "VBox",
+      "name": "Items",
+      "children": [
+       {
+        "type": "List",
+        "items": [
+         "Lantern shard",
+         "Old key",
+         "Herb x3"
+        ]
+       }
+      ]
+     },
+     {
+      "type": "VBox",
+      "name": "Skills",
+      "children": [
+       {
+        "type": "Label",
+        "text": "No skills yet"
+       }
+      ]
+     },
+     {
+      "type": "VBox",
+      "name": "Map",
+      "children": [
+       {
+        "type": "Label",
+        "text": "Village"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "Panel",
+    "name": "Styled",
+    "anchor": "top_right",
+    "offset": [
+     40,
+     80
+    ],
+    "size": [
+     330,
+     0
+    ],
+    "style": {
+     "top": "#4a2a3a",
+     "bottom": "#24121c",
+     "radius": 20,
+     "border": "#ff9fb0",
+     "border_width": 3,
+     "shadow": 12,
+     "padding": 18
+    },
+    "children": [
+     {
+      "type": "Label",
+      "text": "Per-node style:\nown gradient, radius 20,\npink border, big shadow"
+     }
+    ]
+   },
+   {
+    "type": "Panel",
+    "name": "Dialog",
+    "anchor": "bottom",
+    "offset": [
+     0,
+     40
+    ],
+    "size": [
+     620,
+     0
+    ],
+    "children": [
+     {
+      "type": "VBox",
+      "children": [
+       {
+        "type": "Label",
+        "text": "Dialog",
+        "font_size": 22,
+        "font_color": "#ffd77a"
+       },
+       {
+        "type": "Label",
+        "text": "A panel with a title, text and buttons on the right.",
+        "min_size": [
+         0,
+         40
+        ]
+       },
+       {
+        "type": "HBox",
+        "children": [
+         {
+          "type": "Spacer"
+         },
+         {
+          "type": "Button",
+          "text": "OK",
+          "min_size": [
+           110,
+           0
+          ]
+         },
+         {
+          "type": "Button",
+          "text": "Cancel",
+          "min_size": [
+           110,
+           0
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

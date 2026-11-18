@@ -173,6 +173,7 @@
 #include "scene/resources/uzu_map_import.h"
 #include "scene/resources/uzu_pbr_from_image.h"
 #include "scene/resources/uzu_sfx.h"
+#include "scene/gui/uzu_ui.h"
 #include "scene/3d/uzu_scatter.h"
 #include "scene/resources/uzu_palette_dither.h"
 #include "scene/resources/uzu_post_effect.h"
@@ -479,6 +480,7 @@ void register_scene_types() {
 	GDREGISTER_ABSTRACT_CLASS(UZUMapImport);
 	GDREGISTER_ABSTRACT_CLASS(UZUPBRFromImage);
 	GDREGISTER_ABSTRACT_CLASS(UZUSfx);
+	GDREGISTER_ABSTRACT_CLASS(UZUUI);
 	GDREGISTER_ABSTRACT_CLASS(UZUScatter);
 	GDREGISTER_CLASS(UZUPicture);
 
