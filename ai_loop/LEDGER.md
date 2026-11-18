@@ -185,3 +185,5 @@
 - 運用: オーナー指示（2026-11-19）でリード判断の範囲を COORDINATION 運用ルール6に明記した。
 - B-310／B-311: 完了（B-1002 の検証が発見した道具側の穴）。B-310 = AI プレイヤーの press が InputEventAction も送る（_unhandled_input で読むゲームが反応するように）。B-311 = aiplayer／selfplay がコピー直後にインポートする（.godot なしではフォント等の preload が parse error になっていた）。どちらも aiplayer self-test pass。
 - B-1002: 完了。『灯りの欠片』を AI プレイヤーの閉ループ操作で2回完走し機械判定（チェックポイント順序 start→shard_1→shard_2→shard_3→lantern_lit、最終状態 shards=3／cleared=true、開始ハッシュの決定性）。橋モックへ公開（g_0001／b_0002、公開前チェックがライセンス不足を検出→add-notices で解消）→感想取り込みで課題 F-001 と贈り物ファイルを生成。ゲーム側は uzu_state 宣言と移動の物理ステップ化を実施。記録: iterations/2026-11-19-B-1002-muse.md、検証レポートは ai_loop/samples/hikari/verify_report.json。
+- 方向追加（2026-11-19 オーナー指示）: Phase 13 リッチ UI（B-1301〜1306）、Phase 14 オンライン対応／Cloudflare 無料枠（B-1401〜1406）、Phase 15 マップ自動生成（B-1501〜1508）を登録。iconicllc.jp の技術分析からは B-1210（KTX2）、B-1211（実天候 Open-Meteo）、B-1108（オーディオスプライト）、B-1405（配信テンプレート）を取り込んだ。
+- 『灯りの欠片』Web 版: iOS Safari で 3D が描画されない問題に、プロジェクトへ rendering_method.web=gl_compatibility を追加（Web 書き出しが Forward+ で動いていたのが原因候補。デスクトップ検証は常に Compatibility だった）。オーナーの再確認待ち（B-1003）。
