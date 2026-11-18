@@ -1087,6 +1087,17 @@ def selftest_engine():
             c.expect("sfx unknown parameter", not r["ok"] and "decya" in r["error"], r)
             r = _call(engine, q, ["sfx-presets"])
             c.expect("sfx-presets", r.get("ok") and "explosion" in r["presets"] and "lowpass" in r["defaults"], r)
+            # B-1203: props scattered over a plane, saved with their transforms, the same for the same seed.
+            with open(os.path.join(q, "field.tscn"), "w", encoding="utf-8") as f:
+                f.write('[gd_scene format=3]\n\n[sub_resource type="PlaneMesh" id="p"]\nsize = Vector2(10, 10)\n\n[node name="F" type="Node3D"]\n\n[node name="Ground" type="MeshInstance3D" parent="."]\nmesh = SubResource("p")\n')
+            r = _call(engine, q, ["scatter", "--scene", "res://field.tscn", "--surface", "Ground", "--mesh", "sphere", "--density", "2", "--seed", "5", "--exclude", '[{"center": [0, 0, 0], "radius": 2}]'])
+            with open(os.path.join(q, "field.tscn"), encoding="utf-8") as f:
+                field = f.read()
+            c.expect("scatter", r.get("ok") and r["target"] == 200 and 0 < r["count"] < 200 and r["rejected_excluded"] > 0 and "MultiMeshInstance3D" in field and "buffer = PackedFloat32Array(" in field, r)
+            r2 = _call(engine, q, ["scatter", "--scene", "res://field.tscn", "--surface", "Ground", "--mesh", "sphere", "--density", "2", "--seed", "5", "--exclude", '[{"center": [0, 0, 0], "radius": 2}]', "--name", "Again"])
+            c.expect("scatter same seed", r2.get("ok") and r2["count"] == r["count"] and r2["bounds"] == r["bounds"], r2)
+            r = _call(engine, q, ["scatter", "--scene", "res://field.tscn", "--surface", "Nope", "--mesh", "sphere"])
+            c.expect("scatter no surface", not r["ok"] and "--surface" in r["error"], r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))
