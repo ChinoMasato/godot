@@ -109,3 +109,4 @@
 - B-1201 Blender ブリッジ: 完了（Codex、agent/b-1201-codex を 2026-11-19 に統合。Blender 資産の描画・書き出しとリグ付きキャラクターの待機／歩行クリップ検証）
 - UZUWorldGen（マップ自動生成）: 完了（Claude Code ローカル、agent/worldgen-claude-local を 2026-11-19 に統合。短い仕様から自然マップと街を生成）
 | B-1303 | Claude Code (cloud) | ai-native（直接） | ai_loop/presets/ui/（新規、テーマのプリセット）, ai_loop/uzu.py（ui --theme／--font-subset）, ai_loop/ui_font.py（新規、サブセット）, ai_loop/ui_tool.gd, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-19 |
+| B-1305 | Claude Code (cloud) | ai-native（直接） | ai_loop/ui_report.gd（新規）, ai_loop/uzu.py（ui-report）, ai_loop/mcp_server.py, ai_loop/iterations/ | 着手 | 2026-11-19 |
