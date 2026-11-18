@@ -15,7 +15,7 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
-engine commands: run, check, validate, shot, import, and every command of ai_loop/engine_tool.gd
+engine commands: run, check, validate, shot, import, export, templates, uids [--fix] (B-205), and every command of ai_loop/engine_tool.gd
 (tree, props, get, set, add, instance, remove, reparent, call, connect, script, new,
 classes, describe, actions, res-new, res-props, res-get, res-set, setting-get,
 setting-set, action-add, action-remove, import-get, import-set, export-preset, presets);
@@ -186,6 +186,8 @@ def engine(project, args):
         return look(project, args)
     if command == "import":
         return import_assets(project)
+    if command == "uids":
+        return check_uids(project, fix="--fix" in args)
     if command == "export":
         return export(project, opt(args, "preset"), opt(args, "out"), "--debug" in args)
     if command == "templates":
@@ -283,6 +285,173 @@ def templates(project):
         p["custom_template_exists"] = bool(p["custom_template"]) and os.path.exists(p["custom_template"])
     shared = sorted(os.listdir(SHARED_TEMPLATES)) if os.path.isdir(SHARED_TEMPLATES) else []
     return {"ok": True, "command": "templates", "engine_version": version, "templates_dir": folder, "installed": installed, "shared": shared, "presets": presets}
+
+
+# ---------------------------------------------------------------- UIDs (B-205)
+
+UID_CHARS = "abcdefghijklmnopqrstuvwxy012345678"  # As core/io/resource_uid.cpp.
+UID_OWNER_EXTENSIONS = (".gd", ".gdshader", ".gdshaderinc")  # Files whose UID lives in a .uid file next to them.
+HEADER_UID = re.compile(r'^(\[gd_(?:scene|resource)\b[^\]]*?\buid=")(uid://[a-y0-8]+)(")')
+EXT_RESOURCE = re.compile(r'^\[ext_resource\b([^\]]*)\]', re.M)
+ATTR = re.compile(r'(\w+)="([^"]*)"')
+
+
+def new_uid(taken):
+    import secrets
+
+    while True:
+        n = secrets.randbits(63)
+        text = ""
+        while True:
+            text = UID_CHARS[n % 34] + text
+            n //= 34
+            if n == 0:
+                break
+        uid = "uid://" + text
+        if uid not in taken:
+            taken.add(uid)
+            return uid
+
+
+def _res_path(project, absolute):
+    return "res://" + os.path.relpath(absolute, project).replace(os.sep, "/")
+
+
+def _abs(project, res):
+    return os.path.join(project, res[len("res://"):].replace("/", os.sep)) if res.startswith("res://") else None
+
+
+def _scan_uids(project):
+    owners = {}  # uid -> [res paths]
+    uid_of = {}  # res path -> uid
+    issues = []
+    texts = {}  # .tscn/.tres res path -> text
+    for dirpath, dirs, files in os.walk(project):
+        dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+        for name in sorted(files):
+            absolute = os.path.join(dirpath, name)
+            res = _res_path(project, absolute)
+            uid, owner = None, None
+            if name.endswith((".tscn", ".tres")):
+                with open(absolute, encoding="utf-8", errors="replace") as f:
+                    texts[res] = f.read()
+                m = HEADER_UID.match(texts[res])
+                uid, owner = (m.group(2) if m else None), res
+            elif name.endswith(".uid"):
+                owner = res[: -len(".uid")]
+                with open(absolute, encoding="utf-8", errors="replace") as f:
+                    uid = f.read().strip()
+                if not os.path.exists(absolute[: -len(".uid")]):
+                    issues.append({"kind": "orphan_uid_file", "file": res, "uid": uid, "fix": "delete it (its file is gone)"})
+                    continue
+            elif name.endswith(".import"):
+                owner = res[: -len(".import")]
+                with open(absolute, encoding="utf-8", errors="replace") as f:
+                    m = re.search(r'^uid="(uid://[a-y0-8]+)"', f.read(), re.M)
+                uid = m.group(1) if m else None
+            elif name.endswith(UID_OWNER_EXTENSIONS) and not os.path.exists(absolute + ".uid"):
+                issues.append({"kind": "missing_uid_file", "file": res, "fix": "create %s.uid with a new UID" % res})
+            if uid and owner:
+                owners.setdefault(uid, []).append(owner)
+                uid_of[owner] = uid
+    return owners, uid_of, issues, texts
+
+
+def check_uids(project, fix=False):
+    """Checks UIDs against the files (B-205): duplicates, missing and orphan .uid files,
+    and ext_resource references whose UID is stale or whose path moved. Proposes a fix
+    for each; --fix applies them (new UIDs for duplicates and missing .uid files, the
+    owner's UID or path in references, orphan .uid files deleted)."""
+    fixed = []
+    for _ in range(2):  # Duplicates first: renaming them can make references stale.
+        owners, uid_of, issues, texts = _scan_uids(project)
+        taken = set(owners)
+        # A missing .uid file is best recreated with the UID its references already use.
+        referenced = {}
+        for text in texts.values():
+            for m in EXT_RESOURCE.finditer(text):
+                attrs = dict(ATTR.findall(m.group(1)))
+                if attrs.get("uid") and attrs.get("path"):
+                    referenced.setdefault(attrs["path"], attrs["uid"])
+        for issue in issues:
+            ref_uid = referenced.get(issue["file"]) if issue["kind"] == "missing_uid_file" else None
+            if ref_uid and ref_uid not in owners:
+                issue["uid"] = ref_uid
+                issue["fix"] = "recreate %s.uid with %s, the UID its references use" % (issue["file"], ref_uid)
+                owners[ref_uid] = [issue["file"]]
+                uid_of[issue["file"]] = ref_uid
+                taken.add(ref_uid)
+        for uid, files in sorted(owners.items()):
+            if len(files) > 1:
+                keep = files[0]
+                for other in files[1:]:
+                    issues.append({"kind": "duplicate_uid", "file": other, "uid": uid, "also": keep, "fix": "give %s a new UID (keep %s on %s)" % (other, uid, keep)})
+        for res, text in texts.items():
+            for m in EXT_RESOURCE.finditer(text):
+                attrs = dict(ATTR.findall(m.group(1)))
+                uid, path = attrs.get("uid"), attrs.get("path", "")
+                path_ok = bool(path) and _abs(project, path) is not None and os.path.exists(_abs(project, path))
+                owner = (owners.get(uid) or [None])[0] if uid else None
+                if path_ok and (not uid or owner == path):
+                    continue
+                if path_ok:
+                    right = uid_of.get(path)
+                    issues.append({"kind": "stale_uid", "file": res, "path": path, "uid": uid, "fix": ("use %s, the UID of %s" % (right, path)) if right else "remove the UID (the path is right)", "new_uid": right})
+                elif owner and os.path.exists(_abs(project, owner)):
+                    issues.append({"kind": "moved_path", "file": res, "path": path, "uid": uid, "fix": "use the path %s (where %s is now)" % (owner, uid), "new_path": owner})
+                else:
+                    issues.append({"kind": "broken_reference", "file": res, "path": path, "uid": uid, "fix": "none: neither the path nor the UID leads to a file"})
+        if not fix or not any(i["kind"] in ("duplicate_uid", "missing_uid_file", "orphan_uid_file", "stale_uid", "moved_path") for i in issues):
+            break
+        dup = [i for i in issues if i["kind"] == "duplicate_uid"]
+        for issue in dup:
+            absolute = _abs(project, issue["file"])
+            new = new_uid(taken)
+            if issue["file"].endswith((".tscn", ".tres")):
+                with open(absolute, encoding="utf-8") as f:
+                    text = f.read()
+                with open(absolute, "w", encoding="utf-8") as f:
+                    f.write(HEADER_UID.sub(lambda m: m.group(1) + new + m.group(3), text, count=1))
+            else:
+                with open(absolute + ".uid", "w", encoding="utf-8") as f:
+                    f.write(new + "\n")
+            fixed.append(dict(issue, applied=new))
+        if dup:
+            continue  # Rescan: references to the renamed files are judged again.
+        for issue in issues:
+            kind = issue["kind"]
+            if kind == "missing_uid_file":
+                new = issue.get("uid") or new_uid(taken)
+                with open(_abs(project, issue["file"]) + ".uid", "w", encoding="utf-8") as f:
+                    f.write(new + "\n")
+                fixed.append(dict(issue, applied=new))
+            elif kind == "orphan_uid_file":
+                os.remove(_abs(project, issue["file"]))
+                fixed.append(dict(issue, applied="deleted"))
+            elif kind in ("stale_uid", "moved_path"):
+                absolute = _abs(project, issue["file"])
+                with open(absolute, encoding="utf-8") as f:
+                    text = f.read()
+
+                def repair(m, issue=issue):
+                    attrs = m.group(1)
+                    if 'path="%s"' % issue["path"] not in attrs or (issue["uid"] and 'uid="%s"' % issue["uid"] not in attrs):
+                        return m.group(0)
+                    if kind == "moved_path":
+                        attrs = attrs.replace('path="%s"' % issue["path"], 'path="%s"' % issue["new_path"])
+                    elif issue.get("new_uid"):
+                        attrs = attrs.replace('uid="%s"' % issue["uid"], 'uid="%s"' % issue["new_uid"]) if issue["uid"] else attrs.replace(' path=', ' uid="%s" path=' % issue["new_uid"], 1)
+                    else:
+                        attrs = attrs.replace(' uid="%s"' % issue["uid"], "")
+                    return "[ext_resource" + attrs + "]"
+
+                with open(absolute, "w", encoding="utf-8") as f:
+                    f.write(EXT_RESOURCE.sub(repair, text))
+                fixed.append(dict(issue, applied=issue.get("new_path") or issue.get("new_uid") or "removed"))
+    owners, uid_of, remaining, texts = _scan_uids(project) if fixed else (None, None, issues, None)
+    if fixed:
+        remaining = check_uids(project, fix=False)["issues"]
+    return {"ok": not remaining, "command": "uids", "issues": remaining, "fixed": fixed}
 
 
 def project_files(project, extensions):
@@ -787,6 +956,33 @@ def selftest_engine():
             ok = ok and r["scenes"]["res://coin.tscn"]["scripts"] == [{"node": ".", "script": "res://coin.gd"}]
             ok = ok and {"class": "Coin", "base": "Area3D", "path": "res://coin.gd"} in r["classes"] and r["autoloads"] == [{"name": "Game", "path": "res://game.gd", "singleton": True}]
             c.expect("map", ok, r)
+        # B-205: UID problems are found, fixed, and validate (B-203) is clean afterwards.
+        with tempfile.TemporaryDirectory() as q:
+            os.makedirs(os.path.join(q, "sub"))
+            taken = set()
+            u = {k: new_uid(taken) for k in ("main", "child", "coin_gd", "main_gd")}
+            files = {
+                "project.godot": 'config_version=5\n\n[application]\n\nrun/main_scene="res://main.tscn"\n',
+                "coin.gd": "extends Node3D\n", "coin.gd.uid": u["coin_gd"] + "\n",
+                "main.gd": "extends Node3D\n",  # Its .uid file is missing.
+                "ghost.gd.uid": "uid://abcdefg\n",  # An orphan.
+                "sub/child.tscn": '[gd_scene load_steps=2 format=3 uid="%s"]\n\n[ext_resource type="Script" uid="uid://b2xstale" path="res://coin.gd" id="1"]\n\n[node name="Child" type="Node3D"]\nscript = ExtResource("1")\n' % u["child"],
+                "main.tscn": '[gd_scene load_steps=3 format=3 uid="%s"]\n\n[ext_resource type="Script" uid="%s" path="res://main.gd" id="1"]\n[ext_resource type="PackedScene" uid="%s" path="res://child.tscn" id="2"]\n\n[node name="Main" type="Node3D"]\nscript = ExtResource("1")\n\n[node name="Coin" parent="." instance=ExtResource("2")]\n' % (u["main"], u["main_gd"], u["child"]),
+            }
+            files["main_copy.tscn"] = files["main.tscn"]  # A duplicate UID.
+            for name, text in files.items():
+                with open(os.path.join(q, name), "w", encoding="utf-8") as f:
+                    f.write(text)
+            r = _call(engine, q, ["uids"])
+            kinds = sorted(i["kind"] for i in r.get("issues", []))
+            c.expect("uids found", not r["ok"] and kinds == ["duplicate_uid", "missing_uid_file", "moved_path", "moved_path", "orphan_uid_file", "stale_uid"], kinds)
+            c.expect("validate sees the breakage", not _call(engine, q, ["validate"])["ok"])
+            r = _call(engine, q, ["uids", "--fix"])
+            c.expect("uids fixed", r["ok"] and len(r["fixed"]) == 6, r)
+            with open(os.path.join(q, "main.gd.uid"), encoding="utf-8") as f:
+                c.expect("uid restored from references", f.read().strip() == u["main_gd"])
+            r = _call(engine, q, ["validate"])
+            c.expect("validate clean after uids --fix", r["ok"] and r["issues"] == [], r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))
