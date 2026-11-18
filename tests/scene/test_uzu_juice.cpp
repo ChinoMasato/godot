@@ -47,6 +47,9 @@ TEST_FORCE_LINK(test_uzu_juice)
 namespace TestUZUJuice {
 
 TEST_CASE("[Scene][UZUJuice] Time state: idle is the base scale and inactive") {
+	fprintf(stderr, "DBG early generate land\n");
+	Ref<AudioStreamWAV> early = UZUSfx::generate_preset("land");
+	fprintf(stderr, "DBG early generate ok valid=%d\n", early.is_valid() ? 1 : 0);
 	UZUJuiceTimeState state;
 	CHECK(state.effective_scale(1000) == doctest::Approx(1.0));
 	CHECK_FALSE(state.active(1000));

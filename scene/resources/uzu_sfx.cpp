@@ -237,10 +237,13 @@ Ref<AudioStreamWAV> UZUSfx::generate(const Dictionary &p_params) {
 	fprintf(stderr, "SFX loop done\n");
 	Ref<AudioStreamWAV> stream;
 	stream.instantiate();
+	fprintf(stderr, "SFX instantiated\n");
 	stream->set_format(AudioStreamWAV::FORMAT_16_BITS);
 	stream->set_mix_rate(rate);
 	stream->set_stereo(false);
+	fprintf(stderr, "SFX props set\n");
 	stream->set_data(data);
+	fprintf(stderr, "SFX data set\n");
 	return stream;
 }
 
