@@ -37,9 +37,9 @@ the dialog is hidden; reopening restarts the motion. Splash images stay static
 and do not add startup delays. Game/project settings and compatibility names
 are unchanged.
 
-This does not regenerate native platform packaging files (`.ico`, `.icns`,
-Apple Icon Composer layers), or overwrite existing games' custom/project
-icons. Those are distinct distribution assets.
+`generate_assets.py` does not regenerate native platform packaging files
+(`.ico`, `.icns`, Apple Icon Composer layers), or overwrite existing games'
+custom/project icons. Windows executable icons use the separate generator below.
 
 Editor logo variants supply the official navy background so their light
 metallic colors remain legible with light editor themes.
@@ -82,3 +82,42 @@ the result, with code 0 for a passing check or 1 for a failed check. Without
 that flag it stays open. Set `UZU_LOGO_SCREENSHOT` to a PNG path to capture
 the actual About viewport after the animation settles. Use an isolated editor
 profile for automated runs.
+
+## Windows executable icons (B-108)
+
+The operating system can show an executable's embedded icon before the engine
+sets its runtime window icon. Both `platform/windows/godot.ico` and
+`godot_console.ico` therefore contain the official U.ZU application mark from
+`official-icon.svg`. The internal filenames and resource identifiers stay the
+same, including the export-template and console-wrapper resource files.
+
+```sh
+# Requires Pillow, Playwright and a Chromium executable.
+# Convert only the stored official SVG; no website access or artwork changes.
+python3 misc/logo/uzu/generate_windows_icons.py
+
+# Verify every frame against a fresh SVG rendering without modifying assets.
+python3 misc/logo/uzu/generate_windows_icons.py --check
+# If Chromium is not on PATH: append --chromium /path/to/chromium
+```
+
+Each ICO contains RGBA frames at 16, 24, 32, 48, 64, 128 and 256 pixels. Both
+executables use identical artwork. The generator renders each size directly,
+preserving the SVG's transparency, and verifies all four Windows RC references.
+PNG-compressed ICO frames are supported by the engine's Windows 10+ baseline.
+The embedded default is also used by export templates; exported games' custom
+icon settings still take precedence.
+
+After rebuilding the Windows editor and its console wrapper, launch the actual
+new binaries and confirm that the taskbar starts with U.ZU immediately, before
+the runtime icon is set. Repeat for the console executable. This visual startup
+check requires Windows and is separate from the cross-platform asset checks.
+No new editor UI is introduced.
+
+macOS audit: editor bundles copy `misc/dist/macos_tools.app`; both Info.plist
+and Info_x86_64.plist reference `Contents/Resources/GodotLG.icns` and the
+`GodotLG` asset name. The template bundle uses `Contents/Resources/icon.icns`.
+These are separate stored assets, still containing upstream artwork; they do
+not regenerate automatically from `official-icon.svg` or `misc/logo/icon.svg`.
+Apple Icon Composer layers also remain separate. B-108 updates Windows assets
+only; macOS packaging needs its own replacement and native startup verification.

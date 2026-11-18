@@ -71,4 +71,4 @@
 | B-205 | Claude Code (cloud) | ai-native（直接） | ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-806 | Claude Code (cloud) | ai-native（直接） | editor/file_system/editor_file_system.{h,cpp}, editor/doc/editor_help.cpp, tests/editor/test_editor_file_system_exit.cpp（新規）, ai_loop/uzu.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-107 | Claude Code (cloud) | ai-native（直接） | .github/workflows/uzu_verify.yml（新規）, ai_loop/COORDINATION.md（Q14）, ai_loop/iterations/ | ワークフローは反映済み、Actions の有効化待ち | 2026-11-18 |
-| B-108 | Codex | agent/b-108-codex | platform/windows/godot.ico, platform/windows/godot_console.ico, misc/logo/uzu/ の生成手順・検証スクリプト（macOS の参照は調査のみ）, ai_loop/iterations/2026-11-18-B-108-codex.md（運用ファイルは自分の宣言・状況行のみ） | 着手（埋め込みアイコンを公式素材から生成。Windows 実機の起動確認はローカルへ） | 2026-11-18 |
+| B-108 | Codex | agent/b-108-codex | platform/windows/godot.ico, platform/windows/godot_console.ico, misc/logo/uzu/ の生成手順・検証スクリプト（macOS の参照は調査のみ）, ai_loop/iterations/2026-11-18-B-108-codex.md（運用ファイルは自分の宣言・状況行のみ） | クラウド側検証完了・統合／Windows 実機確認待ち（全1497件 pass、ICO 14フレーム一致） | 2026-11-18 |
