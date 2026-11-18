@@ -191,11 +191,11 @@ TEST_CASE("[Scene][UZUJuice] Burst3D is configured one-shot and frees itself") {
 	CPUParticles3D *burst = UZUJuice::burst3d(parent, Vector3(1, 2, 3), Color(1, 0.5, 0), 20, 0.25);
 	REQUIRE(burst != nullptr);
 	CHECK(burst->get_amount() == 20);
-	CHECK(burst->is_one_shot());
+	CHECK(burst->get_one_shot());
 	CHECK(burst->is_emitting());
 	CHECK(burst->get_lifetime() == doctest::Approx(0.55 * 0.25));
 	ObjectID id = burst->get_instance_id();
-	OS::get_singleton()->delay_msec(500); // Past the burst's free-at time.
+	OS::get_singleton()->delay_usec(500000); // Past the burst's free-at time.
 	UZUJuice::apply_node_effects(0.0);
 	CHECK(ObjectDB::get_instance(id) == nullptr);
 	memdelete(parent);
@@ -206,7 +206,7 @@ TEST_CASE("[Scene][UZUJuice] Burst2D carries the dot texture and the color") {
 	CPUParticles2D *burst = UZUJuice::burst2d(parent, Vector2(4, 5), Color(0, 1, 0), 9, 1.0);
 	REQUIRE(burst != nullptr);
 	CHECK(burst->get_amount() == 9);
-	CHECK(burst->is_one_shot());
+	CHECK(burst->get_one_shot());
 	CHECK(burst->get_texture().is_valid());
 	CHECK(burst->get_color() == Color(0, 1, 0));
 	memdelete(parent);
