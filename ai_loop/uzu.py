@@ -9,6 +9,8 @@ or through ai_loop\\windows\\uzu.bat.
 
   uzu.py engine   <project> <command> [options]   scene, class and project operations (B-401, B-201..B-203, B-304)
   uzu.py look     <project> <command> [options]   the U.ZU look (B-7xx), shot / check / panorama
+  uzu.py build    <project> --spec spec.json [--shot out.png] [--budget JSON] [--no-render] [--no-report]
+                  a whole scene from one JSON spec (B-1207, see ai_loop/build_tool.gd), with its richness report
   uzu.py picture  <project> <command> [options]   Picture prototype: doctor, schema, analyze, snap, adopt, validate, shot, map, pbr
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
@@ -543,12 +545,12 @@ def import_assets(project):
 # ---------------------------------------------------------------- look
 
 
-def screenshot(project, out, frames=8, size="1280x720"):
-    """Renders the main scene and saves the last frame (Movie Maker)."""
+def screenshot(project, out, frames=8, size="1280x720", scene=""):
+    """Renders the main scene (or scene) and saves the last frame (Movie Maker)."""
     godot = find_godot()
     with tempfile.TemporaryDirectory() as tmp:
         args = driver() + ["--write-movie", os.path.join(tmp, "frame.png"), "--fixed-fps", "10", "--quit-after", str(frames)]
-        cmd, env = render_command([godot, "--path", project] + args, size)
+        cmd, env = render_command([godot, "--path", project] + ([scene] if scene else []) + args, size)
         rc, log = run(cmd, timeout=600, env=env, cwd=project)
         frames_written = sorted(glob.glob(os.path.join(tmp, "frame*.png")))
         if not frames_written:
@@ -674,6 +676,36 @@ def rich(project, args):
     return {"ok": not failures, "command": "rich", "scene": scene, "summary": static["summary"], "frame": frame,
             "budget": budget or None, "failures": failures, "hints": hints, "top": static.get("top", []), "by_type": static.get("by_type", {}),
             "note": static.get("note", "")}
+
+
+def build(project, args):
+    """Declarative scene building (B-1207): ai_loop/build_tool.gd makes the scene from a JSON
+    spec, then the richness report (B-1204) of the result comes back with it, and a
+    screenshot with --shot. --budget / --budget-file go to the report; --no-render keeps
+    the report static."""
+    spec = opt(args, "spec")
+    if not spec:
+        raise ToolError("build needs --spec spec.json (res:// or a path)")
+    path = os.path.join(project, spec[len("res://"):]) if spec.startswith("res://") else os.path.abspath(spec)
+    if not os.path.exists(path):
+        raise ToolError(f"no spec at {path}")
+    result, _ = gd_tool(project, "build_tool.gd", ["--spec", path], "BUILD_RESULT ")
+    if not result:
+        raise ToolError("the build tool printed no result", command="build")
+    result["command"] = "build"
+    if not result.get("ok"):
+        return result
+    if "--no-report" not in args:
+        report_args = ["rich", "--scene", result["scene"]] + (["--no-render"] if "--no-render" in args else [])
+        for name in ("budget", "budget-file", "frames", "top"):
+            if opt(args, name):
+                report_args += ["--" + name, opt(args, name)]
+        report = rich(project, report_args)
+        result["report"] = {k: report.get(k) for k in ("ok", "summary", "frame", "budget", "failures", "hints", "top")}
+        result["ok"] = bool(report.get("ok"))
+    if opt(args, "shot"):
+        result["shot"] = screenshot(project, os.path.abspath(opt(args, "shot")), int(opt(args, "frames", "8")), scene=result["scene"])["image"]
+    return result
 
 
 BAKE_PLUGIN = "res://addons/uzu_bake/plugin.cfg"
@@ -1190,6 +1222,25 @@ def selftest_engine():
                 c.expect("rich bad budget key", False, "accepted")
             except ToolError as e:
                 c.expect("rich bad budget key", "max_polygons" in str(e), str(e))
+            # B-1207: a small scene from a spec (with its static report), and a spec with mistakes.
+            spec = {"scene": "res://built.tscn", "look": {"quality": "low", "atmosphere": "humid"}, "ground": {"size": [20, 20], "color": "#5d7a3c"},
+                    "camera": {"position": [0, 5, 12], "look_at": [0, 0, 0]}, "models": [{"mesh": "box", "name": "Hut", "position": [0, 1, 0], "scale": [3, 2, 3], "color": "#c9b28c"}],
+                    "scatter": [{"name": "Stones", "mesh": "sphere", "density": 1, "seed": 4, "scale": [0.1, 0.3], "exclude": [{"center": [0, 0, 0], "radius": 3}]}],
+                    "lamps": [[2, 2, 2]], "particles": [{"kind": "dust", "position": [0, 1, 0]}]}
+            with open(os.path.join(q, "spec.json"), "w", encoding="utf-8") as f:
+                json.dump(spec, f)
+            r = build(q, ["--spec", "res://spec.json", "--no-render"])
+            with open(os.path.join(q, "built.tscn"), encoding="utf-8") as f:
+                built = f.read()
+            c.expect("build", r.get("ok") and r["built"]["scatter"][0]["count"] > 300 and r["report"]["summary"]["props"] > 300 and all(n in built for n in ('name="Hut"', 'name="Stones"', 'type="WorldEnvironment"', 'type="Camera3D"', 'type="GPUParticles3D"')), r)
+            spec["models"][0]["colour"] = "#ffffff"
+            spec["scatter"][0]["on"] = "Lawn"
+            spec["look"]["atmosphere"] = "foggy"
+            with open(os.path.join(q, "spec.json"), "w", encoding="utf-8") as f:
+                json.dump(spec, f)
+            r = build(q, ["--spec", "res://spec.json", "--no-render"])
+            problems = " | ".join(r.get("problems", []))
+            c.expect("build spec mistakes", not r["ok"] and "models[0]: unknown key 'colour'" in problems and "scatter[0].on" in problems and "look.atmosphere" in problems, r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))
@@ -1378,7 +1429,7 @@ def main(argv):
         import client
 
         return client.main(["publish"] + rest)
-    if tool not in ("engine", "look", "selfplay") or not rest:
+    if tool not in ("engine", "look", "selfplay", "build") or not rest:
         print(__doc__, file=sys.stderr)
         return 2
     project = os.path.abspath(rest[0])
@@ -1386,7 +1437,7 @@ def main(argv):
         print(json.dumps({"ok": False, "error": f"{rest[0]} is not a project (no project.godot)"}))
         return 2
     try:
-        result = {"engine": engine, "look": look, "selfplay": selfplay}[tool](project, rest[1:])
+        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build}[tool](project, rest[1:])
     except ToolError as e:
         result = {"ok": False, "error": e.message, **e.extra}
         print(json.dumps(result, ensure_ascii=False))
