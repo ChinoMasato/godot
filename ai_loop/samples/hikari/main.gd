@@ -22,6 +22,9 @@ var lantern_light: OmniLight3D
 var lantern_pos := Vector3(0, 0, -9.0)
 
 var shards := 0
+## Juice events fired so far (B-1107): the verification reads this back to
+## prove UZUJuice actually fired during a playthrough.
+var juice_events: Array = []
 var cleared := false
 var play_seconds := 0.0
 var dialogue_lines: Array = []
@@ -353,6 +356,8 @@ func _advance_dialogue() -> void:
 func _collect_shard(it: Dictionary) -> void:
 	shards += 1
 	UZUTelemetry.checkpoint("shard_%d" % shards)
+	juice_events.append("pickup")
+	UZUJuice.impact(player, "pickup")
 	if it["node"]:
 		(it["node"] as Node).queue_free()
 		it["node"] = null
@@ -379,6 +384,10 @@ func _touch_lantern() -> void:
 	cleared = true
 	lantern_glow = 1.0
 	UZUTelemetry.checkpoint("lantern_lit")
+	juice_events.append("lantern")
+	UZUJuice.impact(player, "pickup", 1.5)
+	UZUJuice.kick(0.7)
+	UZUJuice.burst3d(self, lantern_pos + Vector3(0, 1.0, 0), Color(1.0, 0.8, 0.4), 1.4)
 	UZUTelemetry.clear()
 	var fireflies := UZULook.create_particles(UZULook.PARTICLES_FIREFLIES, Vector3(9, 2.5, 9))
 	fireflies.position = Vector3(0, 1.2, -6.5)
