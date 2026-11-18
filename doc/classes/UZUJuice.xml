@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUJuice" inherits="Object" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Game feel effects (hitstop, slow motion, and more) behind single static calls.
+	</brief_description>
+	<description>
+		[UZUJuice] is U.ZU Engine's game-feel toolkit: the small effects that make actions feel good, callable in one line from anywhere. A runtime node is created in the scene tree on first use and drives the effects by wall-clock deadlines, so durations are real seconds regardless of the time scale the effects themselves set.
+		This class currently provides the time effects: [method hitstop] and [method slowmo]. While an effect is active, UZUJuice owns [member Engine.time_scale]; when the last effect ends, the scale that was in place before the first effect started is restored. A running hitstop wins over a running slow motion.
+		[codeblock]
+		# A heavy hit: freeze for a blink, with the matching sound (UZUSfx).
+		UZUJuice.hitstop(0.06)
+		UZUSfx.play(self, UZUSfx.generate_preset("hit"))
+		# A near miss: a moment of slow motion.
+		UZUJuice.slowmo(0.25, 0.4)
+		[/codeblock]
+		[b]Note:[/b] This class is specific to U.ZU Engine (UZUJuice, BACKLOG Phase 11).
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="applied_time_scale" qualifiers="static">
+			<return type="float" />
+			<description>
+				The time scale UZUJuice is applying right now: the hitstop scale while a hitstop runs, else the slow-motion scale while one runs, else the scale that was in place before the effects started (1.0 when nothing ever ran).
+			</description>
+		</method>
+		<method name="cancel_time_effects" qualifiers="static">
+			<return type="void" />
+			<description>
+				Ends all running time effects immediately and restores the time scale from before they started.
+			</description>
+		</method>
+		<method name="hitstop" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="duration" type="float" />
+			<param index="1" name="scale" type="float" default="0.0" />
+			<description>
+				Freezes the game's time for [param duration] real seconds, running it at [param scale] meanwhile (0.0 is a full stop; a small value like 0.05 keeps a hint of motion). The classic pause that sells a hit landing. If a slow motion is running, the hitstop takes over and the slow motion resumes afterwards if its duration has not elapsed.
+			</description>
+		</method>
+		<method name="is_time_effect_active" qualifiers="static">
+			<return type="bool" />
+			<description>
+				True while a hitstop or slow motion is still running.
+			</description>
+		</method>
+		<method name="slowmo" qualifiers="static">
+			<return type="void" />
+			<param index="0" name="scale" type="float" />
+			<param index="1" name="duration" type="float" />
+			<description>
+				Runs the game's time at [param scale] (for example 0.25) for [param duration] real seconds, then restores the previous scale.
+			</description>
+		</method>
+	</methods>
+</class>
