@@ -36,7 +36,8 @@ map-estimate (B-903: an outside model, then map-import), and every command of ai
 classes, describe, actions, res-new, res-props, res-get, res-set, setting-get,
 setting-set, action-add, action-remove, import-get, import-set, export-preset, presets);
 also export (--preset, B-804) and templates. look commands: shot, check, panorama, rich (B-1204:
-the richness report, static and rendered, with a budget), ui-report (B-1305: the UI's density,
+the richness report, static and rendered, with a budget), pbr (B-1209: procedural PBR presets
+for bare models, --scene --assign 'House*:plaster,Ground:grass'), ui-report (B-1305: the UI's density,
 text, margins and problems, headless), and those of
 ai_loop/look_tool.gd (apply, rig, lamp, camera, material, info), and bake (lightmaps, B-805:
 --scene res://x.tscn [--node Path/To/LightmapGI] [--prepare]).
@@ -611,6 +612,8 @@ def look(project, args):
         return rich(project, args)
     if command == "ui-report":
         return ui_report(project, args)
+    if command == "pbr":
+        return pbr_apply(project, args)
     result, _ = gd_tool(project, "look_tool.gd", args, "UZU_RESULT ")
     return result
 
@@ -622,6 +625,30 @@ def _main_scene(project):
     with open(os.path.join(project, "project.godot"), encoding="utf-8") as f:
         m = re.search(r'^run/main_scene="([^"]+)"', f.read(), re.M)
     return m.group(1) if m else ""
+
+
+def pbr_apply(project, args):
+    """Procedural PBR for bare models (B-1209): makes the presets the --assign rules name (if
+    missing), imports them, and assigns them ('House*:plaster,Roof*:tile,Ground:grass')."""
+    scene = opt(args, "scene") or _main_scene(project)
+    rules = opt(args, "assign")
+    if not scene or not rules:
+        raise ToolError("pbr needs --scene res://x.tscn and --assign 'NodePattern:preset,...'")
+    out = opt(args, "dir", "res://materials/pbr")
+    made = []
+    for preset in sorted({r.split(":")[-1].strip() for r in rules.split(",") if ":" in r}):
+        if not os.path.exists(os.path.join(project, out[len("res://"):], preset, "albedo.png")):
+            r, _ = gd_tool(project, "engine_tool.gd", ["pbr-preset", "--name", preset, "--out", out, "--size", opt(args, "size", "256")], "ENGINE_RESULT ")
+            if not r or not r.get("ok"):
+                return {"ok": False, "command": "pbr", "error": (r or {}).get("error", "pbr-preset failed")}
+            made.append(preset)
+    run([find_godot(), "--headless", "--path", project, "--import"], timeout=1800)
+    extra = ["--scale", opt(args, "scale")] if opt(args, "scale") else []
+    result, _ = gd_tool(project, "engine_tool.gd", ["pbr-assign", "--scene", scene, "--assign", rules, "--dir", out] + extra + (["--no-tint"] if "--no-tint" in args else []), "ENGINE_RESULT ")
+    result = result or {"ok": False, "error": "pbr-assign printed no result"}
+    result["command"] = "pbr"
+    result["made"] = made
+    return result
 
 
 UI_PROBE = 'UZUUIReportProbe="*res://addons/uzu_selfplay/ui_report_probe.gd"\n'
@@ -719,6 +746,8 @@ def rich(project, args):
             hints.append(f"{n['node']}: {n['draw_calls']} surfaces (draw calls); merging materials cuts them")
     if metrics.get("texture_mb", 0) > 256:
         hints.append(f"textures take {metrics['texture_mb']} MB; check the largest images and VRAM compression")
+    if static["summary"].get("untextured_share", 0) > 0.5 and static["summary"].get("materials", 0) >= 3:
+        hints.append(f"{round(static['summary']['untextured_share'] * 100)}% of the materials have no texture and look cheap; look pbr gives models procedural PBR presets (wood, stone, brick, dirt, grass, plaster, tile)")
     if frame and static["summary"]["objects"] == 0 and frame["frame_objects"] > 0:
         hints.append("the scene builds its content at run time (scripts), so the static numbers miss it; judge by the frame_* numbers")
     if frame and metrics["frame_draw_calls"] > 2000:
@@ -1478,6 +1507,21 @@ def selftest_engine():
             c.expect("lod", r.get("ok") and r["meshes"] and r["meshes"][0]["triangles"] > 1000 and len(r["meshes"][0]["levels"]) > 3 and r["meshes"][0]["levels"][-1] < r["meshes"][0]["triangles"] // 10, r)
             r2 = rich(q, ["rich", "--scene", "res://field.tscn", "--no-render"])
             c.expect("lod seen by rich", all(t["lods"] > 0 for t in r2["top"] if t["type"] == "MultiMeshInstance3D") and not any("without LOD" in h for h in r2["hints"]), r2)
+            # B-1209: procedural PBR presets on bare models; the untextured share drops.
+            with open(os.path.join(q, "hut.tscn"), "w", encoding="utf-8") as f:
+                f.write('[gd_scene format=3]\n\n[sub_resource type="BoxMesh" id="b"]\n\n[sub_resource type="PlaneMesh" id="p"]\n\n'
+                        '[sub_resource type="StandardMaterial3D" id="red"]\nalbedo_color = Color(0.6, 0.2, 0.15, 1)\n\n[node name="H" type="Node3D"]\n\n'
+                        '[node name="Ground" type="MeshInstance3D" parent="."]\nmesh = SubResource("p")\n\n'
+                        '[node name="Wall" type="MeshInstance3D" parent="."]\nmesh = SubResource("b")\n\n'
+                        '[node name="Roof" type="MeshInstance3D" parent="."]\nmesh = SubResource("b")\nmaterial_override = SubResource("red")\n')
+            before = rich(q, ["rich", "--scene", "res://hut.tscn", "--no-render"])["summary"]["untextured_share"]
+            r = pbr_apply(q, ["--scene", "res://hut.tscn", "--assign", "Ground:grass,Wall:plaster,Roof:tile", "--size", "64"])
+            after = rich(q, ["rich", "--scene", "res://hut.tscn", "--no-render"])["summary"]["untextured_share"]
+            with open(os.path.join(q, "hut.tscn"), encoding="utf-8") as f:
+                hut = f.read()
+            c.expect("pbr", r.get("ok") and len(r["assigned"]) == 3 and sorted(r["made"]) == ["grass", "plaster", "tile"] and before == 1.0 and after == 0.0 and "uv1_triplanar = true" in hut and "res://materials/pbr/tile/normal.png" in hut, (r, before, after))
+            r = _call(engine, q, ["pbr-assign", "--scene", "res://hut.tscn", "--assign", "Wall:marble"])
+            c.expect("pbr unknown preset", not r["ok"] and "plaster" in r["error"], r)
             r = _call(engine, q, ["lod", "--scene", "res://field.tscn"])
             c.expect("lod again skips", r.get("ok") and r["meshes"] == [] and any("has LODs" in x["reason"] for x in r["skipped"]), r)
             try:
