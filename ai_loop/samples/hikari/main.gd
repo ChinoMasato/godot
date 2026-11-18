@@ -51,6 +51,7 @@ var stage_current := {}
 var stage_target := {}
 
 func _ready() -> void:
+	add_to_group("uzu_state")
 	InputSetup.setup()
 	_build_world()
 	var report := UZULook.apply_hd2d(self, UZULook.ATMOSPHERE_GOLDEN_HOUR, false)
@@ -63,15 +64,29 @@ func _ready() -> void:
 	UZUTelemetry.checkpoint("start")
 	_set_objective("村に落ちた灯りの欠片を集めよう（0/3）")
 
+## Declared state for the engine's state hash (B-307): what "the same game
+## state" means for this game. The AI player / self-play tooling hashes this
+## to judge a playthrough mechanically.
+func uzu_state() -> Dictionary:
+	var p: Array = []
+	if player:
+		p = [snappedf(player.global_position.x, 0.01), snappedf(player.global_position.z, 0.01)]
+	return {"shards": shards, "cleared": cleared, "player": p}
+
 func _process(delta: float) -> void:
-	if not cleared:
-		play_seconds += delta
-	_update_player(delta)
 	_update_camera(delta)
 	_update_stage(delta)
 	_update_interactable()
 	if lantern_glow > 0.0 and lantern_light:
 		lantern_light.light_energy = lerpf(lantern_light.light_energy, 2.6, delta * 1.5)
+
+# Gameplay state advances on the fixed physics step, not the render frame:
+# the AI player / self-play tooling steps physics frames in lockstep, and a
+# fixed step keeps movement (and the state hash) deterministic.
+func _physics_process(delta: float) -> void:
+	if not cleared:
+		play_seconds += delta
+	_update_player(delta)
 
 # ---------------------------------------------------------------- world
 

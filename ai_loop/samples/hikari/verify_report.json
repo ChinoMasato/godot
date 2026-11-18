@@ -1,0 +1,72 @@
+{
+ "game": "hikari no kakera (ai_loop/samples/hikari)",
+ "tool": "ai_loop/aiplayer.py (B-306) + state hash (B-307)",
+ "runs": [
+  {
+   "events": [
+    "start",
+    "shard_1",
+    "shard_2",
+    "shard_3",
+    "lantern_lit"
+   ],
+   "hashes": {
+    "start": "1abc957fe1c3f5c29d9177f07159ca668a2202228744dc78db69d218e978a4d9",
+    "shard_crate": "3a9f3911f28d676c76cc4943667bf5b38b34011e75566cf06ad0747c20a4d3b4",
+    "shard_pond": "eded5ed6bf921188c2ba525bb1a868ade56b2bda1a979b695bed2574c7a1b445",
+    "shard_tree": "ee7e64e38afa43b48c92daa8553dac8f1078b02c80ee76eb31568c2bca3759a7",
+    "lantern": "699837386e0edc99643a2529889b91169714195151c39575887f04458b7cb776"
+   },
+   "final_state": {
+    "Main/Player:global_position": [
+     -0.95923513174057,
+     0.720000028610229,
+     -8.14390659332275
+    ],
+    "Main:cleared": true,
+    "Main:shards": 3
+   }
+  },
+  {
+   "events": [
+    "start",
+    "shard_1",
+    "shard_2",
+    "shard_3",
+    "lantern_lit"
+   ],
+   "hashes": {
+    "start": "1abc957fe1c3f5c29d9177f07159ca668a2202228744dc78db69d218e978a4d9",
+    "shard_crate": "3a9f3911f28d676c76cc4943667bf5b38b34011e75566cf06ad0747c20a4d3b4",
+    "shard_pond": "eded5ed6bf921188c2ba525bb1a868ade56b2bda1a979b695bed2574c7a1b445",
+    "shard_tree": "ee7e64e38afa43b48c92daa8553dac8f1078b02c80ee76eb31568c2bca3759a7",
+    "lantern": "699837386e0edc99643a2529889b91169714195151c39575887f04458b7cb776"
+   },
+   "final_state": {
+    "Main/Player:global_position": [
+     -0.95923513174057,
+     0.720000028610229,
+     -8.14390659332275
+    ],
+    "Main:cleared": true,
+    "Main:shards": 3
+   }
+  }
+ ],
+ "checks": [
+  {
+   "run": 1,
+   "checkpoints_in_order": true,
+   "final_shards": 3,
+   "final_cleared": true
+  },
+  {
+   "run": 2,
+   "checkpoints_in_order": true,
+   "final_shards": 3,
+   "final_cleared": true
+  }
+ ],
+ "start_hash_deterministic": true,
+ "passed": true
+}
