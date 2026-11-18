@@ -1080,6 +1080,13 @@ def selftest_engine():
             c.expect("map-estimate", r.get("ok") and found.get("convention") == "directx" and any("resized" in x for x in r["changed"]) and os.path.exists(os.path.join(q, "maps", "normal.png")), r)
             r = _call(engine, q, ["map-estimate", "--kind", "depth", "--in", "res://pic.png", "--out", "res://maps/depth.png"])
             c.expect("map-estimate without a model", not r["ok"] and "no estimator" in r["error"], r)
+            # B-1105: a synthesized sound effect saved as a WAV, described for an agent.
+            r = _call(engine, q, ["sfx", "--preset", "coin", "--seed", "2", "--set", '{"decay": 0.4}', "--out", "res://sfx/coin.wav"])
+            c.expect("sfx", r.get("ok") and os.path.getsize(os.path.join(q, "sfx", "coin.wav")) > 1000 and r["params"]["decay"] == 0.4 and r["sound"]["peak"] > 0.2 and r["sound"]["ends_silent"], r)
+            r = _call(engine, q, ["sfx", "--preset", "coin", "--set", '{"decya": 1}', "--out", "res://sfx/x.wav"])
+            c.expect("sfx unknown parameter", not r["ok"] and "decya" in r["error"], r)
+            r = _call(engine, q, ["sfx-presets"])
+            c.expect("sfx-presets", r.get("ok") and "explosion" in r["presets"] and "lowpass" in r["defaults"], r)
         r = _call(look, p, ["info"])
         c.expect("look info", r["ok"] and "apply" in r["commands"], r)
     print("engine selftest: " + ("ok" if not c.failed else "FAILED"))

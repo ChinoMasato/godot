@@ -25,6 +25,10 @@ extends SceneTree
 ##   actions                                                      the project's input actions and their events (B-304)
 ##   map-import   --kind normal|depth --in res://model.png --for res://picture.png --out res://x.png
 ##                [--depth-kind auto|disparity|linear] [--no-align]   bring in an outside normal/depth map (B-903)
+##   sfx          --out res://sfx/hit.wav [--preset hit] [--seed 3] [--set '{"decay": 0.3}']   a synthesized sound effect
+##                (B-1105): a preset, varied by --seed, with parameters changed by --set (or all of them
+##                without --preset); reports its length, peak, loudness and pitch so an agent can judge it
+##   sfx-presets                                                  the presets and the parameters with their defaults
 ##   map                                                          static index of the project (B-204): files by kind, dependencies
 ##                                                                both ways, scenes (root, nodes, scripts, instances, signal
 ##                                                                connections), autoloads, global classes, main scene
@@ -139,6 +143,39 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 			var result := UZUMapImport.import_file(_option(args, "in"), _option(args, "for"), _option(args, "out"), kinds[kind], depth_kinds[depth_kind], not args.has("--no-align"))
 			result["command"] = command
 			return result
+		"sfx":
+			var out := _option(args, "out")
+			if out.is_empty() or not out.ends_with(".wav"):
+				return _error("sfx needs --out res://path.wav")
+			var params := {}
+			var preset := _option(args, "preset")
+			if not preset.is_empty():
+				if not UZUSfx.get_preset_names().has(preset):
+					return _error("unknown --preset '%s' (see sfx-presets)" % preset)
+				params = UZUSfx.get_preset(preset, _option(args, "seed", "0").to_int())
+			var changes = JSON.parse_string(_option(args, "set", "{}"))
+			if not changes is Dictionary:
+				return _error("--set needs a JSON object, e.g. '{\"decay\": 0.3}'")
+			var defaults := UZUSfx.get_defaults()
+			for key in changes:
+				if not defaults.has(key):
+					return _error("unknown parameter '%s' (see sfx-presets)" % key)
+				params[key] = changes[key]
+			if params.has("wave") and not ["square", "saw", "sine", "triangle", "noise"].has(params["wave"]):
+				return _error("unknown wave '%s' (square, saw, sine, triangle or noise)" % params["wave"])
+			var stream := UZUSfx.generate(params)
+			if stream == null:
+				return _error("could not make the sound (see the parameters)")
+			DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out.get_base_dir()))
+			var err := stream.save_to_wav(out)
+			if err != OK:
+				return _error("could not save %s (%s)" % [out, error_string(err)])
+			return {"ok": true, "command": command, "out": out, "preset": preset, "params": params, "sound": UZUSfx.describe(stream)}
+		"sfx-presets":
+			var presets := {}
+			for name in UZUSfx.get_preset_names():
+				presets[name] = UZUSfx.get_preset(name)
+			return {"ok": true, "command": command, "presets": presets, "defaults": UZUSfx.get_defaults()}
 		"res-new", "res-props", "res-get", "res-set":
 			return _resource_command(command, args)
 		"setting-get", "setting-set":
