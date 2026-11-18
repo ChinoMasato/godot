@@ -101,3 +101,4 @@
 | B-1302 | Claude Code (cloud) | ai-native（直接） | scene/gui/uzu_ui.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUUI.xml（新規）, tests/scene/test_uzu_ui.cpp（新規）, ai_loop/ui_tool.gd（UZUUI を使う形に）, ai_loop/look_samples/, ai_loop/iterations/ | 着手 | 2026-11-19 |
 | B-1102 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19、CI 1531 pass） |
 | B-1103 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19、CI 1534 pass） |
+| B-1104 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 着手（2026-11-19） |
