@@ -112,3 +112,4 @@
 | B-1305 | Claude Code (cloud) | ai-native（直接） | ai_loop/ui_report_probe.gd（新規）, ai_loop/uzu.py（look ui-report）, ai_loop/mcp_server.py, ai_loop/look_samples/specs/poor_ui.tscn（新規）, ai_loop/iterations/ | 反映済み | 2026-11-19 |
 | B-1307（第1段: 質感・世界観テーマ・定番部品） | Claude Code (cloud) | ai-native（直接） | scene/gui/uzu_ui.{h,cpp}, tests/scene/test_uzu_ui.cpp, doc/classes/UZUUI.xml, ai_loop/ui_tool.gd, ai_loop/presets/ui/, ai_loop/look_samples/, ai_loop/iterations/ | 第1段は反映済み（動きの要素と B-1304 連携は第2段） | 2026-11-19 |
 | B-1205（LOD の部分） | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd（lod コマンド）, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | LOD の部分は反映済み（法線ベイクは Blender のある環境で） | 2026-11-19 |
+| B-1209（手続きプリセットと指標） | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd（pbr-preset／pbr-assign、rich の指標）, ai_loop/uzu.py（look pbr）, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み（灯りの欠片への適用はリード、Blender への組み込みは残り） | 2026-11-19 |
