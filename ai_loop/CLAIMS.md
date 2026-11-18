@@ -107,3 +107,4 @@
 - B-314 ログ照合（リプレイ判定）: 完了（Codex、agent/b-314-codex を 2026-11-19 に統合。最初の不一致を CLI／MCP で報告）
 - B-728 水シェーダーの見た目修正: 完了（Codex、agent/b-728-codex を 2026-11-19 に統合。全テスト pass、GPU 再確認はローカルで別途）
 - B-1201 Blender ブリッジ: 完了（Codex、agent/b-1201-codex を 2026-11-19 に統合。Blender 資産の描画・書き出しとリグ付きキャラクターの待機／歩行クリップ検証）
+- UZUWorldGen（マップ自動生成）: 完了（Claude Code ローカル、agent/worldgen-claude-local を 2026-11-19 に統合。短い仕様から自然マップと街を生成）
