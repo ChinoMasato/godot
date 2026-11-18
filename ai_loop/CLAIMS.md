@@ -11,7 +11,7 @@
 | B-005 Windows アイコン補完（オーナー依頼） | Codex local | agent/b-005-codex-windows | platform/windows/*.ico・SCsub, misc/logo/uzu/windows_icons.py・README.md, ai_loop/iterations/ | バイナリ資源検証済み、統合待ち | 2026-11-18 |
 | B-720 GPU 確認（B-719 比較を併記） | Codex local | agent/b-720-codex-gpu | ai_loop/windows/effects_gpu*, ai_loop/iterations/, ai_loop/look_samples/compare/effects_gpu* | 通常風のみ確認、GPU device loss により残り保留 | 2026-11-18 |
 | B-903 試作取り込みの正確性補完 | Codex local | agent/b-903-codex-map | ai_loop/prototypes/picture/map_tool.gd・test_map_import.py・README.md, ai_loop/iterations/ | 実エンジン14件成功、C++移植向け統合待ち | 2026-11-18 |
-| B-726 BlobShadow 再適用時の再計算 | Muse (lead) | agent/b-726-muse | scene/3d/uzu_look.cpp, tests/scene/test_uzu_look.cpp, ai_loop/iterations/ | 完了（Actions green、全テスト pass、ai-native 統合済み） | 2026-11-18 |
+| B-726 BlobShadow 再適用時の再計算 | Muse (lead) | agent/b-726-muse | scene/3d/uzu_look.cpp, tests/scene/test_uzu_look.cpp, ai_loop/iterations/ | 完了（GPU 再確認済み: agent/b726gpu-claude-local） | 2026-11-18 |
 | B-110 検証済みバイナリの配布 | Muse (lead) | agent/verify-artifact-muse | .github/workflows/uzu_verify.yml, ai_loop/build_locked.sh | 実装済み、Actions 検証待ち | 2026-11-18 |
 | B-902 画像からの PBR 生成 | Muse (lead) | agent/b-902-muse | scene/resources/uzu_pbr_from_image.{h,cpp}, scene/register_scene_types.cpp, doc/classes/UZUPBRFromImage.xml, tests/scene/test_uzu_pbr_from_image.cpp, ai_loop/prototypes/picture/pbr_engine.gd・picture.py | 完了（Actions green、全テスト 1513 件 pass、ai-native 統合済み） | 2026-11-18 |
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
@@ -83,8 +83,5 @@
 | B-903 | Claude Code (cloud) | ai-native（直接） | scene/resources/uzu_map_import.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUMapImport.xml（新規）, tests/scene/test_uzu_map_import.cpp（新規）, ai_loop/engine_tool.gd, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み | 2026-11-18 |
 | B-901 | Claude Code (cloud) | ai-native（直接） | scene/3d/uzu_picture.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUPicture.xml（新規）, tests/scene/test_uzu_picture.cpp（新規）, ai_loop/iterations/ | 反映済み（GPU の見た目確認はローカル担当） | 2026-11-18 |
 | B-725（GPU 確認） | Claude Code (local) | agent/b725gpu-claude-local | ai_loop/iterations/, ai_loop/look_samples/compare/ | 記録済み（帯は OK、地面の影は未達） | 2026-11-18 |
-<<<<<<< HEAD
 | B-109 | Claude Code (cloud) | ai-native（直接） | misc/logo/uzu/macos_icons.py（新規）, misc/dist/macos_template.app/Contents/Resources/icon.icns, misc/dist/macos_tools.app/Contents/Resources/GodotLG.icns, misc/dist/macos_tools.app/Contents/Info*.plist, misc/dist/macos/editor_info_plist.template, misc/logo/uzu/README.md, ai_loop/iterations/ | 反映済み（macOS 実機での表示確認待ち） | 2026-11-18 |
-=======
 | B-726（GPU 確認） | Claude Code (local) | agent/b726gpu-claude-local | ai_loop/iterations/, ai_loop/look_samples/compare/ | 記録済み（判定すべて満たす） | 2026-11-18 |
->>>>>>> 42623ed1bd
