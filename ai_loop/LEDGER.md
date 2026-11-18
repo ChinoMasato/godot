@@ -200,3 +200,5 @@
 - 2026-11-19: B-1107（『灯りの欠片』への juice 組み込み）を完了。欠片収集で impact(pickup)、ランタン点火で impact＋kick＋バースト。AI プレイヤー検証2回とも juice 発火記録 [pickup×3, lantern] を確認し全判定合格（verify_report.json）。Phase 11 は B-1108（クラウド担当）を除き完了。
 
 - 2026-11-19: 滞留ブランチ5件を ai-native へ統合（オーナー指示）: B-727 GPU 記録、B-314 ログ照合（Codex）、B-728 水の見た目修正（Codex）、B-1201 Blender ブリッジ（Codex）、UZUWorldGen（ローカル、Phase 15 の B-1501／1502／1503／1505／1506 を充足）。競合は台帳と uzu.py の道具追加のみで union 解消。統合後 CI 全テスト 1548 pass（クラウドの B-1302 込み）。
+
+- 2026-11-19: B-110 の独立検証記録（Codex）を ai-native へ統合（agent/b-110-codex、記録ファイルのみ）。Debian 13 x86-64 で Actions 実行 44326635731（7ad07707a）の artifact（78,858,399 bytes、SHA-256 一致）をダウンロードし、再ビルドせず起動確認（--headless --version → 4.8.beta.custom_build.7ad07707a、終了コード 0、sample_game の headless 起動も終了コード 0）。全単体テスト 1515 pass／0 fail／3 skip。B-110 の判定（配布バイナリの起動確認）を別環境からの独立検証として補強する。記録: iterations/2026-11-18-B-110-codex.md。
