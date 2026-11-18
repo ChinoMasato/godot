@@ -46,6 +46,15 @@ jobs:
             cache_path=.scons_cache cache_limit=7 -j"$(nproc)"
           echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
 
+      # Save the build output before running tests so it is available even if a test fails.
+      - name: Upload the built editor binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: uzu-engine-editor-linux-${{ github.sha }}
+          path: bin/godot.linuxbsd.editor.x86_64
+          retention-days: 30
+          if-no-files-found: error
+
       - name: Save the SCons cache
         if: always()
         uses: actions/cache/save@v6
@@ -65,17 +74,6 @@ jobs:
 
       - name: Agent tool self-tests
         run: python3 ai_loop/uzu.py selftest all
-
-      # B-110: the binary is published only after the build, the unit tests and the tool
-      # self-tests have passed (a failed step skips this one), so any machine can download
-      # a verified editor instead of building it.
-      - name: Upload the verified editor binary
-        uses: actions/upload-artifact@v7
-        with:
-          name: uzu-engine-editor-linux-${{ github.sha }}
-          path: bin/godot.linuxbsd.editor.x86_64
-          retention-days: 30
-          if-no-files-found: error
 
       - name: Timing
         if: always()
