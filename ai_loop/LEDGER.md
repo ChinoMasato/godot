@@ -226,3 +226,5 @@
 - 2026-11-20: B-1508 を ai-native へ統合（agent/b-1508-lead）。『灯りの欠片』の村を UZUWorldGen 生成（Land＋Pond＋City の合成、ground オプション新設、ベンチ当たり追加）に置き換え、完走検証と歩行検証（5/5）が通ることを確認。map_tool の NavigationMesh 保存は実測で問題なしと切り分け。
 
 - 2026-11-20: B-1509 生成仕様の4点セットを ai-native へ統合（agent/b-1509-lead）。生成の記録を scene_spec／region_graph／asset_registry／validation_report に揃える仕組みが入り、観測できた事実と補完した推論が区別して残るようになった。
+
+- 2026-11-20: B-1510 地域グラフ歩行検証を ai-native へ統合（agent/b-1510-lead）。生成マップの全経路を AI が実歩行して合否を出す仕組みが入った。見本の村では基礎スラブの縁が徒歩進入を阻むことが実歩行の証拠で判明（B-1508 の生成側の課題として記録）。
