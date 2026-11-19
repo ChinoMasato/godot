@@ -212,3 +212,5 @@
 - 2026-11-19: B-404 エージェント能力に適応するインターフェースを ai-native へ統合（agent/b-404-lead）。能力プロファイル（UZU_AGENT_CAPS／JSON、語彙は blender／browser／gpu／image_gen、未知の能力はエラー）、カタログ197件に required_capabilities／fallback を付与し不足能力つきで表示、texture-route で生成画像→B-902 と手続きプリセット（B-1209）の振り分けを実証。Python テスト 40件 pass、C++ 変更なし。
 
 - 2026-11-19: B-406 会話・クエストのデータ道具を ai-native へ統合（Codex、agent/b-406-codex）。会話グラフを JSON で宣言し `uzu.py dialogue` と MCP `dialogue_validate` で検証（未到達ノード、分岐漏れ、フラグの読み書き不整合、表示テキストの文字数）。見本（灯りの欠片、6ノード・7状態）で診断 0、選択肢を外すと分岐漏れと未到達ノードを検出。Python テスト 23件 pass、エンジン全テスト 1560 pass（Actions の確認済み editor を SHA-256 照合で使用）、`uzu.py selftest all` pass。カタログは 200件に再生成（dialogue 3件を追加）。統合時の競合は CLAIMS.md／catalog.json／mcp_server.py の両側追加のみで、両方残す形で解消（catalog.json は make_catalog.py で再生成）。記録: iterations/2026-11-19-B-406-codex.md。ブランチ先端の CI run 44533292748 は success。
+
+- 2026-11-20: B-111 検証高速化を ai-native へ統合（agent/b-111-lead）。ccache 4.14.3 を導入し、editor オブジェクト188個の再ビルドが新規 worktree でも 997秒→17秒（約−98%）になることを統計で裏付け。SCons がコンパイラ子プロセスへ CCACHE_DIR／HOME を渡さない落とし穴は ccache.conf の cache_dir 固定で回避。ai_loop/verify_changed.py（差分→影響テスト選択、全件フォールバック付き）を常用の検証入口にした。フルビルド全体の短縮率は未実測。
