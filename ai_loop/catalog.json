@@ -6,15 +6,15 @@
   "command": 72,
   "mcp": 75,
   "preset": 6,
-  "script": 27,
+  "script": 28,
   "class": 15,
-  "total": 211
+  "total": 212
  },
  "entries": [
   {
    "name": "build",
    "kind": "cli",
-   "description": "a whole scene from one JSON spec (B-1207, see ai_loop/build_tool.gd), with its richness report",
+   "description": "a whole scene from one JSON spec (B-1207, see ai_loop/build_tool.gd), with its richness report; --spec-set also writes the generation spec set (B-1509)",
    "tags": [
     "cli",
     "uzu.py"
@@ -22,7 +22,7 @@
    "source": "ai_loop/uzu.py",
    "required_capabilities": [],
    "fallback": null,
-   "usage": "uzu.py build <project> --spec spec.json [--shot out.png] [--budget JSON] [--no-render] [--no-report]"
+   "usage": "uzu.py build <project> --spec spec.json [--shot out.png] [--budget JSON] [--no-render] [--no-report] [--spec-set [dir]]"
   },
   {
    "name": "building",
@@ -120,7 +120,7 @@
   {
    "name": "map",
    "kind": "cli",
-   "description": "a natural map or a city from a short spec (UZUWorldGen); every key is optional (presets) every map key with its default, range and meaning, and the presets a walker under physics walks the city's navigation mesh to each place; per-target result",
+   "description": "a natural map or a city from a short spec (UZUWorldGen); every key is optional (presets); --spec-set also writes the generation spec set (B-1509) every map key with its default, range and meaning, and the presets a walker under physics walks the city's navigation mesh to each place; per-target result",
    "tags": [
     "cli",
     "uzu.py"
@@ -128,7 +128,7 @@
    "source": "ai_loop/uzu.py",
    "required_capabilities": [],
    "fallback": null,
-   "usage": "uzu.py map <project> nature|city --scene res://main.tscn [--spec JSON-or-file] [--set key=value ...] [--overview top.png] [--replace] [--camera] [--look golden_hour] [--shot out.png] [--inline] options [nature|city] <project> walk --scene res://x.tscn [--from spawn] [--to plaza,gate_east] [--seconds 90]"
+   "usage": "uzu.py map <project> nature|city --scene res://main.tscn [--spec JSON-or-file] [--set key=value ...] [--overview top.png] [--replace] [--camera] [--look golden_hour] [--shot out.png] [--inline] [--spec-set [dir]] options [nature|city] <project> walk --scene res://x.tscn [--from spawn] [--to plaza,gate_east] [--seconds 90]"
   },
   {
    "name": "picture",
@@ -2965,6 +2965,18 @@
     "script"
    ],
    "source": "ai_loop/rich_probe.gd",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "spec_set",
+   "kind": "script",
+   "description": "The generation spec set (BACKLOG B-1509): four JSON documents that travel",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/spec_set.py",
    "required_capabilities": [],
    "fallback": null
   },

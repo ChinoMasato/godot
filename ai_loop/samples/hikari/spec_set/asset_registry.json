@@ -1,0 +1,333 @@
+{
+  "format": "uzu-asset-registry/1",
+  "scene": "res://village.tscn",
+  "families": [
+    {
+      "family": "grass",
+      "count": 3273,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 172
+      },
+      "part": "Land"
+    },
+    {
+      "family": "roads",
+      "count": 0,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 172
+      },
+      "part": "Land"
+    },
+    {
+      "family": "rocks",
+      "count": 78,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 172
+      },
+      "part": "Land"
+    },
+    {
+      "family": "trees",
+      "count": 970,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 172
+      },
+      "note": "scattered trees on the terrain",
+      "part": "Land"
+    },
+    {
+      "family": "trees_broadleaf",
+      "count": 537,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 172
+      },
+      "part": "Land"
+    },
+    {
+      "family": "trees_conifer",
+      "count": 433,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 172
+      },
+      "part": "Land"
+    },
+    {
+      "family": "villages",
+      "count": 0,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 172
+      },
+      "part": "Land"
+    },
+    {
+      "family": "terrain_mesh",
+      "count": 8192,
+      "measure": "triangles",
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 172
+      },
+      "part": "Land"
+    },
+    {
+      "family": "grass",
+      "count": 0,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 61
+      },
+      "part": "Pond"
+    },
+    {
+      "family": "roads",
+      "count": 0,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 61
+      },
+      "part": "Pond"
+    },
+    {
+      "family": "rocks",
+      "count": 0,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 61
+      },
+      "part": "Pond"
+    },
+    {
+      "family": "trees",
+      "count": 0,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 61
+      },
+      "note": "scattered trees on the terrain",
+      "part": "Pond"
+    },
+    {
+      "family": "trees_broadleaf",
+      "count": 0,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 61
+      },
+      "part": "Pond"
+    },
+    {
+      "family": "trees_conifer",
+      "count": 0,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 61
+      },
+      "part": "Pond"
+    },
+    {
+      "family": "villages",
+      "count": 0,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 61
+      },
+      "part": "Pond"
+    },
+    {
+      "family": "terrain_mesh",
+      "count": 2048,
+      "measure": "triangles",
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_nature",
+        "preset": "hills",
+        "seed": 61
+      },
+      "part": "Pond"
+    },
+    {
+      "family": "benches",
+      "count": 4,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "note": "street furniture with collision (B-1507/B-1508)",
+      "part": "Village"
+    },
+    {
+      "family": "blocks",
+      "count": 9,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "part": "Village"
+    },
+    {
+      "family": "buildings",
+      "count": 6,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "note": "part-based building recipe with a PBR texture set (B-1219); detail=simple in the spec gives plain boxes",
+      "part": "Village"
+    },
+    {
+      "family": "empty_lots",
+      "count": 2,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "part": "Village"
+    },
+    {
+      "family": "lamps",
+      "count": 2,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "note": "street lamps; 'lights' counts the ones carrying a real light",
+      "part": "Village"
+    },
+    {
+      "family": "lights",
+      "count": 2,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "part": "Village"
+    },
+    {
+      "family": "parts",
+      "count": {
+        "chimneys": 3,
+        "doors": 6,
+        "pilasters": 4,
+        "plinths": 6,
+        "roof_props": 0,
+        "string_courses": 0,
+        "window_frames": 37
+      },
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "part": "Village"
+    },
+    {
+      "family": "street_trees",
+      "count": 26,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "note": "trees planted along the streets",
+      "part": "Village"
+    },
+    {
+      "family": "windows",
+      "count": 37,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "note": "window parts of the buildings family (frames shared as one mesh)",
+      "part": "Village"
+    },
+    {
+      "family": "windows_lit",
+      "count": 13,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "part": "Village"
+    },
+    {
+      "family": "meshes",
+      "count": 6746,
+      "measure": "triangles",
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "part": "Village"
+    },
+    {
+      "family": "buildings_detail",
+      "count": 3,
+      "count_basis": "observed",
+      "origin": {
+        "generator": "UZUWorldGen.generate_city",
+        "preset": "village",
+        "seed": 1
+      },
+      "note": "per-building detail entries the generator reported (floors, roof, size)",
+      "part": "Village"
+    }
+  ]
+}

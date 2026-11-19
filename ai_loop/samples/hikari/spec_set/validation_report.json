@@ -1,0 +1,327 @@
+{
+  "format": "uzu-validation-report/1",
+  "scene": "res://village.tscn",
+  "checks": [
+    {
+      "id": "generation_succeeded",
+      "claim": "every part of the composite reported success",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "parts",
+          "value": [
+            true,
+            true,
+            true
+          ]
+        },
+        {
+          "type": "file",
+          "ref": "res://village.tscn"
+        }
+      ]
+    },
+    {
+      "id": "Land__generation_succeeded",
+      "claim": "the generator reported success and the scene was saved",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result.ok",
+          "value": true
+        },
+        {
+          "type": "file",
+          "ref": "res://village.tscn"
+        }
+      ]
+    },
+    {
+      "id": "Land__counts_reported",
+      "claim": "the generator reported how many of each part it placed",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result.counts (keys)",
+          "value": 7
+        },
+        {
+          "type": "value",
+          "ref": "result.counts (total items)",
+          "value": 5291
+        }
+      ]
+    },
+    {
+      "id": "Land__places_reported",
+      "claim": "the generator named the places of the map, with positions",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result.places (nodes)",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "id": "Land__collision_coverage",
+      "claim": "the placed parts carry collision",
+      "status": "Unverified",
+      "holds": null,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result (collision summary)",
+          "value": null,
+          "note": "the generator result carries no per-part collision summary; B-1511 re-reads the saved scene to audit this"
+        }
+      ]
+    },
+    {
+      "id": "Land__walk_reachability",
+      "claim": "every region_graph edge can actually be walked, both ways",
+      "status": "Unverified",
+      "holds": null,
+      "evidence": [
+        {
+          "type": "file",
+          "ref": "region_graph.json"
+        },
+        {
+          "type": "value",
+          "ref": "edges",
+          "value": 4,
+          "note": "static spec set only; B-1510 walks the graph and reports per-edge results"
+        }
+      ]
+    },
+    {
+      "id": "Pond__generation_succeeded",
+      "claim": "the generator reported success and the scene was saved",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result.ok",
+          "value": true
+        },
+        {
+          "type": "file",
+          "ref": "res://village.tscn"
+        }
+      ]
+    },
+    {
+      "id": "Pond__counts_reported",
+      "claim": "the generator reported how many of each part it placed",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result.counts (keys)",
+          "value": 7
+        },
+        {
+          "type": "value",
+          "ref": "result.counts (total items)",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "Pond__places_reported",
+      "claim": "the generator named the places of the map, with positions",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result.places (nodes)",
+          "value": 4
+        }
+      ]
+    },
+    {
+      "id": "Pond__collision_coverage",
+      "claim": "the placed parts carry collision",
+      "status": "Unverified",
+      "holds": null,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result (collision summary)",
+          "value": null,
+          "note": "the generator result carries no per-part collision summary; B-1511 re-reads the saved scene to audit this"
+        }
+      ]
+    },
+    {
+      "id": "Pond__walk_reachability",
+      "claim": "every region_graph edge can actually be walked, both ways",
+      "status": "Unverified",
+      "holds": null,
+      "evidence": [
+        {
+          "type": "file",
+          "ref": "region_graph.json"
+        },
+        {
+          "type": "value",
+          "ref": "edges",
+          "value": 3,
+          "note": "static spec set only; B-1510 walks the graph and reports per-edge results"
+        }
+      ]
+    },
+    {
+      "id": "Village__generation_succeeded",
+      "claim": "the generator reported success and the scene was saved",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result.ok",
+          "value": true
+        },
+        {
+          "type": "file",
+          "ref": "res://village.tscn"
+        }
+      ]
+    },
+    {
+      "id": "Village__counts_reported",
+      "claim": "the generator reported how many of each part it placed",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result.counts (keys)",
+          "value": 10
+        },
+        {
+          "type": "value",
+          "ref": "result.counts (total items)",
+          "value": 101
+        }
+      ]
+    },
+    {
+      "id": "Village__places_reported",
+      "claim": "the generator named the places of the map, with positions",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result.places (nodes)",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "id": "Village__navigation_baked",
+      "claim": "a navigation mesh was baked for the map",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result.navigation.polygons",
+          "value": 652
+        },
+        {
+          "type": "value",
+          "ref": "result.navigation.vertices",
+          "value": 603
+        },
+        {
+          "type": "value",
+          "ref": "result.navigation.islands",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "Village__places_connected",
+      "claim": "every named place is on one walkable navigation area",
+      "status": "Verified",
+      "holds": true,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result.navigation.places_connected",
+          "value": true
+        },
+        {
+          "type": "value",
+          "ref": "result.navigation.unreached",
+          "value": []
+        }
+      ]
+    },
+    {
+      "id": "Village__collision_coverage",
+      "claim": "the placed parts carry collision",
+      "status": "Unverified",
+      "holds": null,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "result (collision summary)",
+          "value": null,
+          "note": "the generator result carries no per-part collision summary; B-1511 re-reads the saved scene to audit this"
+        }
+      ]
+    },
+    {
+      "id": "Village__walk_reachability",
+      "claim": "every region_graph edge can actually be walked, both ways",
+      "status": "Unverified",
+      "holds": null,
+      "evidence": [
+        {
+          "type": "file",
+          "ref": "region_graph.json"
+        },
+        {
+          "type": "value",
+          "ref": "edges",
+          "value": 6,
+          "note": "static spec set only; B-1510 walks the graph and reports per-edge results"
+        }
+      ]
+    },
+    {
+      "id": "cross_part_reachability",
+      "claim": "a walker can travel between the parts of the composite",
+      "status": "Unverified",
+      "holds": null,
+      "evidence": [
+        {
+          "type": "value",
+          "ref": "parts",
+          "value": 3,
+          "note": "the parts were generated independently and no cross-part navigation was baked; B-1510 / the game's own playthrough checks this"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "Verified": 12,
+    "Partial": 0,
+    "Unverified": 7
+  }
+}
