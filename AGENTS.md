@@ -22,6 +22,15 @@ Toolchain is a venv at `~/workspace/.venv-build` (SCons + zstandard).
 System pip is PEP 668 managed; do not use it.
 
 ```sh
+# ccache (B-111, set up on this VM): one cache shared by all worktrees.
+# Put the compiler shims first on PATH before building (build_locked.sh
+# inherits the same PATH). SCons passes only PATH to compiler children —
+# no CCACHE_DIR/HOME — so the cache location is pinned by
+# /root/.config/ccache/ccache.conf (cache_dir=~/workspace/.ccache,
+# max_size=10G). Measured on a 188-object subset: fresh-worktree rebuild
+# 997 s without cache -> 17 s warm. See ai_loop/iterations/2026-11-19-B-111-lead.md.
+export PATH=~/workspace/tools/ccache/bin:$PATH
+
 # Standard loop build (editor, with unit tests) — A-2, 2026-11-17.
 # The editor is the standard because template builds never compile
 # editor/ code and cannot use --path. Use target=template_release
@@ -46,6 +55,9 @@ bin/godot.linuxbsd.editor.x86_64 --headless --quit-after 60 --path <project>  # 
 
 A change is "better" only if the full unit test suite passes and, where a
 benchmark exists, the benchmark does not regress. No test, no loop entry.
+
+Quick check during development: `python3 ai_loop/verify_changed.py --catalog <full-suite B-101 JSON> --run`
+runs only the tests affected by the diff vs `fork/ai-native` (B-105 selection; unmapped or build-wide changes fall back to the full suite). The pre-merge check above is still the full suite.
 
 ## The loop
 
