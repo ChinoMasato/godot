@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUUIWorld" inherits="Node" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Makes a world UI move: moving frames, opening, hover and ambient sway.
+	</brief_description>
+	<description>
+		Add [UZUUIWorld] as a child of a screen's root [Control] whose theme comes from [method UZUUI.create_world_theme]. When the screen starts, it does the following:
+		- Gives the frames (panels, tabs, buttons) the world's moving decoration ([method UZUUI.create_world_material]): a glint that sweeps across, a pulse, a flicker, or scan lines that flow. Text keeps its own material.
+		- Opens the top-level panels with the world's motion ([method UZUUIJuice.apply_world_motion]).
+		- Makes buttons swell on hover ([method UZUUIJuice.hover_pulse]).
+		While it runs, it also sways ribbons and blinks the talk window's next mark, so the UI is never still. [code]ai_loop/uzu.py ui --world[/code] adds this node, and [code]ai_loop/uzu.py look ui-report[/code] reports what moved.
+		[b]Note:[/b] This class is specific to U.ZU Engine.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="advance">
+			<return type="void" />
+			<param index="0" name="delta" type="float" />
+			<description>
+				Advances the ambient motion (ribbon sway, next-mark blink) by [param delta] seconds. This is called every frame; tests call it directly.
+			</description>
+		</method>
+		<method name="decorate">
+			<return type="Dictionary" />
+			<description>
+				Decorates the parent's tree now. This also happens when the node becomes ready. Returns [code]{"world", "panels", "buttons", "opened", "ribbons", "next_marks"}[/code].
+			</description>
+		</method>
+		<method name="get_stats" qualifiers="const">
+			<return type="Dictionary" />
+			<description>
+				Returns the counts of the last [method decorate] and the ambient [code]time[/code], for self-verifying play.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="ambient" type="bool" setter="set_ambient" getter="is_ambient" default="true">
+			Sways ribbons and blinks next marks while running.
+		</member>
+		<member name="hover" type="bool" setter="set_hover" getter="is_hover" default="true">
+			Makes buttons swell when the mouse enters them.
+		</member>
+		<member name="open_on_ready" type="bool" setter="set_open_on_ready" getter="is_open_on_ready" default="true">
+			Opens the top-level panels with the world's motion when the screen starts.
+		</member>
+		<member name="world" type="String" setter="set_world" getter="get_world" default="&quot;fantasy&quot;">
+			The world: [code]fantasy[/code], [code]wafu[/code], [code]sf[/code], [code]horror[/code], [code]persona[/code] or [code]pixel[/code].
+		</member>
+	</members>
+</class>

@@ -59,6 +59,13 @@ func _styled(c: Control, item: String, type: String) -> bool:
 	return false
 
 
+## The child of the screen (the scene's root Control) that holds n.
+func _branch(n: Node) -> Node:
+	while n.get_parent() != null and n.get_parent().get_parent() != get_tree().root:
+		n = n.get_parent()
+	return n
+
+
 func _measure() -> Dictionary:
 	var screen := get_viewport().get_visible_rect()
 	var controls := []
@@ -143,6 +150,8 @@ func _measure() -> Dictionary:
 		if inset < 8:
 			problems.append({"kind": "no_margin", "node": str(tops[i].get_path()), "inset": roundi(inset), "fix": "keep panels 16 px or more from the screen edge (offset)"})
 		for j in range(i + 1, tops.size()):
+			if _branch(tops[i]) == _branch(tops[j]):
+				continue  # Parts of one made part (a talk window's name tag over its window) overlap on purpose.
 			var other: Rect2 = tops[j].get_global_rect()
 			if r.intersects(other) and r.intersection(other).get_area() > 4:
 				problems.append({"kind": "overlap", "node": str(tops[i].get_path()), "with": str(tops[j].get_path()), "fix": "move one of them (anchor/offset)"})
@@ -158,6 +167,19 @@ func _measure() -> Dictionary:
 		hints.append("the UI covers %d%% of the screen; the game may be hard to see" % roundi(coverage * 100))
 	if depth <= 2 and panels.size() <= 1 and texts > 3:
 		hints.append("flat UI: texts without panels to group them; wrap related parts in a Panel")
+	# Motion (B-1307 stage 2, owner's principle "something is always moving"): the world
+	# decoration and the UI animations seen so far.
+	var motion := {"worlds": [], "events": {}, "animating": UZUUIJuice.get_active_animation_count(), "moving_frames": 0}
+	for w in get_tree().root.find_children("*", "UZUUIWorld", true, false):
+		motion.worlds.append(w.get_stats())
+	for e in UZUUIJuice.get_event_log():
+		var key := "%s/%s" % [e.get("event", ""), e.get("phase", "")]
+		motion.events[key] = motion.events.get(key, 0) + 1
+	for c in controls:
+		if c.material is ShaderMaterial and c.material.shader and c.material.shader.code.contains("TIME"):
+			motion.moving_frames += 1
+	if motion.worlds.is_empty() and motion.events.is_empty() and motion.moving_frames == 0 and not panels.is_empty():
+		hints.append("nothing on the screen moves; a world (uzu.py ui --world, or a UZUUIWorld node) adds moving frames, opening and hover motion")
 	var top_info := []
 	for pc in tops:
 		top_info.append({"node": str(pc.get_path()), "rect": _rect_list(pc.get_global_rect()), "children": pc.get_child_count()})
@@ -165,4 +187,4 @@ func _measure() -> Dictionary:
 		"summary": {"controls": controls.size(), "panels": panels.size(), "buttons": buttons.size(), "texts": texts, "chars": chars,
 			"min_font_size": min_font, "depth": depth, "coverage": snappedf(coverage, 0.001), "min_edge_inset": roundi(min_inset),
 			"unstyled": unstyled.size()},
-		"by_type": by_type, "problems": problems, "hints": hints, "panels": top_info}
+		"by_type": by_type, "problems": problems, "hints": hints, "panels": top_info, "motion": motion}

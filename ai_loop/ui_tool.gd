@@ -339,6 +339,15 @@ func _build(spec_path: String) -> Dictionary:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE  # A HUD over a game lets clicks through where it is empty.
 	root.theme = _theme(spec.get("theme", {}))
+	var theme_spec = spec.get("theme", {})
+	if theme_spec is Dictionary and theme_spec.has("world") and UZUUI.get_world_names().has(theme_spec.world):
+		# The world's motion (B-1307 stage 2): moving frames, opening, hover, ambient sway.
+		var motion := UZUUIWorld.new()
+		motion.name = "WorldMotion"
+		motion.world = theme_spec.world
+		root.add_child(motion)
+		motion.owner = root
+		counts["WorldMotion"] = 1
 	if not errors.is_empty():
 		root.free()
 		return {"ok": false, "error": "the spec has %d problem(s)" % errors.size(), "problems": errors}
