@@ -15,7 +15,7 @@
 | B-110 検証済みバイナリの配布 | Muse (lead) | agent/verify-artifact-muse | .github/workflows/uzu_verify.yml, ai_loop/build_locked.sh | ワークフロー変更はクラウドが push 済み（実行 #68 success、artifact あり）。ダウンロードしたバイナリの起動確認はローカル | 2026-11-18 |
 | B-902 画像からの PBR 生成 | Muse (lead) | agent/b-902-muse | scene/resources/uzu_pbr_from_image.{h,cpp}, scene/register_scene_types.cpp, doc/classes/UZUPBRFromImage.xml, tests/scene/test_uzu_pbr_from_image.cpp, ai_loop/prototypes/picture/pbr_engine.gd・picture.py | 完了（Actions green、全テスト 1513 件 pass、ai-native 統合済み） | 2026-11-18 |
 | B-902 追補 ぼかしの縮小を区画の平均に | Muse (lead) | agent/b-902-blurfix-muse | scene/resources/uzu_pbr_from_image.{h,cpp}, tests/scene/test_uzu_pbr_from_image.cpp | 完了（Actions green、ai-native 統合済み） | 2026-11-18 |
-| B-1101 UZUJuice 基盤＋ヒットストップ／スローモーション | Muse (lead) | agent/b-1101-muse | scene/3d/uzu_juice.{h,cpp}, scene/register_scene_types.cpp, doc/classes/UZUJuice.xml, tests/scene/test_uzu_juice.cpp, ai_loop/iterations/ | 作業中 | 2026-11-18 |
+| B-1101 UZUJuice 基盤＋ヒットストップ／スローモーション | Muse (lead) | agent/b-1101-muse | scene/3d/uzu_juice.{h,cpp}, scene/register_scene_types.cpp, doc/classes/UZUJuice.xml, tests/scene/test_uzu_juice.cpp, ai_loop/iterations/ | 完了（2026-11-19 ai-native 統合済み、CI 1528 pass） | 2026-11-19 |
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
 | B-001 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/LEDGER.md, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-002 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/measure.sh（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
@@ -101,7 +101,7 @@
 | B-1302 | Claude Code (cloud) | ai-native（直接） | scene/gui/uzu_ui.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUUI.xml（新規）, tests/scene/test_uzu_ui.cpp（新規）, ai_loop/ui_tool.gd（UZUUI を使う形に）, ai_loop/look_samples/, ai_loop/iterations/ | 反映済み | 2026-11-19 |
 | B-1102 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19、CI 1531 pass） |
 | B-1103 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19、CI 1534 pass） |
-| B-1104 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 着手（2026-11-19） |
+| B-1104 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19 ai-native 統合済み、CI 1537 pass） |
 - B-1106 イベントプリセット（impact）: 完了（2026-11-19 ai-native 統合、CI 全テスト 1540 pass）
 - B-727（GPU 確認）: 記録済み（Claude Code ローカル、agent/b727gpu-claude-local を 2026-11-19 に統合。水は3レンダラーで動作・速さ OK、波の格子と反射の段差を報告 → B-728 へ）
 - B-314 ログ照合（リプレイ判定）: 完了（Codex、agent/b-314-codex を 2026-11-19 に統合。最初の不一致を CLI／MCP で報告）
