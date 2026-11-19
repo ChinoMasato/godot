@@ -123,6 +123,7 @@ Vector<OptionDef> city_defs() {
 	d.push_back({ "textures", "bool", true, 0, 0, {}, "with detail high: give the buildings PBR texture sets made with them (plaster, brick, roof tiles, stone, concrete: color, normal and roughness maps)" });
 	d.push_back({ "palette", "choice", "stone", 0, 0, { "warm", "stone", "modern", "pastel" }, "colors of walls, roofs, streets and sidewalks" });
 	d.push_back({ "collision", "bool", true, 0, 0, {}, "add static bodies for the ground, sidewalks and buildings" });
+	d.push_back({ "ground", "bool", true, 0, 0, {}, "lay the flat ground plane under the city (mesh and collision); false when the city stands on a nature map, whose terrain is the ground — the navigation base is baked from the streets either way" });
 	d.push_back({ "position", "vec3", Vector3(), 0, 0, {}, "center of the city [x, y, z] (the city is flat at y)" });
 	d.push_back({ "name", "name", "City", 0, 0, {}, "name of the node that holds the city" });
 	return d;
@@ -1999,7 +2000,9 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	int parts_plinths = 0, parts_bands = 0, parts_pilasters = 0, parts_doors = 0, parts_chimneys = 0, parts_roof_props = 0, frames_total = 0;
 	const Vector3 up(0, 1, 0);
 	const float margin = 20;
-	ground_mb.quad(Vector3(-half - margin, 0, -half - margin), Vector3(half + margin, 0, -half - margin), Vector3(half + margin, 0, half + margin), Vector3(-half - margin, 0, half + margin), pal.ground, up);
+	if (bool(o["ground"])) {
+		ground_mb.quad(Vector3(-half - margin, 0, -half - margin), Vector3(half + margin, 0, -half - margin), Vector3(half + margin, 0, half + margin), Vector3(-half - margin, 0, half + margin), pal.ground, up);
+	}
 	const float ry = 0.02f;
 	float road_length = 0;
 	for (int e = 0; e < edge_a.size(); e++) {
@@ -2022,15 +2025,17 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 		body->set_name("CityBody");
 		holder->add_child(body, true);
 		body->set_owner(owner);
-		Ref<BoxShape3D> ground_shape;
-		ground_shape.instantiate();
-		ground_shape->set_size(Vector3(size + 2 * margin, 1, size + 2 * margin));
-		CollisionShape3D *cs = memnew(CollisionShape3D);
-		cs->set_name("Ground");
-		cs->set_shape(ground_shape);
-		cs->set_position(Vector3(0, -0.5f, 0));
-		body->add_child(cs, true);
-		cs->set_owner(owner);
+		if (bool(o["ground"])) {
+			Ref<BoxShape3D> ground_shape;
+			ground_shape.instantiate();
+			ground_shape->set_size(Vector3(size + 2 * margin, 1, size + 2 * margin));
+			CollisionShape3D *cs = memnew(CollisionShape3D);
+			cs->set_name("Ground");
+			cs->set_shape(ground_shape);
+			cs->set_position(Vector3(0, -0.5f, 0));
+			body->add_child(cs, true);
+			cs->set_owner(owner);
+		}
 	}
 
 	// Blocks: a raised slab (sidewalk) with lots split into buildings.
@@ -2542,8 +2547,27 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	if (bench_mb.triangles() > 0) {
 		add_mesh(holder, owner, "Benches", bench_mb.commit(vertex_color_material(0.8f)));
 	}
+	// Benches are furniture a character should not walk through (B-1508):
+	// one convex box each, the same footprint the navigation bake cuts out.
+	if (body) {
+		for (int k = 0; k < bench_pos.size(); k++) {
+			const Vector3 p = bench_pos[k];
+			const Basis rot(Vector3(0, 1, 0), bench_yaw[k]);
+			Vector<Vector3> pts;
+			for (int sx = -1; sx <= 1; sx += 2) {
+				for (int sz = -1; sz <= 1; sz += 2) {
+					const Vector3 off = rot.xform(Vector3(0.82f * sx, 0, 0.26f * sz));
+					pts.push_back(p + off);
+					pts.push_back(p + off + Vector3(0, 0.95f, 0));
+				}
+			}
+			add_convex_shape(body, owner, vformat("Bench%d", k), pts);
+		}
+	}
 
-	add_mesh(holder, owner, "Ground", ground_mb.commit(vertex_color_material(0.95f)), false);
+	if (bool(o["ground"])) {
+		add_mesh(holder, owner, "Ground", ground_mb.commit(vertex_color_material(0.95f)), false);
+	}
 	add_mesh(holder, owner, "Roads", road_mb.commit(vertex_color_material(0.8f)), false);
 	add_mesh(holder, owner, "Blocks", block_mb.commit(vertex_color_material(0.85f)));
 	if (detailed) {
