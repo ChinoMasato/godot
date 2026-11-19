@@ -1,0 +1,259 @@
+{
+  "format": "uzu-region-graph/1",
+  "scene": "res://village.tscn",
+  "nodes": [
+    {
+      "id": "Land__clearings_0",
+      "center": [
+        20.0,
+        0.9,
+        -124.0
+      ],
+      "about": "a flat open spot (few trees): room for a camp, a house or a village"
+    },
+    {
+      "id": "Land__clearings_1",
+      "center": [
+        -28.0,
+        1.36,
+        -76.0
+      ],
+      "about": "a flat open spot (few trees): room for a camp, a house or a village"
+    },
+    {
+      "id": "Land__clearings_2",
+      "center": [
+        -124.0,
+        0.88,
+        -64.0
+      ],
+      "about": "a flat open spot (few trees): room for a camp, a house or a village"
+    },
+    {
+      "id": "Land__peak",
+      "center": [
+        -76.0,
+        1.91,
+        -40.0
+      ],
+      "about": "the highest ground"
+    },
+    {
+      "id": "Land__spawn",
+      "center": [
+        -4.0,
+        1.35,
+        4.0
+      ],
+      "about": "flat dry ground near the center, a good start for the player"
+    },
+    {
+      "id": "Pond__peak",
+      "center": [
+        3.5,
+        0.28,
+        -4.0
+      ],
+      "about": "the highest ground"
+    },
+    {
+      "id": "Pond__shore",
+      "center": [
+        7.5,
+        0.09,
+        -1.0
+      ],
+      "about": "flat ground at the water's edge: a beach, a dock or a landing"
+    },
+    {
+      "id": "Pond__spawn",
+      "center": [
+        3.5,
+        0.28,
+        -4.0
+      ],
+      "about": "the highest ground (no dry flat ground near the center)"
+    },
+    {
+      "id": "Pond__water",
+      "center": [
+        9.5,
+        -0.14,
+        4.0
+      ],
+      "about": "on the water surface above the deepest point"
+    },
+    {
+      "id": "Village__gate_east",
+      "center": [
+        3.0,
+        0.02,
+        -10.89
+      ],
+      "about": "where a street leaves the city on the +x side"
+    },
+    {
+      "id": "Village__gate_north",
+      "center": [
+        -31.71,
+        0.02,
+        -26.0
+      ],
+      "about": "where a street leaves the city on the -z side"
+    },
+    {
+      "id": "Village__gate_south",
+      "center": [
+        -27.33,
+        0.02,
+        22.0
+      ],
+      "about": "where a street leaves the city on the +z side"
+    },
+    {
+      "id": "Village__gate_west",
+      "center": [
+        -45.0,
+        0.02,
+        -9.46
+      ],
+      "about": "where a street leaves the city on the -x side"
+    },
+    {
+      "id": "Village__plaza",
+      "center": [
+        -21.25,
+        0.15,
+        2.32
+      ],
+      "about": "the open square in the middle, next to the fountain"
+    },
+    {
+      "id": "Village__spawn",
+      "center": [
+        -28.19,
+        0.02,
+        -7.9
+      ],
+      "about": "a crossing near the center, on the street"
+    },
+    {
+      "id": "Village__tallest_roof",
+      "center": [
+        -36.7,
+        6.55,
+        -1.66
+      ],
+      "about": "the top of the tallest building (6 m)"
+    }
+  ],
+  "edges": [
+    {
+      "a": "Land__clearings_0",
+      "b": "Land__clearings_1",
+      "length": 67.884,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Land__clearings_1",
+      "b": "Land__peak",
+      "length": 60.003,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Land__clearings_2",
+      "b": "Land__peak",
+      "length": 53.676,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Land__clearings_1",
+      "b": "Land__spawn",
+      "length": 83.522,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Pond__peak",
+      "b": "Pond__spawn",
+      "length": 0.0,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Pond__peak",
+      "b": "Pond__shore",
+      "length": 5.004,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Pond__shore",
+      "b": "Pond__water",
+      "length": 5.39,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Village__gate_east",
+      "b": "Village__plaza",
+      "length": 27.615,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Village__plaza",
+      "b": "Village__spawn",
+      "length": 12.354,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Village__spawn",
+      "b": "Village__tallest_roof",
+      "length": 12.41,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Village__gate_west",
+      "b": "Village__tallest_roof",
+      "length": 13.129,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Village__gate_north",
+      "b": "Village__spawn",
+      "length": 18.439,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    },
+    {
+      "a": "Village__gate_south",
+      "b": "Village__plaza",
+      "length": 20.598,
+      "bidirectional": true,
+      "basis": "inferred",
+      "length_basis": "euclidean distance between the two centers"
+    }
+  ],
+  "notes": [
+    "edges join places within one part only (minimum spanning tree per part, basis: inferred); node ids are prefixed with the part's map name"
+  ]
+}

@@ -10,7 +10,8 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py engine   <project> <command> [options]   scene, class and project operations (B-401, B-201..B-203, B-304)
   uzu.py look     <project> <command> [options]   the U.ZU look (B-7xx), shot / check / panorama
   uzu.py build    <project> --spec spec.json [--shot out.png] [--budget JSON] [--no-render] [--no-report]
-                  a whole scene from one JSON spec (B-1207, see ai_loop/build_tool.gd), with its richness report
+                  [--spec-set [dir]]   a whole scene from one JSON spec (B-1207, see ai_loop/build_tool.gd),
+                  with its richness report; --spec-set also writes the generation spec set (B-1509)
   uzu.py enrich   <project> --preset village_rich|meadow|ruins [--scene res://x.tscn] [--surface Ground] [--seed N]
                   [--density-scale 1] [--shot out.png] [--no-render]   a richness preset in one call (B-1208), with the
                   report before and after and the difference (presets: ai_loop/presets/rich/)
@@ -20,7 +21,8 @@ or through ai_loop\\windows\\uzu.bat.
                   subset for web builds (B-1303, ai_loop/ui_font.py; needs fonttools and brotli)
   uzu.py map      <project> nature|city --scene res://main.tscn [--spec JSON-or-file] [--set key=value ...]
                   [--overview top.png] [--replace] [--camera] [--look golden_hour] [--shot out.png] [--inline]
-                  a natural map or a city from a short spec (UZUWorldGen); every key is optional (presets)
+                  [--spec-set [dir]]   a natural map or a city from a short spec (UZUWorldGen); every key is
+                  optional (presets); --spec-set also writes the generation spec set (B-1509)
   uzu.py map      options [nature|city]           every map key with its default, range and meaning, and the presets
   uzu.py map      <project> walk --scene res://x.tscn [--from spawn] [--to plaza,gate_east] [--seconds 90]
                   a walker under physics walks the city's navigation mesh to each place; per-target result
@@ -788,6 +790,86 @@ def rich(project, args):
             "model_quality": quality, "note": static.get("note", "")}
 
 
+def _flag_value(args, name):
+    """(present, value) for a --name [value] flag: the value is taken only
+    when the next token is not another flag."""
+    key = "--" + name
+    for i, a in enumerate(args):
+        if a == key:
+            if i + 1 < len(args) and not args[i + 1].startswith("--"):
+                return True, args[i + 1]
+            return True, None
+    return False, None
+
+
+def _spec_set_dir(project, scene, requested):
+    """Where a --spec-set goes (B-1509): the requested folder (a plain path,
+    or res:// inside the project), or <scene folder>/<scene name>_spec_set
+    next to the generated scene."""
+    if requested:
+        if requested.startswith("res://"):
+            return os.path.join(project, requested[len("res://"):])
+        return os.path.abspath(requested)
+    rel = scene[len("res://"):] if scene and scene.startswith("res://") else "main.tscn"
+    base = os.path.splitext(os.path.basename(rel))[0] + "_spec_set"
+    return os.path.join(project, os.path.dirname(rel), base)
+
+
+def _attach_spec_set(result, record, project, requested):
+    """Writes the generation spec set (B-1509: ai_loop/spec_set.py) for a
+    finished generation and folds the paths into the result. A failure to
+    write the set is reported in the result, never hidden, and does not
+    undo the generation."""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import spec_set
+    out_dir = _spec_set_dir(project, record.get("scene"), requested)
+    try:
+        written = spec_set.spec_set_from_record(record, out_dir)
+    except Exception as e:
+        result["spec_set"] = {"ok": False, "dir": out_dir, "error": str(e)}
+        return result
+    result["spec_set"] = {"ok": True, **written}
+    return result
+
+
+def _map_input_spec(project, rest):
+    """The map spec as the caller wrote it (--spec file or inline JSON,
+    with the --set overrides applied), mirroring map_tool.gd's own reading,
+    plus where it came from. The spec set records this intent next to the
+    parameters the generator resolved."""
+    spec, source = {}, None
+    i = 0
+    while i < len(rest):
+        a = rest[i]
+        if a == "--spec" and i + 1 < len(rest):
+            raw = rest[i + 1]
+            if raw.lstrip().startswith("{"):
+                spec, source = json.loads(raw), "inline"
+            else:
+                path = os.path.join(project, raw[len("res://"):]) if raw.startswith("res://") else os.path.abspath(raw)
+                with open(path, encoding="utf-8") as f:
+                    spec = json.load(f)
+                source = raw
+            i += 2
+        elif a == "--set" and i + 1 < len(rest):
+            pair = rest[i + 1]
+            eq = pair.find("=")
+            if eq > 0:
+                text = pair[eq + 1:]
+                try:
+                    value = json.loads(text)
+                except ValueError:
+                    value = text
+                if value is None and text != "null":
+                    value = text
+                spec[pair[:eq]] = value
+            i += 2
+        else:
+            i += 1
+    return spec, source
+
+
 WALK_PROBE = 'UZUWalk="*res://addons/uzu_selfplay/walk.gd"\n'
 
 
@@ -819,7 +901,19 @@ def map_walk(project, args):
 def map_(project, args):
     """Map generation (UZUWorldGen, ai_loop/map_tool.gd): a natural map or a city from a short
     spec. --spec is inline JSON ({...}) or a file; --set key=value overrides one key. --look
-    applies the U.ZU look (an atmosphere) to the scene afterwards, --shot saves a screenshot."""
+    applies the U.ZU look (an atmosphere) to the scene afterwards, --shot saves a screenshot.
+    --spec-set [dir] also writes the generation spec set (B-1509: scene_spec, region_graph,
+    asset_registry, validation_report) into dir, or <scene>_spec_set next to the scene."""
+    spec_set_present, spec_set_value = _flag_value(args, "spec-set")
+    if spec_set_present:
+        kept, i = [], 0
+        while i < len(args):
+            if args[i] == "--spec-set":
+                i += 2 if (i + 1 < len(args) and not args[i + 1].startswith("--")) else 1
+                continue
+            kept.append(args[i])
+            i += 1
+        args = kept
     command = args[0] if args and not args[0].startswith("--") else "options"
     if command == "walk":
         return map_walk(project, args[1:])
@@ -869,6 +963,12 @@ def map_(project, args):
         result["ok"] = bool(applied.get("ok"))
     if opt(args, "shot") and result["ok"]:
         result["shot"] = screenshot(project, os.path.abspath(opt(args, "shot")), int(opt(args, "frames", "8")), scene=result["scene"])["image"]
+    if spec_set_present and result.get("ok") and command in ("nature", "city"):
+        input_spec, spec_source = _map_input_spec(project, rest)
+        record = {"kind": "map", "generator": f"UZUWorldGen.generate_{command} (ai_loop/map_tool.gd)",
+                  "scene": result.get("scene"), "spec_source": spec_source,
+                  "input_spec": input_spec, "result": result}
+        _attach_spec_set(result, record, project, spec_set_value)
     return result
 
 
@@ -885,7 +985,8 @@ def build(project, args):
     """Declarative scene building (B-1207): ai_loop/build_tool.gd makes the scene from a JSON
     spec, then the richness report (B-1204) of the result comes back with it, and a
     screenshot with --shot. --budget / --budget-file go to the report; --no-render keeps
-    the report static."""
+    the report static. --spec-set [dir] also writes the generation spec set (B-1509)
+    into dir, or <scene>_spec_set next to the scene."""
     spec = opt(args, "spec")
     if not spec:
         raise ToolError("build needs --spec spec.json (res:// or a path)")
@@ -898,6 +999,7 @@ def build(project, args):
     result["command"] = "build"
     if not result.get("ok"):
         return result
+    build_ok = bool(result.get("ok"))  # The report below overwrites result["ok"]; the spec set wants the build's own.
     if "--no-report" not in args:
         report_args = ["rich", "--scene", result["scene"]] + (["--no-render"] if "--no-render" in args else [])
         for name in ("budget", "budget-file", "frames", "top"):
@@ -906,6 +1008,15 @@ def build(project, args):
         report = rich(project, report_args)
         result["report"] = {k: report.get(k) for k in ("ok", "summary", "frame", "budget", "failures", "hints", "top")}
         result["ok"] = bool(report.get("ok"))
+    spec_set_present, spec_set_value = _flag_value(args, "spec-set")
+    if spec_set_present:
+        with open(path, encoding="utf-8") as f:
+            build_spec = json.load(f)
+        record = {"kind": "build", "generator": "ai_loop/build_tool.gd (B-1207)",
+                  "scene": result.get("scene"), "spec_source": spec,
+                  "input_spec": build_spec, "result": {**result, "ok": build_ok},
+                  "report": result.get("report")}
+        _attach_spec_set(result, record, project, spec_set_value)
     if opt(args, "shot"):
         result["shot"] = screenshot(project, os.path.abspath(opt(args, "shot")), int(opt(args, "frames", "8")), scene=result["scene"])["image"]
     return result
@@ -1870,6 +1981,7 @@ def selftest_tools():
     tools = ["mcp_server.py", "bench.py", "prepublish.py", "aiplayer.py", "telemetry/report.py", "feedback/to_backlog.py", "bridge/mock_server.py", "bridge/client.py"]
     commands = [(tool, ["--self-test"]) for tool in tools]
     commands.append(("tests/test_dialogue.py", []))
+    commands.append(("tests/test_spec_set.py", []))
     ok = True
     for tool, args in commands:
         rc, out = run([sys.executable, os.path.join(HERE, tool), *args], timeout=900)

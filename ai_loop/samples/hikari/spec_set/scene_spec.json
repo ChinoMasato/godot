@@ -1,0 +1,1134 @@
+{
+  "format": "uzu-scene-spec/1",
+  "kind": "composite",
+  "scene": "res://village.tscn",
+  "generator": "UZUWorldGen via ai_loop/samples/hikari/compose_spec_set.gd (the game's own specs from main.gd)",
+  "spec_source": "ai_loop/samples/hikari/main.gd (land_spec/pond_spec/city_spec)",
+  "basis": {
+    "observed": "measured and reported by the generator itself (its result JSON: counts, place positions, the navigation bake, timings)",
+    "inferred": "filled in or presumed without a measurement: parameters the generator defaulted, and connections presumed from the reported places"
+  },
+  "context": "The village of B-1508 is three generations composed by main.gd: Land (nature, seed 172) under everything, Pond (nature, seed 61) to the east, Village (city, preset village, seed 1, ground=false) on top. This record holds the three generations as specified; the game's own adjustments after generation (levelling the land by the city peak, trimming scatter and terrain, the foundation slab under the streets) are main.gd's, not the generators', and are not part of the record.",
+  "parts": [
+    {
+      "part": "Land",
+      "map_kind": "nature",
+      "intent": {
+        "cell": 4.0,
+        "grass": 6.0,
+        "height": 2.2,
+        "name": "Land",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rocks": 0.4,
+        "roughness": 0.3,
+        "seed": 172,
+        "size": 256.0,
+        "snow_line": 2.0,
+        "trees": 2.0,
+        "water": false
+      },
+      "parameters": [
+        {
+          "name": "cell",
+          "value": 4.0,
+          "origin": "given"
+        },
+        {
+          "name": "collision",
+          "value": true,
+          "origin": "defaulted"
+        },
+        {
+          "name": "dirt_color",
+          "value": "#8a7550",
+          "origin": "defaulted"
+        },
+        {
+          "name": "grass",
+          "value": 6.0,
+          "origin": "given"
+        },
+        {
+          "name": "grass_color",
+          "value": "#6f8f3e",
+          "origin": "defaulted"
+        },
+        {
+          "name": "height",
+          "value": 2.2,
+          "origin": "given"
+        },
+        {
+          "name": "name",
+          "value": "Land",
+          "origin": "given"
+        },
+        {
+          "name": "position",
+          "value": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "origin": "given"
+        },
+        {
+          "name": "preset",
+          "value": "hills",
+          "origin": "defaulted"
+        },
+        {
+          "name": "road_width",
+          "value": 3.0,
+          "origin": "defaulted"
+        },
+        {
+          "name": "rock_color",
+          "value": "#7d7870",
+          "origin": "defaulted"
+        },
+        {
+          "name": "rocks",
+          "value": 0.4,
+          "origin": "given"
+        },
+        {
+          "name": "roughness",
+          "value": 0.3,
+          "origin": "given"
+        },
+        {
+          "name": "sand_color",
+          "value": "#c8b48a",
+          "origin": "defaulted"
+        },
+        {
+          "name": "seed",
+          "value": 172,
+          "origin": "given"
+        },
+        {
+          "name": "shape",
+          "value": "open",
+          "origin": "defaulted"
+        },
+        {
+          "name": "size",
+          "value": 256.0,
+          "origin": "given"
+        },
+        {
+          "name": "snow_color",
+          "value": "#f2f4f7",
+          "origin": "defaulted"
+        },
+        {
+          "name": "snow_line",
+          "value": 2.0,
+          "origin": "given"
+        },
+        {
+          "name": "trees",
+          "value": 2.0,
+          "origin": "given"
+        },
+        {
+          "name": "villages",
+          "value": 0,
+          "origin": "defaulted"
+        },
+        {
+          "name": "water",
+          "value": false,
+          "origin": "given"
+        },
+        {
+          "name": "water_deep",
+          "value": "#0b2a3e",
+          "origin": "defaulted"
+        },
+        {
+          "name": "water_level",
+          "value": 0.25,
+          "origin": "defaulted"
+        },
+        {
+          "name": "water_shallow",
+          "value": "#3f9e93",
+          "origin": "defaulted"
+        }
+      ],
+      "observed": [
+        {
+          "name": "counts.grass",
+          "value": 3273,
+          "evidence": "generator result counts.grass"
+        },
+        {
+          "name": "counts.roads",
+          "value": 0,
+          "evidence": "generator result counts.roads"
+        },
+        {
+          "name": "counts.rocks",
+          "value": 78,
+          "evidence": "generator result counts.rocks"
+        },
+        {
+          "name": "counts.trees",
+          "value": 970,
+          "evidence": "generator result counts.trees"
+        },
+        {
+          "name": "counts.trees_broadleaf",
+          "value": 537,
+          "evidence": "generator result counts.trees_broadleaf"
+        },
+        {
+          "name": "counts.trees_conifer",
+          "value": 433,
+          "evidence": "generator result counts.trees_conifer"
+        },
+        {
+          "name": "counts.villages",
+          "value": 0,
+          "evidence": "generator result counts.villages"
+        },
+        {
+          "name": "places.clearings_0.position",
+          "value": [
+            20.0,
+            0.9,
+            -124.0
+          ],
+          "evidence": "generator result places.clearings_0.position"
+        },
+        {
+          "name": "places.clearings_1.position",
+          "value": [
+            -28.0,
+            1.36,
+            -76.0
+          ],
+          "evidence": "generator result places.clearings_1.position"
+        },
+        {
+          "name": "places.clearings_2.position",
+          "value": [
+            -124.0,
+            0.88,
+            -64.0
+          ],
+          "evidence": "generator result places.clearings_2.position"
+        },
+        {
+          "name": "places.peak.position",
+          "value": [
+            -76.0,
+            1.91,
+            -40.0
+          ],
+          "evidence": "generator result places.peak.position"
+        },
+        {
+          "name": "places.spawn.position",
+          "value": [
+            -4.0,
+            1.35,
+            4.0
+          ],
+          "evidence": "generator result places.spawn.position"
+        },
+        {
+          "name": "size",
+          "value": 256.0,
+          "evidence": "generator result size"
+        },
+        {
+          "name": "terrain_triangles",
+          "value": 8192,
+          "evidence": "generator result terrain_triangles"
+        },
+        {
+          "name": "cells",
+          "value": 64,
+          "evidence": "generator result cells"
+        },
+        {
+          "name": "height_range",
+          "value": [
+            0.29,
+            1.91
+          ],
+          "evidence": "generator result height_range"
+        },
+        {
+          "name": "water_y",
+          "value": null,
+          "evidence": "generator result water_y"
+        },
+        {
+          "name": "water_fraction",
+          "value": 0.0,
+          "evidence": "generator result water_fraction"
+        }
+      ],
+      "inferred": [
+        {
+          "name": "parameters.collision",
+          "value": true,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.dirt_color",
+          "value": "#8a7550",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.grass_color",
+          "value": "#6f8f3e",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.preset",
+          "value": "hills",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.road_width",
+          "value": 3.0,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.rock_color",
+          "value": "#7d7870",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.sand_color",
+          "value": "#c8b48a",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.shape",
+          "value": "open",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.snow_color",
+          "value": "#f2f4f7",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.villages",
+          "value": 0,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.water_deep",
+          "value": "#0b2a3e",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.water_level",
+          "value": 0.25,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.water_shallow",
+          "value": "#3f9e93",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "region_graph.edges",
+          "reason": "a minimum spanning tree over the observed place centers; the navigation bake supports the places being on one walkable area, but no edge was walked (B-1510 does that)"
+        },
+        {
+          "name": "walkability",
+          "reason": "nature maps bake no navigation mesh; nothing here asserts the terrain can be walked"
+        }
+      ]
+    },
+    {
+      "part": "Pond",
+      "map_kind": "nature",
+      "intent": {
+        "cell": 1.0,
+        "grass": 0.0,
+        "height": 0.7,
+        "name": "Pond",
+        "position": [
+          5.5,
+          -0.370000004768372,
+          1.0
+        ],
+        "rocks": 0.0,
+        "roughness": 0.35,
+        "seed": 61,
+        "size": 32.0,
+        "snow_line": 2.0,
+        "trees": 0.0,
+        "water_level": 0.33
+      },
+      "parameters": [
+        {
+          "name": "cell",
+          "value": 1.0,
+          "origin": "given"
+        },
+        {
+          "name": "collision",
+          "value": true,
+          "origin": "defaulted"
+        },
+        {
+          "name": "dirt_color",
+          "value": "#8a7550",
+          "origin": "defaulted"
+        },
+        {
+          "name": "grass",
+          "value": 0.0,
+          "origin": "given"
+        },
+        {
+          "name": "grass_color",
+          "value": "#6f8f3e",
+          "origin": "defaulted"
+        },
+        {
+          "name": "height",
+          "value": 0.7,
+          "origin": "given"
+        },
+        {
+          "name": "name",
+          "value": "Pond",
+          "origin": "given"
+        },
+        {
+          "name": "position",
+          "value": [
+            5.5,
+            -0.37,
+            1.0
+          ],
+          "origin": "given"
+        },
+        {
+          "name": "preset",
+          "value": "hills",
+          "origin": "defaulted"
+        },
+        {
+          "name": "road_width",
+          "value": 3.0,
+          "origin": "defaulted"
+        },
+        {
+          "name": "rock_color",
+          "value": "#7d7870",
+          "origin": "defaulted"
+        },
+        {
+          "name": "rocks",
+          "value": 0.0,
+          "origin": "given"
+        },
+        {
+          "name": "roughness",
+          "value": 0.35,
+          "origin": "given"
+        },
+        {
+          "name": "sand_color",
+          "value": "#c8b48a",
+          "origin": "defaulted"
+        },
+        {
+          "name": "seed",
+          "value": 61,
+          "origin": "given"
+        },
+        {
+          "name": "shape",
+          "value": "open",
+          "origin": "defaulted"
+        },
+        {
+          "name": "size",
+          "value": 32.0,
+          "origin": "given"
+        },
+        {
+          "name": "snow_color",
+          "value": "#f2f4f7",
+          "origin": "defaulted"
+        },
+        {
+          "name": "snow_line",
+          "value": 2.0,
+          "origin": "given"
+        },
+        {
+          "name": "trees",
+          "value": 0.0,
+          "origin": "given"
+        },
+        {
+          "name": "villages",
+          "value": 0,
+          "origin": "defaulted"
+        },
+        {
+          "name": "water",
+          "value": true,
+          "origin": "defaulted"
+        },
+        {
+          "name": "water_deep",
+          "value": "#0b2a3e",
+          "origin": "defaulted"
+        },
+        {
+          "name": "water_level",
+          "value": 0.33,
+          "origin": "given"
+        },
+        {
+          "name": "water_shallow",
+          "value": "#3f9e93",
+          "origin": "defaulted"
+        }
+      ],
+      "observed": [
+        {
+          "name": "counts.grass",
+          "value": 0,
+          "evidence": "generator result counts.grass"
+        },
+        {
+          "name": "counts.roads",
+          "value": 0,
+          "evidence": "generator result counts.roads"
+        },
+        {
+          "name": "counts.rocks",
+          "value": 0,
+          "evidence": "generator result counts.rocks"
+        },
+        {
+          "name": "counts.trees",
+          "value": 0,
+          "evidence": "generator result counts.trees"
+        },
+        {
+          "name": "counts.trees_broadleaf",
+          "value": 0,
+          "evidence": "generator result counts.trees_broadleaf"
+        },
+        {
+          "name": "counts.trees_conifer",
+          "value": 0,
+          "evidence": "generator result counts.trees_conifer"
+        },
+        {
+          "name": "counts.villages",
+          "value": 0,
+          "evidence": "generator result counts.villages"
+        },
+        {
+          "name": "places.peak.position",
+          "value": [
+            3.5,
+            0.28,
+            -4.0
+          ],
+          "evidence": "generator result places.peak.position"
+        },
+        {
+          "name": "places.shore.position",
+          "value": [
+            7.5,
+            0.09,
+            -1.0
+          ],
+          "evidence": "generator result places.shore.position"
+        },
+        {
+          "name": "places.spawn.position",
+          "value": [
+            3.5,
+            0.28,
+            -4.0
+          ],
+          "evidence": "generator result places.spawn.position"
+        },
+        {
+          "name": "places.water.position",
+          "value": [
+            9.5,
+            -0.14,
+            4.0
+          ],
+          "evidence": "generator result places.water.position"
+        },
+        {
+          "name": "size",
+          "value": 32.0,
+          "evidence": "generator result size"
+        },
+        {
+          "name": "terrain_triangles",
+          "value": 2048,
+          "evidence": "generator result terrain_triangles"
+        },
+        {
+          "name": "cells",
+          "value": 32,
+          "evidence": "generator result cells"
+        },
+        {
+          "name": "height_range",
+          "value": [
+            -0.3,
+            0.28
+          ],
+          "evidence": "generator result height_range"
+        },
+        {
+          "name": "water_y",
+          "value": -0.14,
+          "evidence": "generator result water_y"
+        },
+        {
+          "name": "water_fraction",
+          "value": 0.124,
+          "evidence": "generator result water_fraction"
+        }
+      ],
+      "inferred": [
+        {
+          "name": "parameters.collision",
+          "value": true,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.dirt_color",
+          "value": "#8a7550",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.grass_color",
+          "value": "#6f8f3e",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.preset",
+          "value": "hills",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.road_width",
+          "value": 3.0,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.rock_color",
+          "value": "#7d7870",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.sand_color",
+          "value": "#c8b48a",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.shape",
+          "value": "open",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.snow_color",
+          "value": "#f2f4f7",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.villages",
+          "value": 0,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.water",
+          "value": true,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.water_deep",
+          "value": "#0b2a3e",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.water_shallow",
+          "value": "#3f9e93",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "region_graph.edges",
+          "reason": "a minimum spanning tree over the observed place centers; the navigation bake supports the places being on one walkable area, but no edge was walked (B-1510 does that)"
+        },
+        {
+          "name": "walkability",
+          "reason": "nature maps bake no navigation mesh; nothing here asserts the terrain can be walked"
+        }
+      ]
+    },
+    {
+      "part": "Village",
+      "map_kind": "city",
+      "intent": {
+        "block": 16.0,
+        "ground": false,
+        "name": "Village",
+        "position": [
+          -21.0,
+          0,
+          -2.0
+        ],
+        "preset": "village",
+        "seed": 1,
+        "size": 48.0
+      },
+      "parameters": [
+        {
+          "name": "benches",
+          "value": 36.0,
+          "origin": "defaulted"
+        },
+        {
+          "name": "block",
+          "value": 16.0,
+          "origin": "given"
+        },
+        {
+          "name": "collision",
+          "value": true,
+          "origin": "defaulted"
+        },
+        {
+          "name": "density",
+          "value": 0.6,
+          "origin": "defaulted"
+        },
+        {
+          "name": "detail",
+          "value": "high",
+          "origin": "defaulted"
+        },
+        {
+          "name": "floor_height",
+          "value": 3.2,
+          "origin": "defaulted"
+        },
+        {
+          "name": "floors_max",
+          "value": 2,
+          "origin": "defaulted"
+        },
+        {
+          "name": "floors_min",
+          "value": 1,
+          "origin": "defaulted"
+        },
+        {
+          "name": "ground",
+          "value": false,
+          "origin": "given"
+        },
+        {
+          "name": "lamps",
+          "value": 18.0,
+          "origin": "defaulted"
+        },
+        {
+          "name": "layout",
+          "value": "organic",
+          "origin": "defaulted"
+        },
+        {
+          "name": "lit_windows",
+          "value": 0.35,
+          "origin": "defaulted"
+        },
+        {
+          "name": "max_lights",
+          "value": 48,
+          "origin": "defaulted"
+        },
+        {
+          "name": "name",
+          "value": "Village",
+          "origin": "given"
+        },
+        {
+          "name": "navigation",
+          "value": true,
+          "origin": "defaulted"
+        },
+        {
+          "name": "palette",
+          "value": "warm",
+          "origin": "defaulted"
+        },
+        {
+          "name": "plaza",
+          "value": true,
+          "origin": "defaulted"
+        },
+        {
+          "name": "position",
+          "value": [
+            -21.0,
+            0.0,
+            -2.0
+          ],
+          "origin": "given"
+        },
+        {
+          "name": "preset",
+          "value": "village",
+          "origin": "given"
+        },
+        {
+          "name": "road_width",
+          "value": 5.0,
+          "origin": "defaulted"
+        },
+        {
+          "name": "roof",
+          "value": "gable",
+          "origin": "defaulted"
+        },
+        {
+          "name": "seed",
+          "value": 1,
+          "origin": "given"
+        },
+        {
+          "name": "sidewalk",
+          "value": 1.5,
+          "origin": "defaulted"
+        },
+        {
+          "name": "size",
+          "value": 48.0,
+          "origin": "given"
+        },
+        {
+          "name": "street_trees",
+          "value": 14.0,
+          "origin": "defaulted"
+        },
+        {
+          "name": "textures",
+          "value": true,
+          "origin": "defaulted"
+        },
+        {
+          "name": "windows",
+          "value": true,
+          "origin": "defaulted"
+        }
+      ],
+      "observed": [
+        {
+          "name": "counts.benches",
+          "value": 4,
+          "evidence": "generator result counts.benches"
+        },
+        {
+          "name": "counts.blocks",
+          "value": 9,
+          "evidence": "generator result counts.blocks"
+        },
+        {
+          "name": "counts.buildings",
+          "value": 6,
+          "evidence": "generator result counts.buildings"
+        },
+        {
+          "name": "counts.empty_lots",
+          "value": 2,
+          "evidence": "generator result counts.empty_lots"
+        },
+        {
+          "name": "counts.lamps",
+          "value": 2,
+          "evidence": "generator result counts.lamps"
+        },
+        {
+          "name": "counts.lights",
+          "value": 2,
+          "evidence": "generator result counts.lights"
+        },
+        {
+          "name": "counts.parts",
+          "value": {
+            "chimneys": 3,
+            "doors": 6,
+            "pilasters": 4,
+            "plinths": 6,
+            "roof_props": 0,
+            "string_courses": 0,
+            "window_frames": 37
+          },
+          "evidence": "generator result counts.parts"
+        },
+        {
+          "name": "counts.street_trees",
+          "value": 26,
+          "evidence": "generator result counts.street_trees"
+        },
+        {
+          "name": "counts.windows",
+          "value": 37,
+          "evidence": "generator result counts.windows"
+        },
+        {
+          "name": "counts.windows_lit",
+          "value": 13,
+          "evidence": "generator result counts.windows_lit"
+        },
+        {
+          "name": "places.gate_east.position",
+          "value": [
+            3.0,
+            0.02,
+            -10.89
+          ],
+          "evidence": "generator result places.gate_east.position"
+        },
+        {
+          "name": "places.gate_north.position",
+          "value": [
+            -31.71,
+            0.02,
+            -26.0
+          ],
+          "evidence": "generator result places.gate_north.position"
+        },
+        {
+          "name": "places.gate_south.position",
+          "value": [
+            -27.33,
+            0.02,
+            22.0
+          ],
+          "evidence": "generator result places.gate_south.position"
+        },
+        {
+          "name": "places.gate_west.position",
+          "value": [
+            -45.0,
+            0.02,
+            -9.46
+          ],
+          "evidence": "generator result places.gate_west.position"
+        },
+        {
+          "name": "places.plaza.position",
+          "value": [
+            -21.25,
+            0.15,
+            2.32
+          ],
+          "evidence": "generator result places.plaza.position"
+        },
+        {
+          "name": "places.spawn.position",
+          "value": [
+            -28.19,
+            0.02,
+            -7.9
+          ],
+          "evidence": "generator result places.spawn.position"
+        },
+        {
+          "name": "places.tallest_roof.position",
+          "value": [
+            -36.7,
+            6.55,
+            -1.66
+          ],
+          "evidence": "generator result places.tallest_roof.position"
+        },
+        {
+          "name": "navigation.bake_ms",
+          "value": 62.1,
+          "evidence": "generator result navigation.bake_ms"
+        },
+        {
+          "name": "navigation.islands",
+          "value": 1,
+          "evidence": "generator result navigation.islands"
+        },
+        {
+          "name": "navigation.places_connected",
+          "value": true,
+          "evidence": "generator result navigation.places_connected"
+        },
+        {
+          "name": "navigation.polygons",
+          "value": 652,
+          "evidence": "generator result navigation.polygons"
+        },
+        {
+          "name": "navigation.unreached",
+          "value": [],
+          "evidence": "generator result navigation.unreached"
+        },
+        {
+          "name": "navigation.vertices",
+          "value": 603,
+          "evidence": "generator result navigation.vertices"
+        },
+        {
+          "name": "size",
+          "value": 48.0,
+          "evidence": "generator result size"
+        },
+        {
+          "name": "triangles",
+          "value": 6746,
+          "evidence": "generator result triangles"
+        },
+        {
+          "name": "streets_m",
+          "value": 385.7,
+          "evidence": "generator result streets_m"
+        },
+        {
+          "name": "tallest_m",
+          "value": 6.4,
+          "evidence": "generator result tallest_m"
+        }
+      ],
+      "inferred": [
+        {
+          "name": "parameters.benches",
+          "value": 36.0,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.collision",
+          "value": true,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.density",
+          "value": 0.6,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.detail",
+          "value": "high",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.floor_height",
+          "value": 3.2,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.floors_max",
+          "value": 2,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.floors_min",
+          "value": 1,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.lamps",
+          "value": 18.0,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.layout",
+          "value": "organic",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.lit_windows",
+          "value": 0.35,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.max_lights",
+          "value": 48,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.navigation",
+          "value": true,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.palette",
+          "value": "warm",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.plaza",
+          "value": true,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.road_width",
+          "value": 5.0,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.roof",
+          "value": "gable",
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.sidewalk",
+          "value": 1.5,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.street_trees",
+          "value": 14.0,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.textures",
+          "value": true,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "parameters.windows",
+          "value": true,
+          "reason": "not in the input spec; the generator filled it from the preset/default (resolved options)"
+        },
+        {
+          "name": "region_graph.edges",
+          "reason": "a minimum spanning tree over the observed place centers; the navigation bake supports the places being on one walkable area, but no edge was walked (B-1510 does that)"
+        }
+      ]
+    }
+  ],
+  "inferred": [
+    {
+      "name": "region_graph.cross_part_edges",
+      "reason": "no edges between parts are asserted: each part's places were reported in its own generation, and cross-part walkability was not measured"
+    }
+  ]
+}
