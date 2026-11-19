@@ -596,7 +596,7 @@ def look(project, args):
         out = opt(args, "out")
         if not out:
             raise ToolError("shot needs --out file.png")
-        return screenshot(project, os.path.abspath(out), int(opt(args, "frames", "8")))
+        return screenshot(project, os.path.abspath(out), int(opt(args, "frames", "8")), scene=opt(args, "scene") or "")
     if command == "check":
         image = opt(args, "image")
         if not image:
@@ -740,6 +740,10 @@ def rich(project, args):
             with open(out, encoding="utf-8") as f:
                 frame = json.load(f)
         metrics.update({k: v for k, v in frame.items() if k != "frames"})
+    quality = static.get("model_quality", {})
+    for k in ("pbr_coverage", "bevel_share", "cheap_meshes"):
+        if k in quality:
+            metrics[k] = quality[k]  # Budget keys too: min_pbr_coverage, min_bevel_share, max_cheap_meshes (B-1219).
     budget = {}
     if opt(args, "budget-file"):
         path = opt(args, "budget-file")
@@ -765,11 +769,15 @@ def rich(project, args):
         hints.append(f"{round(static['summary']['untextured_share'] * 100)}% of the materials have no texture and look cheap; look pbr gives models procedural PBR presets (wood, stone, brick, dirt, grass, plaster, tile)")
     if frame and static["summary"]["objects"] == 0 and frame["frame_objects"] > 0:
         hints.append("the scene builds its content at run time (scripts), so the static numbers miss it; judge by the frame_* numbers")
+    if quality.get("cheap_meshes", 0) > 0:
+        hints.append(f"{quality['cheap_meshes']} big plain boxes without texture (e.g. {quality['cheap'][0]}); model them from parts with chamfered edges and a texture set (UZUWorldGen detail high shows the recipe)")
+    if quality and quality.get("bevel_share", 1) < 0.05 and static["summary"]["triangles"] > 0:
+        hints.append("almost every edge is sharp (no chamfers); chamfered edges catch the light and read as made, not as primitives")
     if frame and metrics["frame_draw_calls"] > 2000:
         hints.append(f"{metrics['frame_draw_calls']} draw calls in the frame; MultiMesh (scatter) or merging meshes helps")
     return {"ok": not failures, "command": "rich", "scene": scene, "summary": static["summary"], "frame": frame,
             "budget": budget or None, "failures": failures, "hints": hints, "top": static.get("top", []), "by_type": static.get("by_type", {}),
-            "note": static.get("note", "")}
+            "model_quality": quality, "note": static.get("note", "")}
 
 
 WALK_PROBE = 'UZUWalk="*res://addons/uzu_selfplay/walk.gd"\n'
@@ -1453,12 +1461,19 @@ def selftest_engine():
         c.expect("map nature", r["ok"] and r["places"]["spawn"]["position"][1] > r["water_y"] and r["counts"]["grass"] > 0
                  and os.path.exists(os.path.join(p, "isle_maps", "Nature", "Terrain.res")), r)
         r = _call(map_, p, ["city", "--scene", "res://village.tscn", "--set", "preset=village", "--set", "seed=4"])
+        city_r = r
         c.expect("map city", r["ok"] and r["counts"]["buildings"] > 0 and "plaza" in r["places"], r)
         # B-1507: the city's navigation mesh joins every place, and a walker (physics, collisions)
         # really gets from the spawn to the plaza and every gate.
         c.expect("map city navigation", r["ok"] and r["navigation"]["places_connected"] and r["counts"]["benches"] > 0, r)
         r = _call(map_, p, ["walk", "--scene", "res://village.tscn"])
         c.expect("map walk", r["ok"] and r["targets"] >= 3 and r["reached"] == r["targets"], r)
+        # B-1219: buildings from parts with texture sets; the richness report's model quality sees it.
+        c.expect("map city parts", city_r["ok"] and city_r["counts"]["parts"]["doors"] == city_r["counts"]["buildings"] and city_r["buildings_detail"]["textures"]
+                 and os.path.exists(os.path.join(p, "village_maps", "City", "Roofs.res")), city_r)
+        r = _call(look, p, ["rich", "--scene", "res://village.tscn", "--no-render"])
+        q = r.get("model_quality", {})
+        c.expect("look rich model quality", r["ok"] and q.get("pbr_coverage", 0) > 0.5 and q.get("bevel_share", 0) > 0.4 and "sharpest" in q, r)
         r = _call(map_, p, ["city", "--scene", "res://village.tscn", "--set", "preset=village"])
         c.expect("map city twice needs --replace", not r["ok"] and "--replace" in r.get("hint", ""), r)
         r = _call(map_, p, ["nature", "--scene", "res://isle2.tscn", "--set", "tress=2"])

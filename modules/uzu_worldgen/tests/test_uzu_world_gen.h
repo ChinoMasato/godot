@@ -39,7 +39,9 @@
 #include "scene/3d/node_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
 #include "scene/resources/3d/convex_polygon_shape_3d.h"
+#include "scene/resources/material.h"
 #include "scene/resources/mesh.h"
+#include "scene/resources/multimesh.h"
 #include "scene/resources/navigation_mesh.h"
 #include "tests/test_macros.h"
 
@@ -396,6 +398,104 @@ TEST_CASE("[SceneTree][UZUWorldGen] City streets: benches placed, a navigation m
 	CHECK(root2->get_node(NodePath(String(r2["node"])))->get_node_or_null(NodePath("Navigation")) == nullptr);
 	memdelete(root);
 	memdelete(root2);
+}
+
+TEST_CASE("[SceneTree][UZUWorldGen] Buildings from parts: the same layout as plain boxes, framed windows, textured materials") {
+	Dictionary s;
+	s["preset"] = "village";
+	s["size"] = 96;
+	s["seed"] = 6;
+	s["detail"] = "simple";
+	Node3D *plain_root = memnew(Node3D);
+	const Dictionary plain = UZUWorldGen::generate_city(plain_root, s);
+	s["detail"] = "high";
+	Node3D *root = memnew(Node3D);
+	const Dictionary r = UZUWorldGen::generate_city(root, s);
+	REQUIRE(bool(plain["ok"]));
+	REQUIRE(bool(r["ok"]));
+	const Dictionary pc = plain["counts"], rc = r["counts"];
+	// Details have their own random numbers: the same lots, buildings and windows.
+	CHECK(int(pc["buildings"]) == int(rc["buildings"]));
+	CHECK(int(pc["street_trees"]) == int(rc["street_trees"]));
+	CHECK(Dictionary(plain["places"]) == Dictionary(r["places"]));
+	CHECK_FALSE(pc.has("parts"));
+	CHECK(int(r["triangles"]) > int(plain["triangles"]) * 4);
+
+	const Dictionary parts = rc["parts"];
+	const int buildings = rc["buildings"];
+	CHECK(int(parts["plinths"]) == buildings);
+	CHECK(int(parts["doors"]) == buildings);
+	CHECK(int(parts["chimneys"]) > 0); // village roofs are gables
+	CHECK(int(parts["window_frames"]) == int(rc["windows"]));
+
+	Node *city = root->get_node(NodePath(String(r["node"])));
+	// One frame mesh repeated by a MultiMesh per block, fading out far away.
+	int frames = 0;
+	Ref<Mesh> frame_mesh;
+	TypedArray<Node> mms = city->find_children("WindowFrames_*", "MultiMeshInstance3D", false, false);
+	REQUIRE(mms.size() > 0);
+	for (int i = 0; i < mms.size(); i++) {
+		MultiMeshInstance3D *mmi = Object::cast_to<MultiMeshInstance3D>(mms[i]);
+		frames += mmi->get_multimesh()->get_instance_count();
+		CHECK(mmi->get_visibility_range_end() > 0);
+		if (frame_mesh.is_null()) {
+			frame_mesh = mmi->get_multimesh()->get_mesh();
+		}
+		CHECK(mmi->get_multimesh()->get_mesh() == frame_mesh);
+	}
+	CHECK(frames == int(parts["window_frames"]));
+
+	// Walls, roofs and trim carry a texture set (color, normal, roughness) and the UVs and
+	// tangents a normal map needs.
+	for (const char *name : { "Buildings", "Roofs", "BuildingsTrim", "BuildingsStone" }) {
+		MeshInstance3D *mi = Object::cast_to<MeshInstance3D>(city->get_node_or_null(NodePath(name)));
+		REQUIRE_MESSAGE(mi, name);
+		const Ref<StandardMaterial3D> m = mi->get_mesh()->surface_get_material(0);
+		REQUIRE(m.is_valid());
+		CHECK(m->get_texture(BaseMaterial3D::TEXTURE_ALBEDO).is_valid());
+		CHECK(m->get_texture(BaseMaterial3D::TEXTURE_NORMAL).is_valid());
+		CHECK(m->get_texture(BaseMaterial3D::TEXTURE_ROUGHNESS).is_valid());
+		CHECK(m->get_feature(BaseMaterial3D::FEATURE_NORMAL_MAPPING));
+		const uint64_t format = mi->get_mesh()->surface_get_format(0);
+		CHECK((format & Mesh::ARRAY_FORMAT_TEX_UV) != 0);
+		CHECK((format & Mesh::ARRAY_FORMAT_TANGENT) != 0);
+	}
+	// The tiles wrap: the first and last columns of the roof's height (normal map) agree.
+	{
+		MeshInstance3D *roofs = Object::cast_to<MeshInstance3D>(city->get_node_or_null(NodePath("Roofs")));
+		const Ref<StandardMaterial3D> m = roofs->get_mesh()->surface_get_material(0);
+		const Ref<Image> img = m->get_texture(BaseMaterial3D::TEXTURE_NORMAL)->get_image();
+		REQUIRE(img.is_valid());
+		CHECK(img->has_mipmaps());
+		float diff = 0;
+		for (int y = 0; y < img->get_height(); y++) {
+			diff += Math::abs(img->get_pixel(0, y).g - img->get_pixel(img->get_width() - 1, y).g);
+		}
+		CHECK(diff / img->get_height() < 0.15f);
+	}
+	// Walls stay inside the lots: every vertex of the detailed walls is on or above the curb.
+	const PackedVector3Array v = mesh_vertices(city, "Buildings");
+	REQUIRE(v.size() > 0);
+	bool above = true;
+	for (int i = 0; i < v.size(); i++) {
+		above = above && v[i].y >= 0.149f;
+	}
+	CHECK(above);
+
+	// Without textures: the same parts with plain vertex-color materials.
+	s["textures"] = false;
+	Node3D *root3 = memnew(Node3D);
+	const Dictionary r3 = UZUWorldGen::generate_city(root3, s);
+	REQUIRE(bool(r3["ok"]));
+	CHECK(int(r3["triangles"]) == int(r["triangles"]));
+	MeshInstance3D *walls3 = Object::cast_to<MeshInstance3D>(root3->get_node(NodePath(String(r3["node"])))->get_node_or_null(NodePath("Buildings")));
+	REQUIRE(walls3);
+	const Ref<StandardMaterial3D> m3 = walls3->get_mesh()->surface_get_material(0);
+	CHECK(m3->get_texture(BaseMaterial3D::TEXTURE_ALBEDO).is_null());
+	CHECK(Array(Dictionary(r3["buildings_detail"])["textures"]).is_empty());
+	memdelete(plain_root);
+	memdelete(root);
+	memdelete(root3);
 }
 
 } // namespace TestUZUWorldGen

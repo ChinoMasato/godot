@@ -361,6 +361,89 @@ func _textures_of(mat) -> Array:
 	return out
 
 
+## Model quality (B-1219): how shaped a mesh is. Edges shared by two faces are sorted by the
+## angle between them: 30-60 degrees a chamfer or bevel, above 75 sharp (the rest are curves). A
+## plain box has only sharp edges; a modelled part has chamfers. Big meshes are sampled
+## (the first QUALITY_SAMPLE triangles).
+const QUALITY_SAMPLE := 20000
+var _quality_cache := {}
+
+
+func _model_quality(mesh: Mesh) -> Dictionary:
+	if _quality_cache.has(mesh):
+		return _quality_cache[mesh]
+	var tris := 0
+	var sampled := 0
+	var chamfer := 0
+	var sharp := 0
+	var area := 0.0
+	var dirs := {}
+	var open := {}
+	for s in mesh.get_surface_count():
+		if mesh is ArrayMesh and mesh.surface_get_primitive_type(s) != Mesh.PRIMITIVE_TRIANGLES:
+			continue
+		var arr := mesh.surface_get_arrays(s)
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var count := idx.size() / 3 if idx.size() > 0 else v.size() / 3
+		tris += count
+		for t in mini(count, maxi(0, QUALITY_SAMPLE - sampled)):
+			var ia := idx[t * 3] if idx.size() > 0 else t * 3
+			var ib := idx[t * 3 + 1] if idx.size() > 0 else t * 3 + 1
+			var ic := idx[t * 3 + 2] if idx.size() > 0 else t * 3 + 2
+			var a := v[ia]
+			var b := v[ib]
+			var c := v[ic]
+			var n := (b - a).cross(c - a)
+			if n.length_squared() < 1e-12:
+				continue
+			area += n.length() * 0.5
+			n = n.normalized()
+			dirs[Vector3i(roundi(n.x * 4), roundi(n.y * 4), roundi(n.z * 4))] = true
+			for e in [[a, b], [b, c], [c, a]]:
+				var p := Vector3i((e[0] as Vector3) * 1000.0)
+				var q := Vector3i((e[1] as Vector3) * 1000.0)
+				var key := "%d,%d,%d|%d,%d,%d" % ([p.x, p.y, p.z, q.x, q.y, q.z] if p < q else [q.x, q.y, q.z, p.x, p.y, p.z])
+				if open.has(key):
+					var deg := rad_to_deg(acos(clampf(n.dot(open[key]), -1.0, 1.0)))
+					open.erase(key)
+					if deg > 75.0:
+						sharp += 1
+					elif deg > 30.0 and deg < 60.0:
+						chamfer += 1  # 45-degree cuts; gentler bends are curved surfaces (foliage, rocks)
+				else:
+					open[key] = n
+			sampled += 1
+	var out := {"triangles": tris, "sampled": sampled, "chamfered_edges": chamfer, "sharp_edges": sharp,
+		"bevel_share": snappedf(float(chamfer) / (chamfer + sharp), 0.001) if chamfer + sharp > 0 else 0.0,
+		"normal_directions": dirs.size(),
+		"triangles_per_m2": snappedf(sampled / area, 0.01) if area > 0 else 0.0,
+		"size_m": snappedf(mesh.get_aabb().get_longest_axis_size(), 0.01)}
+	_quality_cache[mesh] = out
+	return out
+
+
+func _sorted_by(items: Array, key: String) -> Array:
+	var out := items.duplicate()
+	out.sort_custom(func(a, b): return a[key] > b[key])
+	return out
+
+
+## Whether a material carries a PBR texture set: color and normal maps at least.
+func _material_pbr(mat) -> Dictionary:
+	var textured := false
+	var normal := false
+	if mat is BaseMaterial3D:
+		textured = mat.get_texture(BaseMaterial3D.TEXTURE_ALBEDO) != null
+		normal = mat.normal_enabled and mat.get_texture(BaseMaterial3D.TEXTURE_NORMAL) != null
+	elif mat is ShaderMaterial:
+		for p in mat.get_property_list():
+			if p.name.begins_with("shader_parameter/") and mat.get(p.name) is Texture2D:
+				textured = true
+				normal = normal or "normal" in p.name.to_lower()
+	return {"textured": textured, "normal": normal}
+
+
 func _rich(root: Node, top_n: int) -> Dictionary:
 	var nodes := []
 	var tris := 0
@@ -375,6 +458,16 @@ func _rich(root: Node, top_n: int) -> Dictionary:
 	var have_prop_bounds := false
 	var textures := {}
 	var by_type := {}
+	var q_tris := 0
+	var q_textured := 0
+	var q_pbr := 0
+	var q_chamfer := 0
+	var q_sharp := 0
+	var q_sampled := 0
+	var q_area := 0.0
+	var q_cheap := []
+	var q_meshes := []
+	var q_curved := 0
 	for n in [root] + root.find_children("*", "", true, false):
 		if not _visible(root, n):
 			continue
@@ -424,6 +517,29 @@ func _rich(root: Node, top_n: int) -> Dictionary:
 		var lod_mesh: Mesh = n.mesh if n is MeshInstance3D else (n.multimesh.mesh if n is MultiMeshInstance3D else null)
 		var lods: int = _lod_levels(lod_mesh).size() - 1 if lod_mesh else 0
 		nodes.append({"node": str(root.get_path_to(n)), "type": kind, "triangles": t, "draw_calls": c, "instances": count, "lods": lods})
+		if lod_mesh:
+			var mq := _model_quality(lod_mesh)
+			var pbr := {"textured": false, "normal": false}
+			for mat in _materials_of(n):
+				var mp := _material_pbr(mat)
+				pbr.textured = pbr.textured or mp.textured
+				pbr.normal = pbr.normal or mp.normal
+			q_tris += t
+			q_textured += t if pbr.textured else 0
+			q_pbr += t if pbr.textured and pbr.normal else 0
+			if mq.normal_directions <= 64:  # Hard surfaces; curved ones (foliage, rocks) say nothing about bevels.
+				q_chamfer += mq.chamfered_edges * count
+				q_sharp += mq.sharp_edges * count
+			else:
+				q_curved += 1
+			q_sampled += mq.sampled * count
+			q_area += (mq.sampled / mq.triangles_per_m2 if mq.triangles_per_m2 > 0 else 0.0) * count
+			# Cheap: a big shape that is a plain box (few faces, no chamfer) with no texture.
+			if mq.size_m > 1.5 and mq.triangles <= 24 and mq.chamfered_edges == 0 and not pbr.textured:
+				q_cheap.append(str(root.get_path_to(n)))
+			if mq.chamfered_edges + mq.sharp_edges >= 24:
+				q_meshes.append({"node": str(root.get_path_to(n)), "triangles": t, "bevel_share": mq.bevel_share, "sharp_edges": mq.sharp_edges * count,
+					"normal_directions": mq.normal_directions, "pbr": pbr.textured and pbr.normal})
 		if aabb.size != Vector3.ZERO:
 			var world := _to_root(root, n) * aabb
 			bounds = world if not have_bounds else bounds.merge(world)
@@ -467,6 +583,15 @@ func _rich(root: Node, top_n: int) -> Dictionary:
 			"lights": lights, "shadow_lights": shadow_lights,
 			"materials": material_count, "untextured_share": snappedf(float(untextured) / material_count, 0.01) if material_count > 0 else 0.0},
 		"by_type": by_type, "top": nodes.slice(0, maxi(top_n, 0)),
+		"model_quality": {
+			"pbr_coverage": snappedf(float(q_pbr) / q_tris, 0.001) if q_tris > 0 else 0.0,
+			"textured_share": snappedf(float(q_textured) / q_tris, 0.001) if q_tris > 0 else 0.0,
+			"bevel_share": snappedf(float(q_chamfer) / (q_chamfer + q_sharp), 0.001) if q_chamfer + q_sharp > 0 else 0.0,
+			"chamfered_edges": q_chamfer, "sharp_edges": q_sharp, "curved_meshes": q_curved,
+			"triangles_per_m2": snappedf(q_sampled / q_area, 0.01) if q_area > 0 else 0.0,
+			"cheap_meshes": q_cheap.size(), "cheap": q_cheap.slice(0, 8),
+			"sharpest": _sorted_by(q_meshes, "sharp_edges").slice(0, 6),
+			"about": "pbr_coverage: share of triangles whose material has color and normal maps; bevel_share: chamfered edges (30-60 degrees) among chamfered and sharp (>75) ones, over hard-surface meshes (curved_meshes, with more than 64 face directions, are left out); sharpest: the meshes with the most sharp edges (low bevel_share there reads as primitives); triangles_per_m2: over the meshes' surface; cheap: big plain boxes without texture (sampled, first %d triangles of each mesh)" % QUALITY_SAMPLE},
 		"note": "static estimate: draw calls are one per surface before culling and shadows; look rich adds a rendered frame"}
 
 
