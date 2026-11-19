@@ -2,13 +2,13 @@
  "version": 1,
  "generated_by": "ai_loop/make_catalog.py",
  "counts": {
-  "cli": 14,
+  "cli": 15,
   "command": 69,
   "mcp": 70,
   "preset": 6,
-  "script": 24,
+  "script": 25,
   "class": 14,
-  "total": 197
+  "total": 199
  },
  "entries": [
   {
@@ -23,6 +23,21 @@
    "required_capabilities": [],
    "fallback": null,
    "usage": "uzu.py build <project> --spec spec.json [--shot out.png] [--budget JSON] [--no-render] [--no-report]"
+  },
+  {
+   "name": "building",
+   "kind": "cli",
+   "description": "procedural buildings (B-1219): houses and shops from parameters (width, depth, floors, roof, wall, seed) with real openings, frames and eaves in geometry, a high-density version baked down to a practical GLB with a PBR texture set; prints per-building triangle counts, the bake miss rate and GLB paths, and renders the street three ways (WorldGen-style, grey recipe, textured recipe)",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "required_capabilities": [
+    "blender"
+   ],
+   "fallback": "Without Blender, place a ready-made GLB, or build the building inside the engine instead (uzu.py build from a JSON spec, or UZUWorldGen's built-in houses).",
+   "usage": "uzu.py building --spec spec.json [--out DIR] [--check] [--blender PATH] [--timeout 1800] [--tex-size 2048] [--samples 48]"
   },
   {
    "name": "caps",
@@ -2622,6 +2637,20 @@
    "source": "ai_loop/build_tool.gd",
    "required_capabilities": [],
    "fallback": null
+  },
+  {
+   "name": "building_recipe",
+   "kind": "script",
+   "description": "Procedural buildings with baked PBR texture sets (BACKLOG B-1219, stage 1).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/building_recipe.py",
+   "required_capabilities": [
+    "blender"
+   ],
+   "fallback": "Without Blender, place a ready-made GLB, or build the building inside the engine instead (uzu.py build from a JSON spec, or UZUWorldGen's built-in houses)."
   },
   {
    "name": "catalog",
