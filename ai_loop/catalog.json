@@ -4,11 +4,11 @@
  "counts": {
   "cli": 16,
   "command": 72,
-  "mcp": 75,
+  "mcp": 76,
   "preset": 6,
   "script": 28,
   "class": 15,
-  "total": 212
+  "total": 213
  },
  "entries": [
   {
@@ -120,7 +120,7 @@
   {
    "name": "map",
    "kind": "cli",
-   "description": "a natural map or a city from a short spec (UZUWorldGen); every key is optional (presets); --spec-set also writes the generation spec set (B-1509) every map key with its default, range and meaning, and the presets a walker under physics walks the city's navigation mesh to each place; per-target result",
+   "description": "a natural map or a city from a short spec (UZUWorldGen); every key is optional (presets); --spec-set also writes the generation spec set (B-1509) every map key with its default, range and meaning, and the presets a walker under physics walks the city's navigation mesh to each place; per-target result region-graph verification (B-1510): a walker under physics walks every edge of a B-1509 region graph in both directions; per-edge pass/fail JSON with frames, seconds and stuck points; --block-node fences one node in to prove that exactly its edges fail",
    "tags": [
     "cli",
     "uzu.py"
@@ -128,7 +128,7 @@
    "source": "ai_loop/uzu.py",
    "required_capabilities": [],
    "fallback": null,
-   "usage": "uzu.py map <project> nature|city --scene res://main.tscn [--spec JSON-or-file] [--set key=value ...] [--overview top.png] [--replace] [--camera] [--look golden_hour] [--shot out.png] [--inline] [--spec-set [dir]] options [nature|city] <project> walk --scene res://x.tscn [--from spawn] [--to plaza,gate_east] [--seconds 90]"
+   "usage": "uzu.py map <project> nature|city --scene res://main.tscn [--spec JSON-or-file] [--set key=value ...] [--overview top.png] [--replace] [--camera] [--look golden_hour] [--shot out.png] [--inline] [--spec-set [dir]] options [nature|city] <project> walk --scene res://x.tscn [--from spawn] [--to plaza,gate_east] [--seconds 90] <project> walk-graph --graph region_graph.json [--scene res://x.tscn] [--seconds 0] [--block-node <id>] [--out report.json]"
   },
   {
    "name": "picture",
@@ -1965,6 +1965,24 @@
    "maps_to": {
     "tool": "map",
     "command": "walk"
+   }
+  },
+  {
+   "name": "map_walk_graph",
+   "kind": "mcp",
+   "description": "Region-graph walking verification (B-1510): a walker under physics (capsule, gravity, collisions, curb steps) walks every edge of a B-1509 region graph (uzu-region-graph/1) in both directions — along the navigation mesh where it is on it, steering straight at the target where there is none — and returns per-edge pass/fail with frames, seconds, meters walked and stuck points. ok when every edge passed both ways. block-node fences one node in with walls, to prove exactly its edges fail. The scene must already contain the generated map the graph describes.",
+   "tags": [
+    "graph",
+    "map",
+    "mcp",
+    "walk"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "maps_to": {
+    "tool": "map",
+    "command": "walk-graph"
    }
   },
   {
