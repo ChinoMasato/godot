@@ -210,3 +210,5 @@
 - 2026-11-19: lantern_ui 見本（Codex、agent/b-1307-codex）を ai-native へ統合し、B-1309 として登録。当初 B-1307 と名乗っていた番号衝突をリードが付け直し。生成画像は Codex 生成（オーナー確認済み）。オーナー指示によりプルリクエストは使わない運用を COORDINATION ルール8に明記（PR #10 はこの統合で解消）。
 
 - 2026-11-19: B-404 エージェント能力に適応するインターフェースを ai-native へ統合（agent/b-404-lead）。能力プロファイル（UZU_AGENT_CAPS／JSON、語彙は blender／browser／gpu／image_gen、未知の能力はエラー）、カタログ197件に required_capabilities／fallback を付与し不足能力つきで表示、texture-route で生成画像→B-902 と手続きプリセット（B-1209）の振り分けを実証。Python テスト 40件 pass、C++ 変更なし。
+
+- 2026-11-19: B-406 会話・クエストのデータ道具を ai-native へ統合（Codex、agent/b-406-codex）。会話グラフを JSON で宣言し `uzu.py dialogue` と MCP `dialogue_validate` で検証（未到達ノード、分岐漏れ、フラグの読み書き不整合、表示テキストの文字数）。見本（灯りの欠片、6ノード・7状態）で診断 0、選択肢を外すと分岐漏れと未到達ノードを検出。Python テスト 23件 pass、エンジン全テスト 1560 pass（Actions の確認済み editor を SHA-256 照合で使用）、`uzu.py selftest all` pass。カタログは 200件に再生成（dialogue 3件を追加）。統合時の競合は CLAIMS.md／catalog.json／mcp_server.py の両側追加のみで、両方残す形で解消（catalog.json は make_catalog.py で再生成）。記録: iterations/2026-11-19-B-406-codex.md。ブランチ先端の CI run 44533292748 は success。
