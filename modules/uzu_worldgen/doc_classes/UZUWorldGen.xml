@@ -29,7 +29,8 @@
 			<param index="0" name="root" type="Node" />
 			<param index="1" name="spec" type="Dictionary" default="{}" />
 			<description>
-				Builds a natural map under [param root], like [method generate_city]. The places are [code]spawn[/code] (flat dry ground near the center), [code]peak[/code], [code]water[/code] and [code]shore[/code] (when there is water) and [code]clearings[/code].
+				Builds a natural map under [param root], like [method generate_city]. The places are [code]spawn[/code] (flat dry ground near the center), [code]peak[/code], [code]water[/code] and [code]shore[/code] (when there is water), [code]clearings[/code], and [code]villages[/code] when the spec asks for them.
+				With [code]villages[/code] above 0, village sites are chosen on flat dry ground, far apart. They are joined by roads (a node [code]Roads[/code]) along a minimum spanning tree, routed to keep to gentle slopes and never through water. Trees, rocks and grass keep off the roads and the village squares. The result then also has [code]roads[/code], with [code]from[/code], [code]to[/code], [code]connected[/code], [code]length[/code], [code]max_grade[/code] and [code]points[/code] for each road, and [code]roads_connected[/code], which is true when every village can be reached from every other by road.
 			</description>
 		</method>
 		<method name="get_options" qualifiers="static">

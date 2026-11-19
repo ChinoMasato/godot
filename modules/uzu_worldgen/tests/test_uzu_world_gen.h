@@ -36,7 +36,6 @@
 #include "scene/3d/multimesh_instance_3d.h"
 #include "scene/3d/node_3d.h"
 #include "scene/resources/mesh.h"
-
 #include "tests/test_macros.h"
 
 namespace TestUZUWorldGen {
@@ -225,6 +224,88 @@ TEST_CASE("[SceneTree][UZUWorldGen] City: buildings stay off the streets, the sa
 	}
 	memdelete(root);
 	memdelete(root2);
+}
+
+TEST_CASE("[SceneTree][UZUWorldGen] Villages joined by roads: every road connected, gentle, clear of trees") {
+	Dictionary spec;
+	spec["preset"] = "hills";
+	spec["size"] = 256.0;
+	spec["cell"] = 2.0;
+	spec["seed"] = 5;
+	spec["trees"] = 4.0;
+	spec["villages"] = 4;
+	spec["road_width"] = 3.0;
+	Node3D *root = memnew(Node3D);
+	const Dictionary r = UZUWorldGen::generate_nature(root, spec);
+	REQUIRE(bool(r["ok"]));
+	const Array villages = Dictionary(r["places"])["villages"];
+	REQUIRE(villages.size() >= 2);
+	const Array roads = r["roads"];
+	// A spanning tree: one road fewer than villages, and every village reachable by road.
+	CHECK(roads.size() == villages.size() - 1);
+	CHECK(bool(r["roads_connected"]));
+	Node3D *nature = Object::cast_to<Node3D>(root->get_node_or_null(NodePath(String(r["node"]))));
+	REQUIRE(nature);
+	CHECK(nature->get_node_or_null(NodePath("Roads")) != nullptr);
+	const double cell = 2.0;
+	for (int i = 0; i < roads.size(); i++) {
+		const Dictionary road = roads[i];
+		REQUIRE(bool(road["connected"]));
+		const Array pts = road["points"];
+		REQUIRE(pts.size() >= 2);
+		// The road starts at one village and ends at the other.
+		auto village_at = [&](const String &p_name) {
+			for (int v = 0; v < villages.size(); v++) {
+				if (String(Dictionary(villages[v])["name"]) == p_name) {
+					const Array p = Dictionary(villages[v])["position"];
+					return Vector3(p[0], p[1], p[2]);
+				}
+			}
+			return Vector3(1e9, 0, 0);
+		};
+		const Array first = pts[0];
+		const Array last = pts[pts.size() - 1];
+		CHECK(Vector3(first[0], first[1], first[2]).is_equal_approx(village_at(road["from"])));
+		CHECK(Vector3(last[0], last[1], last[2]).is_equal_approx(village_at(road["to"])));
+		// Every section is continuous: neighbouring grid points, on the ground, above water.
+		for (int k = 1; k < pts.size(); k++) {
+			const Array a = pts[k - 1];
+			const Array b = pts[k];
+			const double step = Vector2(double(b[0]) - double(a[0]), double(b[2]) - double(a[2])).length();
+			CHECK(step <= cell * 1.4143);
+			CHECK(step > 0.0);
+			CHECK(double(b[1]) == doctest::Approx(UZUWorldGen::height_at(nature, b[0], b[2])).epsilon(0.001));
+			if (r["water_y"].get_type() != Variant::NIL) {
+				CHECK(double(b[1]) > double(r["water_y"]));
+			}
+		}
+		CHECK(double(road["max_grade"]) <= 0.35);
+		CHECK(double(road["length"]) > 0.0);
+	}
+	// No tree stands on a road.
+	MultiMeshInstance3D *trees = Object::cast_to<MultiMeshInstance3D>(nature->get_node_or_null(NodePath("TreesBroadleaf")));
+	if (trees && trees->get_multimesh().is_valid()) {
+		const Vector<float> buf = trees->get_multimesh()->get_buffer();
+		const Array pts = Dictionary(roads[0])["points"];
+		for (int t = 0; t < buf.size() / 12; t++) {
+			const Vector2 tree(buf[t * 12 + 3], buf[t * 12 + 11]);
+			for (int k = 0; k < pts.size(); k++) {
+				const Array p = pts[k];
+				CHECK(tree.distance_to(Vector2(p[0], p[2])) > 1.5);
+			}
+		}
+	}
+	// The same spec gives the same roads; no villages, no roads.
+	Node3D *again = memnew(Node3D);
+	CHECK(Array(UZUWorldGen::generate_nature(again, spec)["roads"]) == roads);
+	spec["villages"] = 0;
+	Node3D *none = memnew(Node3D);
+	const Dictionary n = UZUWorldGen::generate_nature(none, spec);
+	CHECK_FALSE(n.has("roads"));
+	CHECK(none->get_child(0)->get_node_or_null(NodePath("Roads")) == nullptr);
+	memdelete(root);
+	memdelete(again);
+	memdelete(none);
 }
 
 } // namespace TestUZUWorldGen

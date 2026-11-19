@@ -32,6 +32,7 @@
 
 #include "core/math/random_pcg.h"
 #include "core/object/class_db.h"
+#include "core/templates/local_vector.h"
 #include "scene/3d/light_3d.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/multimesh_instance_3d.h"
@@ -76,6 +77,8 @@ Vector<OptionDef> nature_defs() {
 	d.push_back({ "rocks", "float", 0.4, 0, 20, {}, "rocks per 100 square meters, more on slopes" });
 	d.push_back({ "grass", "float", 0.0, 0, 400, {}, "grass tufts per 100 square meters on flat dry ground" });
 	d.push_back({ "collision", "bool", true, 0, 0, {}, "add a static body so characters can walk on the ground" });
+	d.push_back({ "villages", "int", 0, 0, 12, {}, "village sites on flat dry ground, joined by roads that keep to gentle slopes (0 = none)" });
+	d.push_back({ "road_width", "float", 3.0, 0.5, 12, {}, "width of the roads between villages in meters" });
 	d.push_back({ "position", "vec3", Vector3(), 0, 0, {}, "center of the map [x, y, z]; y is the height of the lowest possible ground" });
 	d.push_back({ "name", "name", "Nature", 0, 0, {}, "name of the node that holds the map" });
 	d.push_back({ "grass_color", "color", Color::html("#6f8f3e"), 0, 0, {}, "ground color of meadows" });
@@ -918,6 +921,287 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 		}
 	}
 
+	// Villages and roads (B-1504): sites on flat dry ground far apart, joined by a minimum
+	// spanning tree of roads routed over the grid by A*, preferring gentle slopes and never
+	// crossing water. Vegetation keeps off roads and village squares.
+	const Vector3 map_origin = holder->get_position();
+	auto slope_at = [&](int p_i, int p_j) {
+		return Math::rad_to_deg(Math::acos(CLAMP(Vector3(H(p_i - 1, p_j) - H(p_i + 1, p_j), 2 * cell, H(p_i, p_j - 1) - H(p_i, p_j + 1)).normalized().y, -1.0f, 1.0f)));
+	};
+	const int village_count = int64_t(o["villages"]);
+	const float road_w = double(o["road_width"]);
+	Vector<int> villages; // Grid node indices (j * w + i).
+	Array road_info;
+	Vector<uint8_t> keep_clear; // 1 where trees, rocks and grass must not grow.
+	keep_clear.resize(w * w);
+	memset(keep_clear.ptrw(), 0, w * w);
+	bool roads_connected = true;
+	if (village_count > 0) {
+		const int vstride = MAX(1, w / 64);
+		Vector<int> candidates;
+		for (int j = vstride; j < w - vstride; j += vstride) {
+			for (int i = vstride; i < w - vstride; i += vstride) {
+				const float x = -half + i * cell, z = -half + j * cell, y = H(i, j);
+				if (Math::abs(x) > half * 0.85f || Math::abs(z) > half * 0.85f || y < wy + 0.8f || slope_at(i, j) > 7.0f || (f.height > 0 && y / f.height > f.snow_line - 0.05f)) {
+					continue;
+				}
+				candidates.push_back(j * w + i);
+			}
+		}
+		// The first site is the flattest near the center; each next one is the farthest from
+		// those chosen (deterministic), while they stay far enough apart to be separate villages.
+		if (!candidates.is_empty()) {
+			int first = candidates[0];
+			float first_score = 1e20f;
+			for (int c : candidates) {
+				const float x = -half + (c % w) * cell, z = -half + (c / w) * cell;
+				const float score = slope_at(c % w, c / w) + Math::sqrt(x * x + z * z) / size * 30.0f;
+				if (score < first_score) {
+					first_score = score;
+					first = c;
+				}
+			}
+			villages.push_back(first);
+			while (villages.size() < village_count) {
+				int best_c = -1;
+				float best_d = 0;
+				for (int c : candidates) {
+					float dmin = 1e20f;
+					for (int v : villages) {
+						dmin = MIN(dmin, Vector2((c % w) - (v % w), (c / w) - (v / w)).length() * cell);
+					}
+					if (dmin > best_d) {
+						best_d = dmin;
+						best_c = c;
+					}
+				}
+				if (best_c < 0 || best_d < size * 0.12f) {
+					hints.push_back(vformat("only %d village site(s) fit (flat dry ground far enough apart); lower \"villages\" or raise \"size\"", villages.size()));
+					break;
+				}
+				villages.push_back(best_c);
+			}
+		} else {
+			hints.push_back("no flat dry ground for villages: lower \"roughness\" or \"water_level\"");
+		}
+		// A minimum spanning tree over the sites (Prim), so every village is reachable.
+		LocalVector<Vector2i> edges;
+		if (villages.size() > 1) {
+			Vector<bool> in_tree;
+			in_tree.resize(villages.size());
+			in_tree.fill(false);
+			in_tree.write[0] = true;
+			for (int added = 1; added < villages.size(); added++) {
+				int ba = -1, bb = -1;
+				float bd = 1e20f;
+				for (int a = 0; a < villages.size(); a++) {
+					for (int b = 0; b < villages.size(); b++) {
+						if (!in_tree[a] || in_tree[b]) {
+							continue;
+						}
+						const float d = Vector2((villages[a] % w) - (villages[b] % w), (villages[a] / w) - (villages[b] / w)).length();
+						if (d < bd) {
+							bd = d;
+							ba = a;
+							bb = b;
+						}
+					}
+				}
+				in_tree.write[bb] = true;
+				edges.push_back(Vector2i(ba, bb));
+			}
+		}
+		PackedVector3Array road_verts, road_normals;
+		PackedColorArray road_colors;
+		PackedInt32Array road_indices;
+		const Color road_color = Color(o["dirt_color"]).darkened(0.15f);
+		Vector<int> parent_of;
+		parent_of.resize(w * w);
+		Vector<float> g_cost;
+		g_cost.resize(w * w);
+		Vector<int> comp; // Union-find over the villages.
+		comp.resize(villages.size());
+		for (int i = 0; i < villages.size(); i++) {
+			comp.write[i] = i;
+		}
+		auto find = [&](int p_a) {
+			while (comp[p_a] != p_a) {
+				p_a = comp[p_a];
+			}
+			return p_a;
+		};
+		struct Open {
+			float f;
+			int node;
+		};
+		for (const Vector2i &e : edges) {
+			const int start = villages[e.x], goal = villages[e.y];
+			g_cost.fill(1e30f);
+			parent_of.fill(-1);
+			// A* over the grid nodes (8 neighbors): the cost is the length, steeply more on
+			// slopes; water and grades over 35 percent are not walkable.
+			LocalVector<Open> heap;
+			auto push = [&](float p_f, int p_node) {
+				heap.push_back({ p_f, p_node });
+				int c = heap.size() - 1;
+				while (c > 0 && heap[(c - 1) / 2].f > heap[c].f) {
+					SWAP(heap[(c - 1) / 2], heap[c]);
+					c = (c - 1) / 2;
+				}
+			};
+			auto pop = [&]() {
+				const Open top = heap[0];
+				heap[0] = heap[heap.size() - 1];
+				heap.resize(heap.size() - 1);
+				int c = 0;
+				while (true) {
+					const int l = c * 2 + 1, r = l + 1;
+					int m = c;
+					if (l < int(heap.size()) && heap[l].f < heap[m].f) {
+						m = l;
+					}
+					if (r < int(heap.size()) && heap[r].f < heap[m].f) {
+						m = r;
+					}
+					if (m == c) {
+						break;
+					}
+					SWAP(heap[m], heap[c]);
+					c = m;
+				}
+				return top;
+			};
+			const int gi = goal % w, gj = goal / w;
+			auto heuristic = [&](int p_node) { return Vector2((p_node % w) - gi, (p_node / w) - gj).length() * cell; };
+			g_cost.write[start] = 0;
+			push(heuristic(start), start);
+			bool found = false;
+			while (!heap.is_empty()) {
+				const Open cur = pop();
+				if (cur.node == goal) {
+					found = true;
+					break;
+				}
+				if (cur.f - heuristic(cur.node) > g_cost[cur.node] + 1e-3f) {
+					continue; // A stale entry.
+				}
+				const int ci = cur.node % w, cj = cur.node / w;
+				for (int dj = -1; dj <= 1; dj++) {
+					for (int di = -1; di <= 1; di++) {
+						const int ni = ci + di, nj = cj + dj;
+						if ((di == 0 && dj == 0) || ni < 0 || nj < 0 || ni > n || nj > n) {
+							continue;
+						}
+						const int nb = nj * w + ni;
+						const float ny = H(ni, nj);
+						if (ny < wy + 0.3f) {
+							continue; // No roads through water.
+						}
+						const float len = (di != 0 && dj != 0 ? 1.41421356f : 1.0f) * cell;
+						const float grade = Math::abs(ny - H(ci, cj)) / len;
+						if (grade > 0.35f) {
+							continue;
+						}
+						const float g = g_cost[cur.node] + len * (1.0f + 60.0f * grade * grade);
+						if (g < g_cost[nb]) {
+							g_cost.write[nb] = g;
+							parent_of.write[nb] = cur.node;
+							push(g + heuristic(nb), nb);
+						}
+					}
+				}
+			}
+			Dictionary info;
+			info["from"] = vformat("village_%d", e.x + 1);
+			info["to"] = vformat("village_%d", e.y + 1);
+			info["connected"] = found;
+			if (!found) {
+				roads_connected = false;
+				road_info.push_back(info);
+				continue;
+			}
+			comp.write[find(e.x)] = find(e.y);
+			LocalVector<int> path; // From the start to the goal, as grid nodes.
+			for (int node = goal; node != -1; node = parent_of[node]) {
+				path.push_back(node);
+			}
+			path.reverse();
+			float length = 0, max_grade = 0;
+			Array points;
+			const int clear_r = int(Math::ceil((road_w * 0.5f) / cell)) + 1;
+			for (uint32_t step = 0; step < path.size(); step++) {
+				const Vector3 p = verts[path[step]];
+				if (step > 0) {
+					const Vector3 q = verts[path[step - 1]];
+					length += q.distance_to(p);
+					max_grade = MAX(max_grade, Math::abs(p.y - q.y) / MAX(Vector2(p.x - q.x, p.z - q.z).length(), 0.001f));
+				}
+				points.push_back(vec_array(map_origin + p));
+				const int pi = path[step] % w, pj = path[step] / w;
+				for (int dj = -clear_r; dj <= clear_r; dj++) {
+					for (int di = -clear_r; di <= clear_r; di++) {
+						keep_clear.write[CLAMP(pj + dj, 0, n) * w + CLAMP(pi + di, 0, n)] = 1;
+					}
+				}
+				// The road strip: two vertices across the direction, just above the ground.
+				const Vector3 prev = verts[path[step > 0 ? step - 1 : step]];
+				const Vector3 next = verts[path[step + 1 < path.size() ? step + 1 : step]];
+				Vector3 dir = next - prev;
+				dir.y = 0;
+				dir = dir.length() > 0.0001f ? dir.normalized() : Vector3(1, 0, 0);
+				const Vector3 side = Vector3(-dir.z, 0, dir.x) * (road_w * 0.5f);
+				for (int sgn = -1; sgn <= 1; sgn += 2) {
+					const Vector3 v = p + side * sgn;
+					const float gi2 = (v.x + half) / cell, gj2 = (v.z + half) / cell;
+					const int ci2 = CLAMP(int(gi2), 0, n - 1), cj2 = CLAMP(int(gj2), 0, n - 1);
+					const float fx = CLAMP(gi2 - ci2, 0.0f, 1.0f), fz = CLAMP(gj2 - cj2, 0.0f, 1.0f);
+					const float h00 = H(ci2, cj2), h10 = H(ci2 + 1, cj2), h01 = H(ci2, cj2 + 1), h11 = H(ci2 + 1, cj2 + 1);
+					const float gy = fx >= fz ? h00 + fx * (h10 - h00) + fz * (h11 - h10) : h00 + fz * (h01 - h00) + fx * (h11 - h01);
+					road_verts.push_back(Vector3(v.x, MAX(gy, p.y) + 0.08f, v.z));
+					road_normals.push_back(Vector3(0, 1, 0));
+					road_colors.push_back(sgn < 0 ? road_color : road_color.darkened(0.12f));
+				}
+				if (step > 0) {
+					const int b = road_verts.size() - 4;
+					for (int t : { b, b + 2, b + 3, b, b + 3, b + 1 }) {
+						road_indices.push_back(t);
+					}
+				}
+			}
+			info["length"] = Math::snapped(double(length), 0.1);
+			info["max_grade"] = Math::snapped(double(max_grade), 0.001);
+			info["points"] = points;
+			road_info.push_back(info);
+		}
+		for (int i = 1; i < villages.size(); i++) {
+			roads_connected = roads_connected && find(i) == find(0);
+		}
+		if (!road_indices.is_empty()) {
+			Array ra;
+			ra.resize(Mesh::ARRAY_MAX);
+			ra[Mesh::ARRAY_VERTEX] = road_verts;
+			ra[Mesh::ARRAY_NORMAL] = road_normals;
+			ra[Mesh::ARRAY_COLOR] = road_colors;
+			ra[Mesh::ARRAY_INDEX] = road_indices;
+			Ref<ArrayMesh> road_mesh;
+			road_mesh.instantiate();
+			road_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, ra);
+			road_mesh->surface_set_material(0, vertex_color_material(0.95f, true));
+			add_mesh(holder, owner, "Roads", road_mesh, false);
+		}
+		// Village squares stay clear too.
+		const int vr = int(Math::ceil(10.0f / cell));
+		for (int v : villages) {
+			for (int dj = -vr; dj <= vr; dj++) {
+				for (int di = -vr; di <= vr; di++) {
+					if (di * di + dj * dj <= vr * vr) {
+						keep_clear.write[CLAMP(v / w + dj, 0, n) * w + CLAMP(v % w + di, 0, n)] = 1;
+					}
+				}
+			}
+		}
+	}
+
 	// Trees, rocks and grass on a jittered grid: same seed, same places.
 	Vector<Transform3D> broadleaf, conifer, rocks, grass;
 	const int caps[3] = { 30000, 15000, 150000 };
@@ -942,6 +1226,9 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 				const float gi = (x + half) / cell, gj = (z + half) / cell;
 				const int ci = CLAMP(int(gi), 0, n - 1), cj = CLAMP(int(gj), 0, n - 1);
 				const float fx = gi - ci, fz = gj - cj;
+				if (keep_clear[CLAMP(int(Math::round(gj)), 0, n) * w + CLAMP(int(Math::round(gi)), 0, n)]) {
+					continue; // A road or a village square.
+				}
 				const float h00 = H(ci, cj), h10 = H(ci + 1, cj), h01 = H(ci, cj + 1), h11 = H(ci + 1, cj + 1);
 				const float gy = fx >= fz ? h00 + fx * (h10 - h00) + fz * (h11 - h10) : h00 + fz * (h01 - h00) + fx * (h11 - h01);
 				const Vector3 nrm = f.normal(x, z, cell);
@@ -1057,6 +1344,15 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 		}
 	}
 	places["clearings"] = clearings;
+	if (!villages.is_empty()) {
+		Array vs;
+		for (int v = 0; v < villages.size(); v++) {
+			Dictionary vp = place(origin + verts[villages[v]], "a village site: flat dry ground with a clear square, on the road network");
+			vp["name"] = vformat("village_%d", v + 1);
+			vs.push_back(vp);
+		}
+		places["villages"] = vs;
+	}
 
 	// A small top-down overview: x to the right, +z down.
 	const int ow = 256;
@@ -1089,6 +1385,21 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 		const Vector2i q = to_px(Vector3(double(p[0]), 0, double(p[2])) - origin);
 		mark(overview, q.x, q.y, Color(1, 0.85f, 0.2f));
 	}
+	for (const Variant &rv : road_info) {
+		const Array pts = Dictionary(rv).get("points", Array());
+		for (int seg = 1; seg < pts.size(); seg++) {
+			const Array a = pts[seg - 1], b = pts[seg];
+			for (int t = 0; t <= 4; t++) {
+				const Vector3 q = Vector3(Math::lerp(double(a[0]), double(b[0]), t / 4.0), 0, Math::lerp(double(a[2]), double(b[2]), t / 4.0)) - origin;
+				const Vector2i px = to_px(q);
+				mark(overview, px.x, px.y, Color(0.55f, 0.42f, 0.25f), 0);
+			}
+		}
+	}
+	for (int v : villages) {
+		const Vector2i q = to_px(verts[v]);
+		mark(overview, q.x, q.y, Color(0.9f, 0.5f, 0.15f), 3);
+	}
 	const Vector2i pk = to_px(verts[peak]);
 	mark(overview, pk.x, pk.y, Color(1, 1, 1));
 	if (places.has("water")) {
@@ -1120,8 +1431,17 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 	r["height_range"] = range;
 	r["water_y"] = f.water ? Variant(Math::snapped(double(origin.y + wy), 0.01)) : Variant();
 	r["water_fraction"] = Math::snapped(double(under) / (w * w), 0.001);
+	counts["villages"] = villages.size();
+	counts["roads"] = road_info.size();
 	r["counts"] = counts;
 	r["places"] = places;
+	if (village_count > 0) {
+		r["roads"] = road_info;
+		r["roads_connected"] = roads_connected; // Every village reachable from every other by road.
+		if (!roads_connected) {
+			hints.push_back("some villages could not be joined by road (water or steep ground in the way): lower \"water_level\" or \"roughness\", or use another seed");
+		}
+	}
 	r["hints"] = hints;
 	r["overview"] = overview;
 	r["overview_about"] = "256x256 top-down: x to the right, +z down; red spawn, white peak, blue deepest water, yellow clearings, dark dots trees";
