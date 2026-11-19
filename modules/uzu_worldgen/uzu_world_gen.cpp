@@ -2018,6 +2018,7 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 			add_box(bench_mb, p + b.get_column(0) * (0.66f * sgn) + Vector3(0, 0.22f, 0), Vector3(0.035f, 0.22f, 0.2f), yaw, iron);
 		}
 	}
+	const int bench_triangles = bench_mb.triangles();
 	if (bench_mb.triangles() > 0) {
 		add_mesh(holder, owner, "Benches", bench_mb.commit(vertex_color_material(0.8f)));
 	}
@@ -2264,7 +2265,7 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	r["size"] = size;
 	r["streets_m"] = Math::snapped(double(road_length), 0.1);
 	r["tallest_m"] = Math::snapped(double(tallest), 0.1);
-	r["triangles"] = ground_mb.triangles() + road_mb.triangles() + block_mb.triangles() + building_mb.triangles() + window_mb.triangles() + lit_mb.triangles() + post_mb.triangles() + bulb_mb.triangles() + landmark_mb.triangles();
+	r["triangles"] = ground_mb.triangles() + road_mb.triangles() + block_mb.triangles() + building_mb.triangles() + window_mb.triangles() + lit_mb.triangles() + post_mb.triangles() + bulb_mb.triangles() + landmark_mb.triangles() + bench_triangles;
 	r["counts"] = counts;
 	r["places"] = places;
 	if (!navigation.is_empty()) {
