@@ -1550,6 +1550,17 @@ def selftest_engine():
             c.expect("sfx unknown parameter", not r["ok"] and "decya" in r["error"], r)
             r = _call(engine, q, ["sfx-presets"])
             c.expect("sfx-presets", r.get("ok") and "explosion" in r["presets"] and "lowpass" in r["defaults"], r)
+            # B-1108: several presets packed into ONE sprite WAV, with a JSON manifest of segments.
+            r = _call(engine, q, ["sfx-sprite", "--names", "hit,jump,pickup,coin", "--gap-ms", "50", "--out", "res://sfx/sprite.wav"])
+            segs = r.get("segments", {})
+            manifest_ok = False
+            if r.get("ok") and os.path.exists(os.path.join(q, "sfx", "sprite.json")):
+                with open(os.path.join(q, "sfx", "sprite.json"), encoding="utf-8") as f:
+                    saved = json.load(f)
+                manifest_ok = saved["segments"] == segs and saved["total_samples"] == r["total_samples"]
+            c.expect("sfx-sprite", r.get("ok") and os.path.getsize(os.path.join(q, "sfx", "sprite.wav")) > 10000 and set(segs) == {"hit", "jump", "pickup", "coin"} and segs["jump"]["start_sample"] > segs["hit"]["end_sample"] and segs["coin"]["end_sample"] == r["total_samples"] and manifest_ok, r)
+            r = _call(engine, q, ["sfx-sprite", "--names", "hit,nope", "--out", "res://sfx/bad.wav"])
+            c.expect("sfx-sprite unknown preset", not r["ok"] and "nope" in r["error"], r)
             # B-1203: props scattered over a plane, saved with their transforms, the same for the same seed.
             with open(os.path.join(q, "field.tscn"), "w", encoding="utf-8") as f:
                 f.write('[gd_scene format=3]\n\n[sub_resource type="PlaneMesh" id="p"]\nsize = Vector2(10, 10)\n\n[node name="F" type="Node3D"]\n\n[node name="Ground" type="MeshInstance3D" parent="."]\nmesh = SubResource("p")\n')

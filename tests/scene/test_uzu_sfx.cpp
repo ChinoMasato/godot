@@ -143,6 +143,146 @@ TEST_CASE("[Audio][UZUSfx] Wrong parameters") {
 	ERR_PRINT_ON;
 }
 
+TEST_CASE("[Audio][UZUSfx] Sprite manifest is a pure, exact layout") {
+	// No stream is generated here: the manifest comes from the preset
+	// parameters alone and must match the generated lengths exactly.
+	const PackedStringArray names = { "hit", "jump", "pickup", "coin" };
+	const Dictionary manifest = UZUSfx::sprite_manifest(names, 50, 0);
+	REQUIRE(manifest.size() == 4);
+	const int rate = 44100;
+	const int gap = 50 * rate / 1000;
+	int cursor = 0;
+	for (const String &name : names) {
+		const Dictionary seg = UZUSfx::get_sprite_segment(manifest, name);
+		REQUIRE(!seg.is_empty());
+		const Ref<AudioStreamWAV> single = UZUSfx::generate_preset(name);
+		const int length = single->get_data().size() / 2;
+		CHECK(int(seg["start_sample"]) == cursor);
+		CHECK(int(seg["length_samples"]) == length);
+		CHECK(int(seg["end_sample"]) == cursor + length);
+		CHECK(double(seg["start_sec"]) == doctest::Approx(double(cursor) / rate).epsilon(0.0001));
+		CHECK(double(seg["duration_sec"]) == doctest::Approx(double(length) / rate).epsilon(0.0001));
+		CHECK(double(seg["end_sec"]) == doctest::Approx(double(cursor + length) / rate).epsilon(0.0001));
+		cursor += length + gap;
+	}
+	// Gap 0 packs the sounds back to back; a bigger gap shifts later segments.
+	const Dictionary tight = UZUSfx::sprite_manifest(names, 0, 0);
+	CHECK(int(UZUSfx::get_sprite_segment(tight, "jump")["start_sample"]) == int(UZUSfx::get_sprite_segment(manifest, "hit")["length_samples"]));
+	const Dictionary wide = UZUSfx::sprite_manifest(names, 200, 0);
+	CHECK(int(UZUSfx::get_sprite_segment(wide, "jump")["start_sample"]) > int(UZUSfx::get_sprite_segment(manifest, "jump")["start_sample"]));
+	// The same seed varies the layout the same way every time.
+	CHECK(UZUSfx::sprite_manifest(names, 50, 7) == UZUSfx::sprite_manifest(names, 50, 7));
+	CHECK(UZUSfx::sprite_manifest(names, 50, 7) != manifest);
+	// Unknown names and empty sprites are errors, not empty layouts.
+	ERR_PRINT_OFF;
+	CHECK(UZUSfx::sprite_manifest(PackedStringArray({ "nope" })).is_empty());
+	CHECK(UZUSfx::sprite_manifest(PackedStringArray()).is_empty());
+	CHECK(UZUSfx::get_sprite_segment(manifest, "nope").is_empty());
+	ERR_PRINT_ON;
+}
+
+TEST_CASE("[Audio][UZUSfx] Sprite packs sounds into one stream, deterministically") {
+	const PackedStringArray names = { "hit", "jump", "pickup", "coin" };
+	const Dictionary built = UZUSfx::build_sprite(names, 50, 0);
+	REQUIRE(!built.is_empty());
+	const Ref<AudioStreamWAV> sprite = built["stream"];
+	REQUIRE(sprite.is_valid());
+	CHECK(sprite->get_format() == AudioStreamWAV::FORMAT_16_BITS);
+	CHECK_FALSE(sprite->is_stereo());
+	CHECK(sprite->get_mix_rate() == 44100);
+	const Dictionary manifest = built["manifest"];
+	CHECK(manifest == UZUSfx::sprite_manifest(names, 50, 0));
+	const int total = sprite->get_data().size() / 2;
+	CHECK(int(built["total_samples"]) == total);
+	// The total is the last segment's end: sounds plus the gaps between them.
+	const Dictionary last = UZUSfx::get_sprite_segment(manifest, "coin");
+	CHECK(total == int(last["end_sample"]));
+	// Each segment's samples are exactly the preset's own samples, and the
+	// gaps between segments are silence.
+	const Vector<uint8_t> data = sprite->get_data();
+	auto sample_at = [&](int i) {
+		return int16_t(uint16_t(data[i * 2]) | (uint16_t(data[i * 2 + 1]) << 8));
+	};
+	for (const String &name : names) {
+		const Dictionary seg = UZUSfx::get_sprite_segment(manifest, name);
+		const Vector<uint8_t> single = UZUSfx::generate_preset(name)->get_data();
+		const int start = int(seg["start_sample"]);
+		bool same = true;
+		for (int i = 0; i < single.size(); i++) {
+			same = same && data[start * 2 + i] == single[i];
+		}
+		CHECK_MESSAGE(same, name);
+	}
+	const Dictionary hit = UZUSfx::get_sprite_segment(manifest, "hit");
+	const Dictionary jump = UZUSfx::get_sprite_segment(manifest, "jump");
+	bool gap_silent = true;
+	for (int i = int(hit["end_sample"]); i < int(jump["start_sample"]); i++) {
+		gap_silent = gap_silent && sample_at(i) == 0;
+	}
+	CHECK(gap_silent);
+	CHECK(int(jump["start_sample"]) - int(hit["end_sample"]) == int(built["gap_samples"]));
+	// Deterministic: the same input builds the same bytes and manifest.
+	// (Compared as bools: a failed == on PackedByteArray would print both
+	// whole streams into the test log.)
+	const Dictionary again = UZUSfx::build_sprite(names, 50, 0);
+	const Ref<AudioStreamWAV> sprite2 = again["stream"];
+	const Vector<uint8_t> data2 = sprite2->get_data();
+	bool identical = data2.size() == data.size();
+	for (int i = 0; identical && i < data.size(); i++) {
+		identical = data2[i] == data[i];
+	}
+	CHECK(identical);
+	CHECK(Dictionary(again["manifest"]) == manifest);
+	// Another seed gives a different sprite.
+	const Ref<AudioStreamWAV> varied = UZUSfx::generate_sprite(names, 50, 3);
+	const Vector<uint8_t> varied_data = varied->get_data();
+	bool varied_differs = varied_data.size() != data.size();
+	for (int i = 0; !varied_differs && i < data.size(); i++) {
+		varied_differs = varied_data[i] != data[i];
+	}
+	CHECK(varied_differs);
+	ERR_PRINT_OFF;
+	CHECK(UZUSfx::generate_sprite(PackedStringArray({ "nope" })).is_null());
+	CHECK(UZUSfx::build_sprite(PackedStringArray()).is_empty());
+	ERR_PRINT_ON;
+}
+
+TEST_CASE("[Audio][UZUSfx] Sprite segment playback setup and stop condition") {
+	const PackedStringArray names = { "hit", "jump", "pickup", "coin" };
+	const Dictionary built = UZUSfx::build_sprite(names, 50, 0);
+	const Ref<AudioStreamWAV> sprite = built["stream"];
+	const Dictionary manifest = built["manifest"];
+	// The pure stop condition: inside the segment playback continues, at
+	// (or just before) its end it must stop, and other segments do not leak.
+	const Dictionary jump = UZUSfx::get_sprite_segment(manifest, "jump");
+	CHECK_FALSE(UZUSfx::sprite_should_stop(double(jump["start_sec"]) + 0.01, jump));
+	CHECK(UZUSfx::sprite_should_stop(double(jump["end_sec"]), jump));
+	CHECK(UZUSfx::sprite_should_stop(double(jump["end_sec"]) + 0.5, jump));
+	CHECK(UZUSfx::sprite_should_stop(0.0, Dictionary())); // No segment: stop.
+	const UZUSfxSpriteSegment seg = { int(jump["start_sample"]), int(jump["length_samples"]), 44100 };
+	CHECK(seg.contains(double(jump["start_sec"]) + 0.01));
+	CHECK_FALSE(seg.contains(double(jump["end_sec"]) + 0.01));
+	CHECK(seg.should_stop(double(jump["end_sec"])));
+	// play_sprite sets a player up on the segment: right stream, segment in
+	// its metadata, registered for the runtime to stop at the segment end.
+	Node *parent = memnew(Node);
+	AudioStreamPlayer *player = UZUSfx::play_sprite(parent, sprite, manifest, "jump", -3.0);
+	REQUIRE(player != nullptr);
+	CHECK(player->get_parent() == parent);
+	CHECK(player->get_stream() == sprite);
+	CHECK(player->get_volume_db() == doctest::Approx(-3.0));
+	CHECK(String(player->get_meta("uzu_sprite_name")) == "jump");
+	CHECK(Dictionary(player->get_meta("uzu_sprite_segment")) == jump);
+	UZUSfx::apply_sprite_playbacks(); // Must be safe with a fresh player.
+	ERR_PRINT_OFF;
+	CHECK(UZUSfx::play_sprite(parent, sprite, manifest, "nope") == nullptr);
+	CHECK(UZUSfx::play_sprite(nullptr, sprite, manifest, "jump") == nullptr);
+	CHECK(UZUSfx::play_sprite(parent, Ref<AudioStream>(), manifest, "jump") == nullptr);
+	ERR_PRINT_ON;
+	memdelete(parent); // Frees the player too; the registry prunes its entry.
+	UZUSfx::apply_sprite_playbacks();
+}
+
 TEST_CASE("[Audio][UZUSfx] Play with a little variation") {
 	// The parent is outside the tree: the players are set up but do not start here.
 	Node *parent = memnew(Node);
