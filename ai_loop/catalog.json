@@ -4,11 +4,11 @@
  "counts": {
   "cli": 15,
   "command": 69,
-  "mcp": 71,
+  "mcp": 72,
   "preset": 6,
   "script": 25,
   "class": 14,
-  "total": 200
+  "total": 201
  },
  "entries": [
   {
@@ -105,7 +105,7 @@
   {
    "name": "map",
    "kind": "cli",
-   "description": "a natural map or a city from a short spec (UZUWorldGen); every key is optional (presets) every map key with its default, range and meaning, and the presets",
+   "description": "a natural map or a city from a short spec (UZUWorldGen); every key is optional (presets) every map key with its default, range and meaning, and the presets a walker under physics walks the city's navigation mesh to each place; per-target result",
    "tags": [
     "cli",
     "uzu.py"
@@ -113,7 +113,7 @@
    "source": "ai_loop/uzu.py",
    "required_capabilities": [],
    "fallback": null,
-   "usage": "uzu.py map <project> nature|city --scene res://main.tscn [--spec JSON-or-file] [--set key=value ...] [--overview top.png] [--replace] [--camera] [--look golden_hour] [--shot out.png] [--inline] options [nature|city]"
+   "usage": "uzu.py map <project> nature|city --scene res://main.tscn [--spec JSON-or-file] [--set key=value ...] [--overview top.png] [--replace] [--camera] [--look golden_hour] [--shot out.png] [--inline] options [nature|city] <project> walk --scene res://x.tscn [--from spawn] [--to plaza,gate_east] [--seconds 90]"
   },
   {
    "name": "picture",
@@ -1216,7 +1216,7 @@
   {
    "name": "city",
    "kind": "command",
-   "description": "Generate a city into a scene in one call: streets (grid or organic), sidewalks, blocks with buildings (floors, flat or gable roofs, windows that glow), a plaza with a fountain, street lamps and trees, plus collision. Everything is optional: pick a preset (village, town, city) and override any key. The result names places (spawn, plaza, gates, tallest roof) with positions, and counts. Same spec, same city. Call map_options for every key.",
+   "description": "Generate a city into a scene in one call: streets (grid or organic), sidewalks, blocks with buildings (floors, flat or gable roofs, windows that glow), a plaza with a fountain, street lamps, trees and benches, plus collision and a baked navigation mesh (NavigationRegion3D) that joins every place. Everything is optional: pick a preset (village, town, city) and override any key. The result names places (spawn, plaza, gates, tallest roof) with positions, and counts. Same spec, same city. Call map_options for every key.",
    "tags": [
     "city",
     "cli",
@@ -1804,7 +1804,7 @@
   {
    "name": "map_city",
    "kind": "mcp",
-   "description": "Generate a city into a scene in one call: streets (grid or organic), sidewalks, blocks with buildings (floors, flat or gable roofs, windows that glow), a plaza with a fountain, street lamps and trees, plus collision. Everything is optional: pick a preset (village, town, city) and override any key. The result names places (spawn, plaza, gates, tallest roof) with positions, and counts. Same spec, same city. Call map_options for every key.",
+   "description": "Generate a city into a scene in one call: streets (grid or organic), sidewalks, blocks with buildings (floors, flat or gable roofs, windows that glow), a plaza with a fountain, street lamps, trees and benches, plus collision and a baked navigation mesh (NavigationRegion3D) that joins every place. Everything is optional: pick a preset (village, town, city) and override any key. The result names places (spawn, plaza, gates, tallest roof) with positions, and counts. Same spec, same city. Call map_options for every key.",
    "tags": [
     "city",
     "map",
@@ -1886,6 +1886,23 @@
    "maps_to": {
     "tool": "map",
     "command": "options"
+   }
+  },
+  {
+   "name": "map_walk",
+   "kind": "mcp",
+   "description": "Self-verifying walk on a generated city: a walker under physics (capsule, gravity, collisions, curb steps) follows the navigation mesh from one place to each target in turn. Per target: reached or not, seconds, meters walked against the straight distance, and where it got stuck (position, what it hit). ok when every target was reached.",
+   "tags": [
+    "map",
+    "mcp",
+    "walk"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "maps_to": {
+    "tool": "map",
+    "command": "walk"
    }
   },
   {
