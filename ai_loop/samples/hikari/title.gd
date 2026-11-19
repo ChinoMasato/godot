@@ -2,15 +2,15 @@ extends Node3D
 ## Title screen: a U.ZU Picture (one illustration + depth map, turned into a
 ## lit parallax relief by the engine) with the game title over it.
 ## Any interact input starts the game.
+##
+## The overlay is a declarative UI build (B-1301): ui/title_ui.json is the
+## source, ui/title_ui.tscn is generated from it with
+##   python3 ai_loop/uzu.py ui <this project> --spec ui/title_ui.json
+## It uses the wafu world theme (B-1307), the same world as the game's UI,
+## and its UZUUIWorld opens the plaques with the world's quiet motion.
 
 const InputSetup := preload("res://input_setup.gd")
 const FONT := preload("res://art/game_font.ttf")
-
-func _style(l: Label, size: int) -> void:
-	# The subset font must be set explicitly: the default font has no
-	# Japanese glyphs, and exports (Web especially) get no system fallback.
-	l.add_theme_font_override("font", FONT)
-	l.add_theme_font_size_override("font_size", size)
 
 func _ready() -> void:
 	InputSetup.setup()
@@ -24,30 +24,27 @@ func _ready() -> void:
 	add_child(flat)
 	var layer := CanvasLayer.new()
 	add_child(layer)
-	var title := Label.new()
-	title.text = "灯りの欠片"
-	_style(title, 64)
-	title.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	title.position = Vector2(-160, 90)
-	title.size = Vector2(320, 80)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	layer.add_child(title)
-	var sub := Label.new()
-	sub.text = "U.ZU Engine サンプルゲーム"
-	_style(sub, 20)
-	sub.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	sub.position = Vector2(-160, 165)
-	sub.size = Vector2(320, 30)
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	layer.add_child(sub)
-	var hint := Label.new()
-	hint.text = "E / Space : はじめる"
-	_style(hint, 22)
-	hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	hint.position = Vector2(-160, -70)
-	hint.size = Vector2(320, 30)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	layer.add_child(hint)
+	var packed := load("res://ui/title_ui.tscn") as PackedScene
+	if packed:
+		var ui := packed.instantiate() as Control
+		layer.add_child(ui)
+		# Taps anywhere must reach _unhandled_input: nothing in the overlay
+		# may swallow them.
+		ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		for c in ui.find_children("*", "Control", true, false):
+			(c as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	else:
+		# The generated scene is committed next to its spec; this is only a
+		# guard so the title never comes up blank.
+		var title := Label.new()
+		title.text = "灯りの欠片"
+		title.add_theme_font_override("font", FONT)
+		title.add_theme_font_size_override("font_size", 64)
+		title.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		title.position = Vector2(-160, 90)
+		title.size = Vector2(320, 80)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		layer.add_child(title)
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Keys, taps and clicks all start the game (phones have no keyboard).
