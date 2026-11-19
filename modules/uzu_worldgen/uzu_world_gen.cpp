@@ -32,19 +32,23 @@
 
 #include "core/math/random_pcg.h"
 #include "core/object/class_db.h"
+#include "core/os/os.h"
 #include "core/templates/local_vector.h"
 #include "scene/3d/light_3d.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/multimesh_instance_3d.h"
+#include "scene/3d/navigation/navigation_region_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
 #include "scene/3d/physics/static_body_3d.h"
 #include "scene/3d/uzu_look.h"
 #include "scene/resources/3d/box_shape_3d.h"
 #include "scene/resources/3d/convex_polygon_shape_3d.h"
 #include "scene/resources/3d/height_map_shape_3d.h"
+#include "scene/resources/3d/navigation_mesh_source_geometry_data_3d.h"
 #include "scene/resources/material.h"
 #include "scene/resources/mesh.h"
 #include "scene/resources/multimesh.h"
+#include "servers/navigation_3d/navigation_server_3d.h"
 
 namespace {
 
@@ -111,6 +115,8 @@ Vector<OptionDef> city_defs() {
 	d.push_back({ "lamps", "float", 24.0, 0, 200, {}, "meters between street lamps along the streets (0 = none)" });
 	d.push_back({ "max_lights", "int", 48, 0, 256, {}, "most lamps that really emit light (the rest only glow), to keep it fast" });
 	d.push_back({ "street_trees", "float", 12.0, 0, 100, {}, "meters between street trees (0 = none)" });
+	d.push_back({ "benches", "float", 36.0, 0, 200, {}, "meters between benches along the sidewalks (0 = none); the plaza gets benches around its fountain" });
+	d.push_back({ "navigation", "bool", true, 0, 0, {}, "bake a NavigationMesh of the streets, sidewalks and plaza (buildings, trees, lamps and benches cut out) so characters and AI players can find their way" });
 	d.push_back({ "palette", "choice", "stone", 0, 0, { "warm", "stone", "modern", "pastel" }, "colors of walls, roofs, streets and sidewalks" });
 	d.push_back({ "collision", "bool", true, 0, 0, {}, "add static bodies for the ground, sidewalks and buildings" });
 	d.push_back({ "position", "vec3", Vector3(), 0, 0, {}, "center of the city [x, y, z] (the city is flat at y)" });
@@ -448,6 +454,19 @@ Ref<StandardMaterial3D> glow_material(const Color &p_color, float p_energy) {
 }
 
 // A prism (p_cone_top = 0 makes a cone) standing on p_base.
+// A box of half size p_half turned by p_yaw around y (its local z faces (sin yaw, 0, cos yaw)).
+void add_box(MeshBuilder &p_mb, const Vector3 &p_center, const Vector3 &p_half, float p_yaw, const Color &p_color) {
+	const Basis b(Vector3(0, 1, 0), p_yaw);
+	const Vector3 ax = b.get_column(0) * p_half.x, ay = Vector3(0, p_half.y, 0), az = b.get_column(2) * p_half.z;
+	auto P = [&](int p_x, int p_y, int p_z) { return p_center + ax * p_x + ay * p_y + az * p_z; };
+	p_mb.quad(P(-1, 1, -1), P(1, 1, -1), P(1, 1, 1), P(-1, 1, 1), p_color, Vector3(0, 1, 0));
+	p_mb.quad(P(-1, -1, -1), P(1, -1, -1), P(1, -1, 1), P(-1, -1, 1), p_color.darkened(0.3f), Vector3(0, -1, 0));
+	p_mb.quad(P(1, -1, -1), P(1, -1, 1), P(1, 1, 1), P(1, 1, -1), p_color.darkened(0.12f), ax);
+	p_mb.quad(P(-1, -1, -1), P(-1, -1, 1), P(-1, 1, 1), P(-1, 1, -1), p_color.darkened(0.12f), -ax);
+	p_mb.quad(P(-1, -1, 1), P(1, -1, 1), P(1, 1, 1), P(-1, 1, 1), p_color.darkened(0.05f), az);
+	p_mb.quad(P(-1, -1, -1), P(1, -1, -1), P(1, 1, -1), P(-1, 1, -1), p_color.darkened(0.2f), -az);
+}
+
 void add_prism(MeshBuilder &p_mb, const Vector3 &p_base, float p_radius, float p_top_radius, float p_height, int p_sides, const Color &p_color, bool p_caps = true) {
 	const Vector3 top = p_base + Vector3(0, p_height, 0);
 	for (int s = 0; s < p_sides; s++) {
@@ -1957,6 +1976,52 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 		hints.push_back(vformat("%d lamps, %d of them emit light (max_lights); the rest only glow", lamp_positions.size(), light_count));
 	}
 
+	// Benches (B-1507): along the sidewalks, facing the street, and around the plaza's fountain.
+	MeshBuilder bench_mb;
+	Vector<Vector3> bench_pos;
+	Vector<float> bench_yaw;
+	const float bench_step = double(o["benches"]);
+	if (bench_step > 0 && walk >= 1.4f) {
+		for (int e = 0; e < edge_a.size(); e++) {
+			const Vector2 a = edge_a[e], b = edge_b[e];
+			const float len = a.distance_to(b);
+			const Vector2 dir = (b - a) / MAX(len, 0.001f);
+			const Vector2 side = dir.orthogonal();
+			const bool border = (Math::abs(a.x) > half - 0.01f || Math::abs(a.y) > half - 0.01f) && (Math::abs(b.x) > half - 0.01f || Math::abs(b.y) > half - 0.01f);
+			const int count = int(len / bench_step);
+			for (int l = 0; l < count; l++) {
+				const float t = (l + 0.62f) / count;
+				const float sgn = border ? (side.dot(-a.normalized()) > 0 ? 1.0f : -1.0f) : ((l % 2) ? 1.0f : -1.0f);
+				const Vector2 p = a.lerp(b, t) + side * (road_w * 0.5f + walk * 0.8f) * sgn;
+				const Vector2 face = -side * sgn; // Toward the street.
+				bench_pos.push_back(Vector3(p.x, curb, p.y));
+				bench_yaw.push_back(Math::atan2(face.x, face.y));
+			}
+		}
+	}
+	if (plaza && plaza_center != Vector3()) {
+		for (int t = 0; t < 4; t++) {
+			const float ang = Math::PI * 0.25f + t * Math::PI * 0.5f;
+			const Vector3 p = plaza_center + Vector3(Math::cos(ang), 0, Math::sin(ang)) * 6.5f;
+			bench_pos.push_back(p);
+			bench_yaw.push_back(Math::atan2(plaza_center.x - p.x, plaza_center.z - p.z)); // Facing the fountain.
+		}
+	}
+	for (int k = 0; k < bench_pos.size(); k++) {
+		const Vector3 p = bench_pos[k];
+		const float yaw = bench_yaw[k];
+		const Basis b(Vector3(0, 1, 0), yaw);
+		const Color wood = Color::html("#7a5a3a"), iron = Color::html("#2f3033");
+		add_box(bench_mb, p + Vector3(0, 0.45f, 0), Vector3(0.8f, 0.035f, 0.22f), yaw, wood);
+		add_box(bench_mb, p - b.get_column(2) * 0.2f + Vector3(0, 0.72f, 0), Vector3(0.8f, 0.2f, 0.025f), yaw, wood);
+		for (int sgn = -1; sgn <= 1; sgn += 2) {
+			add_box(bench_mb, p + b.get_column(0) * (0.66f * sgn) + Vector3(0, 0.22f, 0), Vector3(0.035f, 0.22f, 0.2f), yaw, iron);
+		}
+	}
+	if (bench_mb.triangles() > 0) {
+		add_mesh(holder, owner, "Benches", bench_mb.commit(vertex_color_material(0.8f)));
+	}
+
 	add_mesh(holder, owner, "Ground", ground_mb.commit(vertex_color_material(0.95f)), false);
 	add_mesh(holder, owner, "Roads", road_mb.commit(vertex_color_material(0.8f)), false);
 	add_mesh(holder, owner, "Blocks", block_mb.commit(vertex_color_material(0.85f)));
@@ -2025,6 +2090,166 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	counts["blocks"] = m * m;
 	counts["buildings"] = buildings;
 	counts["empty_lots"] = empty_lots;
+	// Navigation (B-1507): a NavigationMesh of the ground and the sidewalk tops, with the
+	// buildings, trees, lamps, benches and the fountain cut out; then a check that the
+	// places (spawn, plaza, gates) are on one walkable piece.
+	Dictionary navigation;
+	if (bool(o["navigation"]) && NavigationServer3D::get_singleton()) {
+		const uint64_t t0 = OS::get_singleton()->get_ticks_usec();
+		PackedVector3Array faces;
+		auto up_tri = [&](const Vector3 &p_a, const Vector3 &p_b, const Vector3 &p_c) {
+			// Godot's front side is where the corners go clockwise: make it face up.
+			const bool flip = (p_c - p_a).cross(p_b - p_a).y < 0;
+			faces.push_back(p_a);
+			faces.push_back(flip ? p_c : p_b);
+			faces.push_back(flip ? p_b : p_c);
+		};
+		const float gh = half + margin;
+		up_tri(Vector3(-gh, 0, -gh), Vector3(gh, 0, -gh), Vector3(gh, 0, gh));
+		up_tri(Vector3(-gh, 0, -gh), Vector3(gh, 0, gh), Vector3(-gh, 0, gh));
+		for (const Vector<Vector2> &sl : slabs) {
+			up_tri(Vector3(sl[0].x, curb, sl[0].y), Vector3(sl[1].x, curb, sl[1].y), Vector3(sl[2].x, curb, sl[2].y));
+			up_tri(Vector3(sl[0].x, curb, sl[0].y), Vector3(sl[2].x, curb, sl[2].y), Vector3(sl[3].x, curb, sl[3].y));
+		}
+		Ref<NavigationMeshSourceGeometryData3D> src;
+		src.instantiate();
+		src->add_faces(faces, Transform3D());
+		auto obstruct = [&](const Vector3 &p_center, float p_half_x, float p_half_z, float p_yaw, float p_height) {
+			const Basis b(Vector3(0, 1, 0), p_yaw);
+			const Vector3 ax = b.get_column(0) * p_half_x, az = b.get_column(2) * p_half_z;
+			Vector<Vector3> pts;
+			pts.push_back(p_center - ax - az);
+			pts.push_back(p_center + ax - az);
+			pts.push_back(p_center + ax + az);
+			pts.push_back(p_center - ax + az);
+			src->add_projected_obstruction(pts, p_center.y - 0.2f, p_height, false); // Not carved: widened by the agent radius like geometry.
+		};
+		for (int k = 0; k < footprints.size(); k++) {
+			Vector<Vector3> pts;
+			for (const Vector2 &v : footprints[k]) {
+				pts.push_back(Vector3(v.x, curb, v.y));
+			}
+			src->add_projected_obstruction(pts, curb - 0.2f, footprint_h[k] + 1.0f, false); // Not carved: widened by the agent radius like geometry.
+		}
+		for (const Transform3D &t : street_trees) {
+			obstruct(t.origin, 0.3f, 0.3f, 0, 3.0f);
+		}
+		for (const Vector3 &l : lamp_positions) {
+			obstruct(l, 0.15f, 0.15f, 0, 4.5f);
+		}
+		for (int k = 0; k < bench_pos.size(); k++) {
+			obstruct(bench_pos[k], 0.82f, 0.26f, bench_yaw[k], 1.0f);
+		}
+		if (plaza && plaza_center != Vector3()) {
+			Vector<Vector3> ring;
+			for (int t = 0; t < 12; t++) {
+				ring.push_back(plaza_center + Vector3(Math::cos(t * Math::TAU / 12), 0, Math::sin(t * Math::TAU / 12)) * 3.3f);
+			}
+			src->add_projected_obstruction(ring, curb - 0.2f, 4.5f, false); // Not carved: widened by the agent radius like geometry.
+		}
+		Ref<NavigationMesh> nm;
+		nm.instantiate();
+		nm->set_cell_size(0.25f);
+		nm->set_cell_height(0.25f);
+		nm->set_agent_height(1.8f);
+		nm->set_agent_radius(0.5f);
+		nm->set_agent_max_climb(0.3f);
+		nm->set_agent_max_slope(45);
+		nm->set_edge_max_error(0.5f); // The default 1.3 cells lets simplified edges cut building corners by ~0.3 m.
+		NavigationServer3D::get_singleton()->bake_from_source_geometry_data(nm, src);
+		NavigationRegion3D *region = memnew(NavigationRegion3D);
+		region->set_name("Navigation");
+		region->set_navigation_mesh(nm);
+		holder->add_child(region, true);
+		region->set_owner(owner);
+		// Which walkable piece is each polygon on (polygons sharing an edge are joined)?
+		const Vector<Vector3> nv = nm->get_vertices();
+		const int pc = nm->get_polygon_count();
+		Vector<int> comp;
+		comp.resize(pc);
+		for (int i = 0; i < pc; i++) {
+			comp.write[i] = i;
+		}
+		auto find = [&](int p_a) {
+			while (comp[p_a] != p_a) {
+				p_a = comp[p_a];
+			}
+			return p_a;
+		};
+		HashMap<uint64_t, int> edge_owner;
+		for (int i = 0; i < pc; i++) {
+			const Vector<int> poly = nm->get_polygon(i);
+			for (int e = 0; e < poly.size(); e++) {
+				const uint32_t va = poly[e], vb = poly[(e + 1) % poly.size()];
+				const uint64_t key = (uint64_t(MIN(va, vb)) << 32) | MAX(va, vb);
+				if (const int *other = edge_owner.getptr(key)) {
+					comp.write[find(i)] = find(*other);
+				} else {
+					edge_owner[key] = i;
+				}
+			}
+		}
+		HashSet<int> islands;
+		for (int i = 0; i < pc; i++) {
+			islands.insert(find(i));
+		}
+		// The polygon under (or nearest to) a place, in the holder's space.
+		auto poly_at = [&](const Vector3 &p_local) {
+			int best = -1;
+			float best_d = 1e20f;
+			for (int i = 0; i < pc; i++) {
+				const Vector<int> poly = nm->get_polygon(i);
+				Vector3 c;
+				bool inside = true;
+				for (int e = 0; e < poly.size(); e++) {
+					const Vector3 a = nv[poly[e]], b = nv[poly[(e + 1) % poly.size()]];
+					c += a;
+					const float cross = (b.x - a.x) * (p_local.z - a.z) - (b.z - a.z) * (p_local.x - a.x);
+					inside = inside && cross >= -1e-4f;
+				}
+				c /= MAX(1, poly.size());
+				const float d = inside ? 0.0f : Vector2(c.x - p_local.x, c.z - p_local.z).length();
+				if (d < best_d) {
+					best_d = d;
+					best = i;
+				}
+			}
+			return best_d < 4.0f ? best : -1;
+		};
+		Array unreached;
+		int piece = -2;
+		bool together = true;
+		for (const char *name : { "spawn", "plaza", "gate_north", "gate_south", "gate_west", "gate_east" }) {
+			if (!places.has(name)) {
+				continue;
+			}
+			const Array pp = Dictionary(places[name])["position"];
+			const int pid = poly_at(Vector3(pp[0], pp[1], pp[2]) - origin);
+			if (pid < 0) {
+				unreached.push_back(name);
+				together = false;
+				continue;
+			}
+			const int c = find(pid);
+			if (piece == -2) {
+				piece = c;
+			} else if (c != piece) {
+				unreached.push_back(name);
+				together = false;
+			}
+		}
+		navigation["polygons"] = pc;
+		navigation["vertices"] = nv.size();
+		navigation["islands"] = islands.size();
+		navigation["places_connected"] = together && pc > 0;
+		navigation["unreached"] = unreached;
+		navigation["bake_ms"] = Math::snapped((OS::get_singleton()->get_ticks_usec() - t0) / 1000.0, 0.1);
+		if (!together) {
+			hints.push_back("some places are not on the same walkable area of the navigation mesh; see navigation.unreached");
+		}
+	}
+	holder->set_meta("uzu_places", places); // For self-verifying play on the saved scene (map walk).
+	counts["benches"] = bench_pos.size();
 	counts["windows"] = windows_count;
 	counts["windows_lit"] = lit_count;
 	counts["lamps"] = lamp_positions.size();
@@ -2042,6 +2267,9 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	r["triangles"] = ground_mb.triangles() + road_mb.triangles() + block_mb.triangles() + building_mb.triangles() + window_mb.triangles() + lit_mb.triangles() + post_mb.triangles() + bulb_mb.triangles() + landmark_mb.triangles();
 	r["counts"] = counts;
 	r["places"] = places;
+	if (!navigation.is_empty()) {
+		r["navigation"] = navigation;
+	}
 	r["hints"] = hints;
 	r["overview"] = overview;
 	r["overview_about"] = "256x256 top-down: x to the right, +z down; red spawn, light blue plaza, yellow dots lamps, green dots trees; brighter roofs are taller";
