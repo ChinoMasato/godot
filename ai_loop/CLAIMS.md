@@ -15,7 +15,7 @@
 | B-110 検証済みバイナリの配布 | Muse (lead) | agent/verify-artifact-muse | .github/workflows/uzu_verify.yml, ai_loop/build_locked.sh | ワークフロー変更はクラウドが push 済み（実行 #68 success、artifact あり）。ダウンロードしたバイナリの起動確認はローカル | 2026-11-18 |
 | B-902 画像からの PBR 生成 | Muse (lead) | agent/b-902-muse | scene/resources/uzu_pbr_from_image.{h,cpp}, scene/register_scene_types.cpp, doc/classes/UZUPBRFromImage.xml, tests/scene/test_uzu_pbr_from_image.cpp, ai_loop/prototypes/picture/pbr_engine.gd・picture.py | 完了（Actions green、全テスト 1513 件 pass、ai-native 統合済み） | 2026-11-18 |
 | B-902 追補 ぼかしの縮小を区画の平均に | Muse (lead) | agent/b-902-blurfix-muse | scene/resources/uzu_pbr_from_image.{h,cpp}, tests/scene/test_uzu_pbr_from_image.cpp | 完了（Actions green、ai-native 統合済み） | 2026-11-18 |
-| B-1101 UZUJuice 基盤＋ヒットストップ／スローモーション | Muse (lead) | agent/b-1101-muse | scene/3d/uzu_juice.{h,cpp}, scene/register_scene_types.cpp, doc/classes/UZUJuice.xml, tests/scene/test_uzu_juice.cpp, ai_loop/iterations/ | 作業中 | 2026-11-18 |
+| B-1101 UZUJuice 基盤＋ヒットストップ／スローモーション | Muse (lead) | agent/b-1101-muse | scene/3d/uzu_juice.{h,cpp}, scene/register_scene_types.cpp, doc/classes/UZUJuice.xml, tests/scene/test_uzu_juice.cpp, ai_loop/iterations/ | 完了（2026-11-19 ai-native 統合済み、CI 1528 pass） | 2026-11-19 |
 | B-004 | Muse (VM) | ai-native（基盤整備のため例外的に直接） | CLAUDE.md, ai_loop/ | マージ済 | 2026-11-17 |
 | B-001 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/LEDGER.md, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
 | B-002 | Claude Code (cloud) | claude/uzu-engine-briefing-rrno7b | ai_loop/measure.sh（新規）, ai_loop/iterations/ | 確認待ち | 2026-11-17 |
@@ -88,6 +88,7 @@
 | B-109 | Claude Code (cloud) | ai-native（直接） | misc/logo/uzu/macos_icons.py（新規）, misc/dist/macos_template.app/Contents/Resources/icon.icns, misc/dist/macos_tools.app/Contents/Resources/GodotLG.icns, misc/dist/macos_tools.app/Contents/Info*.plist, misc/dist/macos/editor_info_plist.template, misc/logo/uzu/README.md, ai_loop/iterations/ | 反映済み（macOS 実機での表示確認待ち） | 2026-11-18 |
 | B-726（GPU 確認） | Claude Code (local) | agent/b726gpu-claude-local | ai_loop/iterations/, ai_loop/look_samples/compare/ | 記録済み（判定すべて満たす） | 2026-11-18 |
 | B-727 | Claude Code (cloud) | ai-native（直接） | scene/3d/look_preset_3d.{h,cpp}, scene/3d/uzu_look.{h,cpp}, doc/classes/UZULook.xml, tests/scene/test_uzu_look.cpp, ai_loop/look_tool.gd, ai_loop/mcp_server.py, ai_loop/uzu.py, ai_loop/look_samples/water/（新規）, ai_loop/look_samples/make_samples.py, ai_loop/look_samples/shoot_all.sh, ai_loop/look_samples/compare/b727_water.png, ai_loop/iterations/ | 反映済み（GPU の見た目と速さはローカル） | 2026-11-18 |
+| B-727（GPU 再確認の道具） | Codex | agent/b-727-codex | ai_loop/windows/water_gpu.py, ai_loop/windows/water_gpu.md, ai_loop/iterations/2026-11-18-B-727-codex.md | ソフトウェア Vulkan で3条件の撮影・計測成功。Windows GPU はローカル担当（2026-11-19 リード統合。water_gpu.py はローカルの GPU 確認版＝3レンダラー対応を採用、.md は現行 CLI に合わせて更新） | 2026-11-18 |
 | B-1105 | Claude Code (cloud) | ai-native（直接） | scene/resources/uzu_sfx.{h,cpp}（新規。UZUJuice とは別クラスにし、B-1106 から呼べる形にする）, scene/register_scene_types.cpp, doc/classes/UZUSfx.xml（新規）, tests/scene/test_uzu_sfx.cpp（新規）, ai_loop/look_tool.gd か engine_tool.gd（sfx コマンド）, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み（実際に聞いた印象の確認はオーナー／ローカル） | 2026-11-18 |
 | B-728 | Claude Code (cloud) | ai-native（直接） | scene/3d/look_preset_3d.cpp（水シェーダー）, tests/scene/test_uzu_look.cpp, ai_loop/look_samples/（必要なら水の見本の配置）, ai_loop/iterations/ | 取り下げ（Codex が先に agent/b-728-codex で宣言していた: 2026-11-18 15:06 UTC。こちらの宣言は 15:07 UTC。運用ルール5により Codex が優先） | 2026-11-19 |
 | B-1203 | Claude Code (cloud) | ai-native（直接） | scene/3d/uzu_scatter.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUScatter.xml（新規）, tests/scene/test_uzu_scatter.cpp（新規）, ai_loop/engine_tool.gd（scatter コマンド）, ai_loop/mcp_server.py, ai_loop/uzu.py, ai_loop/iterations/ | 反映済み | 2026-11-19 |
@@ -101,7 +102,7 @@
 | B-1302 | Claude Code (cloud) | ai-native（直接） | scene/gui/uzu_ui.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUUI.xml（新規）, tests/scene/test_uzu_ui.cpp（新規）, ai_loop/ui_tool.gd（UZUUI を使う形に）, ai_loop/look_samples/, ai_loop/iterations/ | 反映済み | 2026-11-19 |
 | B-1102 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19、CI 1531 pass） |
 | B-1103 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19、CI 1534 pass） |
-| B-1104 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 着手（2026-11-19） |
+| B-1104 | リード（Muse） | scene/3d/uzu_juice.{h,cpp}、doc/classes/UZUJuice.xml、tests/scene/test_uzu_juice.cpp | 完了（2026-11-19 ai-native 統合済み、CI 1537 pass） |
 - B-1106 イベントプリセット（impact）: 完了（2026-11-19 ai-native 統合、CI 全テスト 1540 pass）
 - B-727（GPU 確認）: 記録済み（Claude Code ローカル、agent/b727gpu-claude-local を 2026-11-19 に統合。水は3レンダラーで動作・速さ OK、波の格子と反射の段差を報告 → B-728 へ）
 - B-314 ログ照合（リプレイ判定）: 完了（Codex、agent/b-314-codex を 2026-11-19 に統合。最初の不一致を CLI／MCP で報告）
@@ -113,3 +114,4 @@
 | B-1307（第1段: 質感・世界観テーマ・定番部品） | Claude Code (cloud) | ai-native（直接） | scene/gui/uzu_ui.{h,cpp}, tests/scene/test_uzu_ui.cpp, doc/classes/UZUUI.xml, ai_loop/ui_tool.gd, ai_loop/presets/ui/, ai_loop/look_samples/, ai_loop/iterations/ | 第1段は反映済み（動きの要素と B-1304 連携は第2段） | 2026-11-19 |
 | B-1205（LOD の部分） | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd（lod コマンド）, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | LOD の部分は反映済み（法線ベイクは Blender のある環境で） | 2026-11-19 |
 | B-1209（手続きプリセットと指標） | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd（pbr-preset／pbr-assign、rich の指標）, ai_loop/uzu.py（look pbr）, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み（灯りの欠片への適用はリード、Blender への組み込みは残り） | 2026-11-19 |
+| B-1304 UI の juice | Muse (lead branch) | agent/b-1304-lead | scene/gui/uzu_ui_juice.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUUIJuice.xml（新規）, tests/scene/test_uzu_ui_juice.cpp（新規）, ai_loop/iterations/ | 反映済み（2026-11-19 リード統合。新規8件 pass、全テスト 1556/1558、fail 2件は UDP 環境起因の既存失敗） | 2026-11-19 |
