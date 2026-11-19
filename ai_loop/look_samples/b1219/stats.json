@@ -1,0 +1,146 @@
+{
+  "buildings": [
+    {
+      "name": "house_plaster",
+      "triangles_practical": 7414,
+      "triangles_high": 57660,
+      "parts": 204,
+      "unique_part_meshes": 92,
+      "reduction": {
+        "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
+        "angle_limit_deg": 12.0,
+        "triangles_before": 7432,
+        "triangles_after": 7414,
+        "sharp_edges_before": 8058,
+        "sharp_edges_after": 7922,
+        "sharp_edge_preservation": 1.0
+      },
+      "bake_miss_rate": 8.862498338281562e-05,
+      "texture_size": 1024,
+      "glb": "house_plaster.glb",
+      "glb_bytes": 2293236,
+      "bake_texture_size": 2048
+    },
+    {
+      "name": "house_brick",
+      "triangles_practical": 8766,
+      "triangles_high": 66132,
+      "parts": 243,
+      "unique_part_meshes": 100,
+      "reduction": {
+        "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
+        "angle_limit_deg": 12.0,
+        "triangles_before": 8800,
+        "triangles_after": 8766,
+        "sharp_edges_before": 9537,
+        "sharp_edges_after": 9321,
+        "sharp_edge_preservation": 1.0
+      },
+      "bake_miss_rate": 0.0014569295210344199,
+      "texture_size": 1024,
+      "glb": "house_brick.glb",
+      "glb_bytes": 2662520,
+      "bake_texture_size": 2048
+    },
+    {
+      "name": "shop_wood",
+      "triangles_practical": 8628,
+      "triangles_high": 67312,
+      "parts": 237,
+      "unique_part_meshes": 104,
+      "reduction": {
+        "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
+        "angle_limit_deg": 12.0,
+        "triangles_before": 8668,
+        "triangles_after": 8628,
+        "sharp_edges_before": 9396,
+        "sharp_edges_after": 9192,
+        "sharp_edge_preservation": 1.0
+      },
+      "bake_miss_rate": 0.0001467997651203758,
+      "texture_size": 1024,
+      "glb": "shop_wood.glb",
+      "glb_bytes": 2448468,
+      "bake_texture_size": 2048
+    },
+    {
+      "name": "house_tall",
+      "triangles_practical": 12046,
+      "triangles_high": 102124,
+      "parts": 327,
+      "unique_part_meshes": 135,
+      "reduction": {
+        "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
+        "angle_limit_deg": 12.0,
+        "triangles_before": 12076,
+        "triangles_after": 12046,
+        "sharp_edges_before": 13098,
+        "sharp_edges_after": 12909,
+        "sharp_edge_preservation": 1.0
+      },
+      "bake_miss_rate": 0.0004588559192413582,
+      "texture_size": 1024,
+      "glb": "house_tall.glb",
+      "glb_bytes": 2443540,
+      "bake_texture_size": 2048
+    },
+    {
+      "name": "house_small",
+      "triangles_practical": 3492,
+      "triangles_high": 25484,
+      "parts": 97,
+      "unique_part_meshes": 41,
+      "reduction": {
+        "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
+        "angle_limit_deg": 12.0,
+        "triangles_before": 3492,
+        "triangles_after": 3492,
+        "sharp_edges_before": 3786,
+        "sharp_edges_after": 3726,
+        "sharp_edge_preservation": 1.0
+      },
+      "bake_miss_rate": 0.0008818878481936504,
+      "texture_size": 1024,
+      "glb": "house_small.glb",
+      "glb_bytes": 2175704,
+      "bake_texture_size": 2048
+    }
+  ],
+  "renders": {
+    "a_worldgen": "render_a_worldgen.png",
+    "b_recipe_gray": "render_b_recipe_gray.png",
+    "c_recipe_textured": "render_c_recipe_textured.png"
+  },
+  "layout": [
+    {
+      "name": "house_plaster",
+      "x": -9.65,
+      "y": 7.65,
+      "flip": false
+    },
+    {
+      "name": "shop_wood",
+      "x": 0.5,
+      "y": 7.9,
+      "flip": false
+    },
+    {
+      "name": "house_small",
+      "x": 10.15,
+      "y": 8.15,
+      "flip": false
+    },
+    {
+      "name": "house_brick",
+      "x": -4.7,
+      "y": -7.9,
+      "flip": true
+    },
+    {
+      "name": "house_tall",
+      "x": 5.45,
+      "y": -7.4,
+      "flip": true
+    }
+  ]
+}

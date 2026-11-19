@@ -220,7 +220,7 @@ def _gd_summary(path):
 
 # Top-level uzu.py tools that dispatch to a module of their own: a
 # CAPABILITIES declaration in that module describes the "cli" entry.
-CLI_MODULES = {"caps": "agent_caps.py", "catalog": "catalog.py", "replay-compare": "replay_compare.py", "texture-route": "texture_route.py"}
+CLI_MODULES = {"caps": "agent_caps.py", "catalog": "catalog.py", "replay-compare": "replay_compare.py", "texture-route": "texture_route.py", "building": "building_recipe.py"}
 
 
 def _declared_capabilities(path):

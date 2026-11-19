@@ -42,6 +42,12 @@ or through ai_loop\\windows\\uzu.bat.
                   pick how a texture is made, by agent capability (B-404): with image_gen, a generated image
                   goes through UZUPBRFromImage (B-902); without it, the procedural PBR presets (B-1209)
                   are used instead; the result says which route was picked and why
+  uzu.py building --spec spec.json [--out DIR] [--check] [--blender PATH] [--timeout 1800]
+                  [--tex-size 2048] [--samples 48]   procedural buildings (B-1219): houses and shops from
+                  parameters (width, depth, floors, roof, wall, seed) with real openings, frames and
+                  eaves in geometry, a high-density version baked down to a practical GLB with a PBR
+                  texture set; prints per-building triangle counts, the bake miss rate and GLB paths,
+                  and renders the street three ways (WorldGen-style, grey recipe, textured recipe)
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
@@ -1908,6 +1914,10 @@ def main(argv):
         import texture_route
 
         return texture_route.main(rest)
+    if tool == "building":
+        import building_recipe
+
+        return building_recipe.main(rest)
     if tool == "selftest":
         return selftest(rest[0] if rest else "all")
     if tool == "picture":
