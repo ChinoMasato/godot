@@ -1,0 +1,556 @@
+{
+  "blocked_node": "Village__gate_east",
+  "edges": 13,
+  "edges_failed": 4,
+  "edges_ok": 9,
+  "format": "uzu-walk-graph-report/1",
+  "legs": 26,
+  "nodes": 16,
+  "ok": false,
+  "results": [
+    {
+      "a": "Land__clearings_0",
+      "b": "Land__clearings_1",
+      "legs": [
+        {
+          "frames": 997,
+          "from": "Land__clearings_0",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 16.62,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Land__clearings_1",
+          "used_nav": false,
+          "walked_m": 66.4,
+          "walls": 0
+        },
+        {
+          "frames": 997,
+          "from": "Land__clearings_1",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 16.62,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Land__clearings_0",
+          "used_nav": false,
+          "walked_m": 66.4,
+          "walls": 0
+        }
+      ],
+      "length": 67.884,
+      "ok": true
+    },
+    {
+      "a": "Land__clearings_1",
+      "b": "Land__peak",
+      "legs": [
+        {
+          "frames": 879,
+          "from": "Land__clearings_1",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 14.65,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Land__peak",
+          "used_nav": false,
+          "walked_m": 58.5,
+          "walls": 0
+        },
+        {
+          "frames": 879,
+          "from": "Land__peak",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 14.65,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Land__clearings_1",
+          "used_nav": false,
+          "walked_m": 58.5,
+          "walls": 0
+        }
+      ],
+      "length": 60.003,
+      "ok": true
+    },
+    {
+      "a": "Land__clearings_2",
+      "b": "Land__peak",
+      "legs": [
+        {
+          "frames": 784,
+          "from": "Land__clearings_2",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 13.07,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Land__peak",
+          "used_nav": false,
+          "walked_m": 52.2,
+          "walls": 0
+        },
+        {
+          "frames": 784,
+          "from": "Land__peak",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 13.07,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Land__clearings_2",
+          "used_nav": false,
+          "walked_m": 52.2,
+          "walls": 0
+        }
+      ],
+      "length": 53.676,
+      "ok": true
+    },
+    {
+      "a": "Land__clearings_1",
+      "b": "Land__spawn",
+      "legs": [
+        {
+          "frames": 5687,
+          "from": "Land__clearings_1",
+          "hits": [
+            {
+              "normal": [
+                1.0,
+                0.0,
+                0.0
+              ],
+              "with": "CityFoundationBody"
+            },
+            {
+              "normal": [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              "with": "TerrainBody"
+            }
+          ],
+          "left_m": 21.7,
+          "on_floor": true,
+          "on_wall": true,
+          "reached": false,
+          "reason": "stuck",
+          "seconds": 94.78,
+          "seeks": 0,
+          "stuck_at": [
+            5.9,
+            -0.8,
+            -15.4
+          ],
+          "to": "Land__spawn",
+          "used_nav": false,
+          "walked_m": 176.8,
+          "walls": 10
+        },
+        {
+          "frames": 1422,
+          "from": "Land__spawn",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 23.7,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Land__clearings_1",
+          "used_nav": true,
+          "walked_m": 86.4,
+          "walls": 0
+        }
+      ],
+      "length": 83.522,
+      "ok": false
+    },
+    {
+      "a": "Pond__peak",
+      "b": "Pond__spawn",
+      "legs": [
+        {
+          "frames": 1,
+          "from": "Pond__peak",
+          "left_m": 0.0,
+          "reached": true,
+          "seconds": 0.02,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Pond__spawn",
+          "used_nav": false,
+          "walked_m": 0.0,
+          "walls": 0
+        },
+        {
+          "frames": 1,
+          "from": "Pond__spawn",
+          "left_m": 0.0,
+          "reached": true,
+          "seconds": 0.02,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Pond__peak",
+          "used_nav": false,
+          "walked_m": 0.0,
+          "walls": 0
+        }
+      ],
+      "length": 0.0,
+      "ok": true
+    },
+    {
+      "a": "Pond__peak",
+      "b": "Pond__shore",
+      "legs": [
+        {
+          "frames": 54,
+          "from": "Pond__peak",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 0.9,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Pond__shore",
+          "used_nav": true,
+          "walked_m": 3.5,
+          "walls": 0
+        },
+        {
+          "frames": 54,
+          "from": "Pond__shore",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 0.9,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Pond__peak",
+          "used_nav": true,
+          "walked_m": 3.5,
+          "walls": 0
+        }
+      ],
+      "length": 5.004,
+      "ok": true
+    },
+    {
+      "a": "Pond__shore",
+      "b": "Pond__water",
+      "legs": [
+        {
+          "frames": 60,
+          "from": "Pond__shore",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 1.0,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Pond__water",
+          "used_nav": false,
+          "walked_m": 3.9,
+          "walls": 0
+        },
+        {
+          "frames": 60,
+          "from": "Pond__water",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 1.0,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Pond__shore",
+          "used_nav": false,
+          "walked_m": 3.9,
+          "walls": 0
+        }
+      ],
+      "length": 5.39,
+      "ok": true
+    },
+    {
+      "a": "Village__gate_east",
+      "b": "Village__plaza",
+      "legs": [
+        {
+          "frames": 3872,
+          "from": "Village__gate_east",
+          "hits": [
+            {
+              "normal": [
+                1.0,
+                0.0,
+                0.0
+              ],
+              "with": "UZUBlockFence"
+            },
+            {
+              "normal": [
+                1.0,
+                0.0,
+                0.0
+              ],
+              "with": "UZUBlockFence"
+            }
+          ],
+          "left_m": 25.5,
+          "on_floor": true,
+          "on_wall": true,
+          "reached": false,
+          "reason": "timeout",
+          "seconds": 64.53,
+          "seeks": 0,
+          "stuck_at": [
+            1.2,
+            0.0,
+            -9.9
+          ],
+          "to": "Village__plaza",
+          "used_nav": false,
+          "walked_m": 57.4,
+          "walls": 8
+        },
+        {
+          "frames": 3858,
+          "from": "Village__plaza",
+          "hits": [
+            {
+              "normal": [
+                -1.0,
+                0.0,
+                0.0
+              ],
+              "with": "UZUBlockFence"
+            }
+          ],
+          "left_m": 3.1,
+          "on_floor": true,
+          "on_wall": true,
+          "reached": false,
+          "reason": "stuck",
+          "seconds": 64.3,
+          "seeks": 0,
+          "stuck_at": [
+            0.0,
+            0.0,
+            -11.7
+          ],
+          "to": "Village__gate_east",
+          "used_nav": true,
+          "walked_m": 110.9,
+          "walls": 10
+        }
+      ],
+      "length": 27.615,
+      "ok": false
+    },
+    {
+      "a": "Village__plaza",
+      "b": "Village__spawn",
+      "legs": [
+        {
+          "frames": 170,
+          "from": "Village__plaza",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 2.83,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Village__spawn",
+          "used_nav": true,
+          "walked_m": 11.3,
+          "walls": 0
+        },
+        {
+          "frames": 258,
+          "from": "Village__spawn",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 4.3,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Village__plaza",
+          "used_nav": true,
+          "walked_m": 13.1,
+          "walls": 0
+        }
+      ],
+      "length": 12.354,
+      "ok": true
+    },
+    {
+      "a": "Village__spawn",
+      "b": "Village__tallest_roof",
+      "legs": [
+        {
+          "frames": 2731,
+          "from": "Village__spawn",
+          "hits": [
+            {
+              "normal": [
+                0.08,
+                0.0,
+                -1.0
+              ],
+              "with": "CityBody"
+            }
+          ],
+          "left_m": 2.9,
+          "on_floor": true,
+          "on_wall": true,
+          "reached": false,
+          "reason": "timeout",
+          "seconds": 45.52,
+          "seeks": 0,
+          "stuck_at": [
+            -37.2,
+            0.2,
+            -4.5
+          ],
+          "to": "Village__tallest_roof",
+          "used_nav": true,
+          "walked_m": 55.7,
+          "walls": 9
+        },
+        {
+          "frames": 137,
+          "from": "Village__tallest_roof",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 2.28,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Village__spawn",
+          "used_nav": true,
+          "walked_m": 9.1,
+          "walls": 0
+        }
+      ],
+      "length": 12.41,
+      "ok": false
+    },
+    {
+      "a": "Village__gate_west",
+      "b": "Village__tallest_roof",
+      "legs": [
+        {
+          "frames": 2785,
+          "from": "Village__gate_west",
+          "hits": [
+            {
+              "normal": [
+                0.08,
+                0.0,
+                -1.0
+              ],
+              "with": "CityBody"
+            }
+          ],
+          "left_m": 2.9,
+          "on_floor": true,
+          "on_wall": true,
+          "reached": false,
+          "reason": "timeout",
+          "seconds": 46.42,
+          "seeks": 0,
+          "stuck_at": [
+            -35.8,
+            0.2,
+            -4.4
+          ],
+          "to": "Village__tallest_roof",
+          "used_nav": true,
+          "walked_m": 57.6,
+          "walls": 9
+        },
+        {
+          "frames": 150,
+          "from": "Village__tallest_roof",
+          "left_m": 1.4,
+          "reached": true,
+          "seconds": 2.5,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Village__gate_west",
+          "used_nav": true,
+          "walked_m": 10.0,
+          "walls": 0
+        }
+      ],
+      "length": 13.129,
+      "ok": false
+    },
+    {
+      "a": "Village__gate_north",
+      "b": "Village__spawn",
+      "legs": [
+        {
+          "frames": 256,
+          "from": "Village__gate_north",
+          "left_m": 1.4,
+          "reached": true,
+          "seconds": 4.27,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Village__spawn",
+          "used_nav": false,
+          "walked_m": 17.0,
+          "walls": 0
+        },
+        {
+          "frames": 256,
+          "from": "Village__spawn",
+          "left_m": 1.4,
+          "reached": true,
+          "seconds": 4.27,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Village__gate_north",
+          "used_nav": false,
+          "walked_m": 17.0,
+          "walls": 0
+        }
+      ],
+      "length": 18.439,
+      "ok": true
+    },
+    {
+      "a": "Village__gate_south",
+      "b": "Village__plaza",
+      "legs": [
+        {
+          "frames": 336,
+          "from": "Village__gate_south",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 5.6,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Village__plaza",
+          "used_nav": false,
+          "walked_m": 20.6,
+          "walls": 0
+        },
+        {
+          "frames": 320,
+          "from": "Village__plaza",
+          "left_m": 1.5,
+          "reached": true,
+          "seconds": 5.33,
+          "seeks": 0,
+          "stuck_at": null,
+          "to": "Village__gate_south",
+          "used_nav": true,
+          "walked_m": 21.2,
+          "walls": 0
+        }
+      ],
+      "length": 20.598,
+      "ok": true
+    }
+  ],
+  "scene": "res://village.tscn"
+}

@@ -26,6 +26,11 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py map      options [nature|city]           every map key with its default, range and meaning, and the presets
   uzu.py map      <project> walk --scene res://x.tscn [--from spawn] [--to plaza,gate_east] [--seconds 90]
                   a walker under physics walks the city's navigation mesh to each place; per-target result
+  uzu.py map      <project> walk-graph --graph region_graph.json [--scene res://x.tscn] [--seconds 0]
+                  [--block-node <id>] [--out report.json]   region-graph verification (B-1510): a walker
+                  under physics walks every edge of a B-1509 region graph in both directions; per-edge
+                  pass/fail JSON with frames, seconds and stuck points; --block-node fences one node in
+                  to prove that exactly its edges fail
   uzu.py picture  <project> <command> [options]   Picture prototype: doctor, schema, analyze, snap, adopt, validate, shot, map, pbr
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
@@ -898,6 +903,85 @@ def map_walk(project, args):
     return {"command": "walk", "scene": scene, **report}
 
 
+GRAPHWALK_PROBE = 'UZUGraphWalk="*res://addons/uzu_selfplay/graph_walk.gd"\\n'
+
+
+def load_region_graph(path):
+    """Loads and validates a region graph (B-1509, format uzu-region-graph/1): nodes with
+    unique ids and [x, y, z] centers, edges joining known nodes. Raises ToolError."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            graph = json.load(f)
+    except (OSError, ValueError) as e:
+        raise ToolError(f"could not read region graph {path}: {e}", command="walk-graph")
+    if not isinstance(graph, dict) or graph.get("format") != "uzu-region-graph/1":
+        raise ToolError("not a region graph (format must be uzu-region-graph/1)", command="walk-graph")
+    nodes = {}
+    for n in graph.get("nodes") or []:
+        center = n.get("center") if isinstance(n, dict) else None
+        if not isinstance(n, dict) or not isinstance(n.get("id"), str) or not isinstance(center, list) or len(center) != 3:
+            raise ToolError("region graph node without an id and a [x, y, z] center", command="walk-graph")
+        if n["id"] in nodes:
+            raise ToolError(f"region graph node id twice: {n['id']}", command="walk-graph")
+        nodes[n["id"]] = n
+    if not nodes:
+        raise ToolError("region graph has no nodes", command="walk-graph")
+    for e in graph.get("edges") or []:
+        if not isinstance(e, dict) or e.get("a") not in nodes or e.get("b") not in nodes:
+            raise ToolError("region graph edge joins an unknown node", command="walk-graph")
+    return graph
+
+
+def map_walk_graph(project, args):
+    """Region-graph walking verification (B-1510): a walker under physics (capsule, gravity,
+    collisions, curb steps) walks every edge of a B-1509 region graph in both directions —
+    along the navigation mesh where the walker is on it, steering straight at the target
+    where there is none (natural terrain) — and reports, per edge, whether both directions
+    arrived, with frames, seconds, meters walked and the stuck point of a failed leg.
+    ok when every edge passed both ways. --block-node fences one node in with walls, to
+    prove that exactly its edges fail. The scene (the graph's own "scene", or --scene)
+    must already contain the generated map; composing it is the caller's step."""
+    graph_arg = opt(args, "graph")
+    if not graph_arg:
+        raise ToolError("map walk-graph needs --graph region_graph.json (B-1509)", command="walk-graph")
+    graph_path = graph_arg if os.path.isfile(graph_arg) else os.path.join(project, graph_arg)
+    if not os.path.isfile(graph_path):
+        raise ToolError(f"region graph not found: {graph_arg}", command="walk-graph")
+    graph_path = os.path.abspath(graph_path)
+    graph = load_region_graph(graph_path)
+    scene = opt(args, "scene") or graph.get("scene") or _main_scene(project)
+    if not scene:
+        raise ToolError("map walk-graph needs --scene res://... (or a scene named in the graph)", command="walk-graph")
+    if scene.startswith("res://") and not os.path.isfile(os.path.join(project, scene[6:])):
+        raise ToolError(f"the scene is not in the project: {scene} (generate or compose it first)", command="walk-graph")
+    cap = opt(args, "seconds", "0")
+    block = opt(args, "block-node")
+    edges = graph.get("edges") or []
+
+    def leg_cap(length):
+        return float(cap) if float(cap or 0) > 0 else min(600.0, max(45.0, 30.0 + float(length or 0) * 1.25))
+
+    budget = int(sum(2 * leg_cap(e.get("length", 0)) for e in edges) * 60 * 2 + 3600)
+    with tempfile.TemporaryDirectory() as tmp:
+        game = os.path.join(tmp, "game")
+        shutil.copytree(project, game)
+        install_addons(game, ["selfplay/graph_walk.gd"], GRAPHWALK_PROBE)
+        run([find_godot(), "--headless", "--path", game, "--import"], timeout=1800)
+        out = os.path.join(tmp, "walk_graph.json")
+        rc, log = run([find_godot(), "--headless", "--path", game, scene, "--fixed-fps", "60", "--quit-after", str(budget),
+                       "--", "--uzu-walk-graph", graph_path, out, cap or "0", block or "-"], timeout=1800, cwd=game)
+        if not os.path.exists(out):
+            sys.stderr.write(log)
+            raise ToolError("the graph walk did not finish (see stderr)", command="walk-graph")
+        with open(out, encoding="utf-8") as f:
+            report = json.load(f)
+    out_file = opt(args, "out")
+    if out_file:
+        with open(out_file, "w", encoding="utf-8") as f:
+            json.dump(report, f, ensure_ascii=False, indent=2)
+    return {"command": "walk-graph", "scene": scene, "graph": graph_path, **report}
+
+
 def map_(project, args):
     """Map generation (UZUWorldGen, ai_loop/map_tool.gd): a natural map or a city from a short
     spec. --spec is inline JSON ({...}) or a file; --set key=value overrides one key. --look
@@ -917,6 +1001,8 @@ def map_(project, args):
     command = args[0] if args and not args[0].startswith("--") else "options"
     if command == "walk":
         return map_walk(project, args[1:])
+    if command == "walk-graph":
+        return map_walk_graph(project, args[1:])
     tool_args = [command]
     rest = args[1:] if args and not args[0].startswith("--") else list(args)
     i = 0
@@ -1982,6 +2068,7 @@ def selftest_tools():
     commands = [(tool, ["--self-test"]) for tool in tools]
     commands.append(("tests/test_dialogue.py", []))
     commands.append(("tests/test_spec_set.py", []))
+    commands.append(("tests/test_walk_graph.py", []))
     ok = True
     for tool, args in commands:
         rc, out = run([sys.executable, os.path.join(HERE, tool), *args], timeout=900)
