@@ -18,3 +18,7 @@ godot --path "$sample" --resolution 390x844 --script "$PWD/$sample/verify.gd" --
 ```
 
 `art/dialog.webp` と `art/village.webp` はこの見本用に画像生成した素材。`lantern_*.woff2` は既存の `ai_loop/ui_font.py` で切り出した日本語と欧文のフォントで、出典とライセンスは隣の `*.LICENSE.txt` にある。台詞やラベルを変更して文字を追加する場合はフォントを再サブセットする。
+
+会話枠の開閉には `UZUUIJuice.apply_world_motion(..., "wafu")` を使う。ボタンはフォーカス・ホバー・押下に反応し、会話枠の開閉中に入力を重ねてもページが飛ばない。背景の祠の灯りは、画面比に合わせて位置を保ち、ゆっくり明滅する。
+
+動きを抑えて使う場合は、ゲーム起動時に `-- --reduce-motion` を指定する。検証時は PNG パスの後ろに `--reduce-motion` を付ける。通常は開始・終了のモーションイベントを、動きを抑えた場合は空のイベントログと固定の灯りを確認する。モーションを使うには B-1304 を含む U.ZU Engine が必要。

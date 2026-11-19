@@ -115,4 +115,4 @@
 | B-1205（LOD の部分） | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd（lod コマンド）, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/iterations/ | LOD の部分は反映済み（法線ベイクは Blender のある環境で） | 2026-11-19 |
 | B-1209（手続きプリセットと指標） | Claude Code (cloud) | ai-native（直接） | ai_loop/engine_tool.gd（pbr-preset／pbr-assign、rich の指標）, ai_loop/uzu.py（look pbr）, ai_loop/mcp_server.py, ai_loop/iterations/ | 反映済み（灯りの欠片への適用はリード、Blender への組み込みは残り） | 2026-11-19 |
 | B-1304 UI の juice | Muse (lead branch) | agent/b-1304-lead | scene/gui/uzu_ui_juice.{h,cpp}（新規）, scene/register_scene_types.cpp, doc/classes/UZUUIJuice.xml（新規）, tests/scene/test_uzu_ui_juice.cpp（新規）, ai_loop/iterations/ | 反映済み（2026-11-19 リード統合。新規8件 pass、全テスト 1556/1558、fail 2件は UDP 環境起因の既存失敗） | 2026-11-19 |
-| B-1307（生成画像を使った独立 UI 見本） | Codex | agent/b-1307-codex | ai_loop/look_samples/lantern_ui/, ai_loop/iterations/2026-11-19-B-1307-codex.md | 横長／縦長の描画とキーボード／マウス操作確認済み。統合待ち | 2026-11-19 |
+| B-1307（生成画像を使った独立 UI 見本） | Codex | agent/b-1307-codex | ai_loop/look_samples/lantern_ui/, ai_loop/iterations/2026-11-19-B-1307-codex.md | 会話枠とボタンのモーション、灯り、動き軽減を3条件で検証。統合待ち | 2026-11-19 |
