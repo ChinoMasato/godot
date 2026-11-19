@@ -32,7 +32,7 @@ NODE = _str('Node path relative to the scene root ("." is the root)')
 
 # name: (script, command, description, properties, required)
 TOOLS = {
-    "catalog_search": ("catalog", "", "Search the feature catalog (BACKLOG B-403): every uzu.py command, MCP tool, preset, tool script and UZU class with its description, tags and place of implementation, generated from their definitions. Use it to discover what the agent tools can do before reading the docs.", {"query": _str("Keyword(s); every word must match an entry's name, description or tags")}, ["query"]),
+    "catalog_search": ("catalog", "", "Search the feature catalog (BACKLOG B-403): every uzu.py command, MCP tool, preset, tool script and UZU class with its description, tags and place of implementation, generated from their definitions. Use it to discover what the agent tools can do before reading the docs.", {"query": _str("Keyword(s); every word must match an entry's name, description or tags"), "caps": _str("Agent capability profile (BACKLOG B-404): comma-separated names (image_gen, gpu, blender, browser); matches are annotated with the capabilities the profile is missing"), "profile": _str("Path to a JSON capability profile file (BACKLOG B-404)")}, ["query"]),
     "replay_compare": ("replay-compare", "", "Compare replay JSON or JSONL and report the first differing field. Snapshots matches expected fields at each frame or time.", {"expected": _str("Expected log or snapshot file path"), "actual": _str("Actual log file path"), "snapshots": {"type": "boolean"}}, ["expected", "actual"]),
     "scene_new": ("engine", "new", "Create a new scene file with a root node.", {"scene": SCENE, "type": _str("Root node class, e.g. Node3D"), "name": _str("Root node name")}, ["scene"]),
     "scene_tree": ("engine", "tree", "List the nodes of a scene with their types and scripts.", {"scene": SCENE, "depth": _str("Maximum depth (optional)")}, ["scene"]),
@@ -102,6 +102,18 @@ TOOLS = {
     "look_texels": ("look", "texels", "Check the texel density of the scene's sprites: warns on sprites whose pixels are bigger or smaller than the others', and on blurry filtering.", {"scene": SCENE, "tolerance": _str("Allowed difference, default 0.05")}, ["scene"]),
     "look_pixel": ("look", "pixel", "Pixel discipline preset: one texel size for all sprites, nearest filtering, optional snapping to the texel grid.", {"scene": SCENE, "texel": _str("Texel size in meters (default: the sprites' median)"), "snap": {"type": "boolean", "description": "Snap sprite positions to the texel grid"}}, ["scene"]),
     "look_material": ("look", "material", "Create a preset material (save to 'out', or assign to 'node' in 'scene').", {"kind": _str("skin | foliage | glass | water | lamp"), "out": _str("res://path.tres"), "scene": SCENE, "node": NODE}, ["kind"]),
+}
+
+
+# Capability requirements (BACKLOG B-404), declared next to the tools they
+# describe: the agent capabilities a tool needs beyond what the engine
+# provides itself, and what to do instead when the agent lacks one.
+# ai_loop/make_catalog.py copies these onto the matching "mcp" catalog
+# entries (and onto a "command" entry when exactly one tool maps to it);
+# catalog search annotates entries with the capabilities a profile is
+# missing instead of hiding them. Capability names: ai_loop/agent_caps.py.
+TOOL_CAPABILITIES = {
+    "frame_benchmark": {"required_capabilities": ["gpu"], "fallback": "Without a GPU, run the benchmark headless (omit render): it still measures CPU frame work and startup; only the render wall-time marks need a GPU."},
 }
 
 
@@ -182,6 +194,7 @@ def self_test():
             {"jsonrpc": "2.0", "id": 11, "method": "tools/call", "params": {"name": "frame_benchmark", "arguments": {"frames": "0"}}},
             {"jsonrpc": "2.0", "id": 12, "method": "tools/call", "params": {"name": "catalog_search", "arguments": {"query": "sfx"}}},
             {"jsonrpc": "2.0", "id": 13, "method": "tools/call", "params": {"name": "catalog_search", "arguments": {"query": "no-such-feature-zzz"}}},
+            {"jsonrpc": "2.0", "id": 14, "method": "tools/call", "params": {"name": "catalog_search", "arguments": {"query": "benchmark", "caps": "image_gen"}}},
         ]
         proc = subprocess.run([sys.executable, os.path.abspath(__file__), "--project", project], input="\n".join(json.dumps(r) for r in requests) + "\n", capture_output=True, text=True, timeout=600)
         responses = {r["id"]: r for r in map(json.loads, proc.stdout.splitlines())}
@@ -204,7 +217,11 @@ def self_test():
         assert not responses[12]["result"]["isError"] and any(m["name"] == "sfx_make" for m in found["matches"]), found
         missed = json.loads(responses[13]["result"]["content"][0]["text"])
         assert not responses[13]["result"]["isError"] and missed["count"] == 0, missed
-        assert len(responses) == 13, "notifications must not get a response"
+        capped = json.loads(responses[14]["result"]["content"][0]["text"])
+        assert not responses[14]["result"]["isError"] and capped["profile"] == ["image_gen"], capped
+        bench = next(m for m in capped["matches"] if m["name"] == "frame_benchmark")
+        assert bench["missing_capabilities"] == ["gpu"], bench
+        assert len(responses) == 14, "notifications must not get a response"
     print("mcp selftest: ok")
     return 0
 

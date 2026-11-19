@@ -27,9 +27,18 @@ or through ai_loop\\windows\\uzu.bat.
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
                   [--packet DIR] [--expect-clear]   on failure, a diagnosis packet in DIR (B-308)
   uzu.py replay-compare --expected PATH --actual PATH [--snapshots]   compare JSON/JSONL logs (B-314)
-  uzu.py catalog  <word> [<word> ...] [--limit N]   search the feature catalog (B-403): every command, MCP tool,
+  uzu.py catalog  <word> [<word> ...] [--limit N] [--caps a,b] [--profile caps.json]
+                  search the feature catalog (B-403): every command, MCP tool,
                   preset, tool script and UZU class, generated from their definitions by ai_loop/make_catalog.py
-                  into ai_loop/catalog.json; use it to discover what exists before reading the docs
+                  into ai_loop/catalog.json; use it to discover what exists before reading the docs.
+                  With a capability profile (B-404), matches are annotated with missing_capabilities
+  uzu.py caps     [--caps image_gen,gpu] [--profile caps.json]   the agent capability profile (B-404): the
+                  capabilities this agent declares (image_gen, gpu, blender, browser), from --caps,
+                  $UZU_AGENT_CAPS and/or a JSON profile file ($UZU_AGENT_PROFILE); tools adapt to it
+  uzu.py texture-route [--caps image_gen] [--profile caps.json] [--image generated.png] [--preset wood]
+                  pick how a texture is made, by agent capability (B-404): with image_gen, a generated image
+                  goes through UZUPBRFromImage (B-902); without it, the procedural PBR presets (B-1209)
+                  are used instead; the result says which route was picked and why
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
@@ -1821,6 +1830,14 @@ def main(argv):
         import catalog
 
         return catalog.main(rest)
+    if tool == "caps":
+        import agent_caps
+
+        return agent_caps.main(rest)
+    if tool == "texture-route":
+        import texture_route
+
+        return texture_route.main(rest)
     if tool == "selftest":
         return selftest(rest[0] if rest else "all")
     if tool == "picture":

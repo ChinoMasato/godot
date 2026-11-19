@@ -21,6 +21,15 @@ Descriptions come from the definitions (docstrings, header comments,
 the MCP table); where several sources describe the same command, the
 GDScript header wins, then the MCP table. Nothing is written by hand here.
 
+Capability requirements (BACKLOG B-404) are extracted the same way, from
+declarations next to the definitions: TOOL_CAPABILITIES in mcp_server.py
+(for "mcp" entries, and for a "command" entry when exactly one MCP tool
+maps to it), a top-level CAPABILITIES dict literal in a tool script (for
+"script" entries), and in the module a top-level uzu.py tool dispatches
+to (for "cli" entries, see CLI_MODULES). Every entry carries
+"required_capabilities" (possibly empty) and "fallback" (or null); the
+names are validated against ai_loop/agent_caps.py.
+
 Usage: ai_loop/make_catalog.py [--check]
   --check  do not write; fail if the committed catalog's entry set
            differs from a fresh extraction (used by the tests).
@@ -206,6 +215,61 @@ def _gd_summary(path):
     return " ".join(parts)[:240]
 
 
+# ---------------------------------------------------------------- capabilities
+
+
+# Top-level uzu.py tools that dispatch to a module of their own: a
+# CAPABILITIES declaration in that module describes the "cli" entry.
+CLI_MODULES = {"caps": "agent_caps.py", "catalog": "catalog.py", "replay-compare": "replay_compare.py", "texture-route": "texture_route.py"}
+
+
+def _declared_capabilities(path):
+    """A tool module's top-level CAPABILITIES = {...} literal, or None."""
+    try:
+        tree = ast.parse(_read(path))
+    except (OSError, SyntaxError):
+        return None
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "CAPABILITIES" for t in node.targets):
+            try:
+                decl = ast.literal_eval(node.value)
+            except (ValueError, SyntaxError):
+                raise ValueError(f"{rel(path)}: CAPABILITIES must be a literal dict")
+            if not isinstance(decl, dict):
+                raise ValueError(f"{rel(path)}: CAPABILITIES must be a dict")
+            return decl
+    return None
+
+
+def _apply_capabilities(entries):
+    """Fill every entry's required_capabilities / fallback from the declarations."""
+    import agent_caps
+    import mcp_server
+
+    decls = {}
+    tool_caps = getattr(mcp_server, "TOOL_CAPABILITIES", {})
+    for name, decl in tool_caps.items():
+        decls[("mcp", "", name)] = decl
+    by_command = {}
+    for name, spec in mcp_server.TOOLS.items():
+        decl = tool_caps.get(name)
+        if decl and spec[1]:
+            by_command.setdefault((spec[0], spec[1]), []).append(decl)
+    for (script, command), found in by_command.items():
+        if len(found) == 1:  # Only an unambiguous mapping describes a command.
+            decls[("command", script, command)] = found[0]
+    for entry in entries:
+        decl = decls.get((entry["kind"], entry.get("tool", ""), entry["name"]))
+        if decl is None and entry["kind"] == "script" and entry["source"].endswith(".py"):
+            decl = _declared_capabilities(os.path.join(ROOT, entry["source"]))
+        if decl is None and entry["kind"] == "cli" and entry["name"] in CLI_MODULES:
+            decl = _declared_capabilities(os.path.join(HERE, CLI_MODULES[entry["name"]]))
+        if decl:
+            required = agent_caps.validate_names(decl.get("required_capabilities", []), f"capabilities of {entry['kind']} {entry['name']}")
+            entry["required_capabilities"] = sorted(set(required))
+            entry["fallback"] = decl.get("fallback")
+
+
 # ---------------------------------------------------------------- builders
 
 
@@ -213,7 +277,7 @@ def build_catalog():
     entries = []
 
     def add(name, kind, description, tags, source, **extra):
-        entry = {"name": name, "kind": kind, "description": description, "tags": sorted(set(tags)), "source": source}
+        entry = {"name": name, "kind": kind, "description": description, "tags": sorted(set(tags)), "source": source, "required_capabilities": [], "fallback": None}
         entry.update(extra)
         entries.append(entry)
 
@@ -274,6 +338,8 @@ def build_catalog():
         brief = " ".join((root_el.findtext("brief_description") or "").split())
         add(root_el.get("name"), "class", brief, ["class", "uzu"], rel(path))
 
+    _apply_capabilities(entries)
+
     order = {"cli": 0, "command": 1, "mcp": 2, "preset": 3, "script": 4, "class": 5}
     entries.sort(key=lambda e: (order[e["kind"]], e.get("tool", ""), e["name"]))
     counts = {}
@@ -288,7 +354,11 @@ def entry_keys(catalog):
 
 
 def main(argv):
-    catalog = build_catalog()
+    try:
+        catalog = build_catalog()
+    except ValueError as e:
+        print(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False))
+        return 1
     if "--check" in argv:
         try:
             with open(OUT, encoding="utf-8") as f:
