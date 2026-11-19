@@ -32,10 +32,15 @@
 
 #include "../uzu_world_gen.h"
 
+#include "core/math/geometry_2d.h"
+
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/multimesh_instance_3d.h"
+#include "scene/3d/navigation/navigation_region_3d.h"
 #include "scene/3d/node_3d.h"
 #include "scene/resources/mesh.h"
+#include "scene/resources/multimesh.h"
+#include "scene/resources/navigation_mesh.h"
 #include "tests/test_macros.h"
 
 namespace TestUZUWorldGen {
@@ -307,5 +312,116 @@ TEST_CASE("[SceneTree][UZUWorldGen] Villages joined by roads: every road connect
 	memdelete(again);
 	memdelete(none);
 }
+
+TEST_CASE("[SceneTree][UZUWorldGen] City: benches, and a navigation mesh that joins the streets and stays out of buildings") {
+	Dictionary s;
+	s["size"] = 120;
+	s["block"] = 40;
+	s["road_width"] = 8;
+	s["sidewalk"] = 2.5;
+	s["seed"] = 4;
+	s["roof"] = "flat";
+	s["density"] = 1.0;
+	s["benches"] = 15;
+	Node3D *root = memnew(Node3D);
+	const Dictionary r = UZUWorldGen::generate_city(root, s);
+	REQUIRE(bool(r["ok"]));
+	Node *city = root->get_child(0);
+	CHECK(int(Dictionary(r["counts"])["benches"]) > 8);
+	CHECK(mesh_vertices(city, "Benches").size() > 0);
+	CHECK(city->get_node_or_null(NodePath("CityBody/Bench0")) != nullptr);
+
+	REQUIRE(r.has("navigation"));
+	NavigationRegion3D *region = Object::cast_to<NavigationRegion3D>(city->get_node_or_null(NodePath("Navigation")));
+	REQUIRE(region);
+	CHECK(region->get_owner() == root);
+	Ref<NavigationMesh> nav = region->get_navigation_mesh();
+	REQUIRE(nav.is_valid());
+	const int polys = nav->get_polygon_count();
+	CHECK(polys > 0);
+	CHECK(int(Dictionary(r["navigation"])["polygons"]) == polys);
+	if (polys == 0) {
+		memdelete(root);
+		return;
+	}
+
+	// Flat roofs are the footprints: no walkable polygon inside one.
+	const PackedVector3Array bv = mesh_vertices(city, "Buildings");
+	Vector<Vector3> roof_tris;
+	for (int i = 0; i + 2 < bv.size(); i += 3) {
+		const Vector3 n = (bv[i + 2] - bv[i]).cross(bv[i + 1] - bv[i]);
+		if (bv[i].y > 1.0f && Math::abs(n.normalized().y) > 0.99f) {
+			roof_tris.push_back(bv[i]);
+			roof_tris.push_back(bv[i + 1]);
+			roof_tris.push_back(bv[i + 2]);
+		}
+	}
+	REQUIRE(roof_tris.size() > 0);
+	const Vector<Vector3> nv = nav->get_vertices();
+	Vector<Vector3> centers;
+	bool outside = true, low = true;
+	for (int i = 0; i < polys; i++) {
+		const Vector<int> poly = nav->get_polygon(i);
+		Vector3 c;
+		for (int k : poly) {
+			c += nv[k];
+		}
+		c /= poly.size();
+		centers.push_back(c);
+		low = low && c.y < 1.2f;
+		for (int t = 0; t < roof_tris.size(); t += 3) {
+			outside = outside && !Geometry2D::is_point_in_triangle(Vector2(c.x, c.z), Vector2(roof_tris[t].x, roof_tris[t].z), Vector2(roof_tris[t + 1].x, roof_tris[t + 1].z), Vector2(roof_tris[t + 2].x, roof_tris[t + 2].z));
+		}
+	}
+	CHECK(low);
+	CHECK(outside);
+
+	// An AI can walk from the spawn to every gate and the plaza: their polygons are linked.
+	Vector<int> parent;
+	for (int i = 0; i < polys; i++) {
+		parent.push_back(i);
+	}
+	auto root_of = [&](int p_i) {
+		while (parent[p_i] != p_i) {
+			p_i = parent[p_i];
+		}
+		return p_i;
+	};
+	HashMap<int, int> first_poly_of_vertex;
+	for (int i = 0; i < polys; i++) {
+		for (int k : nav->get_polygon(i)) {
+			if (first_poly_of_vertex.has(k)) {
+				parent.write[root_of(i)] = root_of(first_poly_of_vertex[k]);
+			} else {
+				first_poly_of_vertex[k] = i;
+			}
+		}
+	}
+	auto poly_near = [&](const Array &p_pos) {
+		const Vector3 p = Vector3(double(p_pos[0]), double(p_pos[1]), double(p_pos[2]));
+		int best = 0;
+		for (int i = 1; i < centers.size(); i++) {
+			best = centers[i].distance_to(p) < centers[best].distance_to(p) ? i : best;
+		}
+		return best;
+	};
+	const Dictionary places = r["places"];
+	const int spawn = root_of(poly_near(Dictionary(places["spawn"])["position"]));
+	for (const char *name : { "gate_north", "gate_south", "gate_east", "gate_west", "plaza" }) {
+		CHECK(root_of(poly_near(Dictionary(places[name])["position"])) == spawn);
+	}
+
+	// navigation: false skips it; ground: false leaves the ground plane out.
+	s["navigation"] = false;
+	s["ground"] = false;
+	Node3D *root2 = memnew(Node3D);
+	const Dictionary r2 = UZUWorldGen::generate_city(root2, s);
+	CHECK_FALSE(r2.has("navigation"));
+	CHECK(root2->get_child(0)->get_node_or_null(NodePath("Ground")) == nullptr);
+	CHECK(root2->get_child(0)->get_node_or_null(NodePath("CityBody/Ground")) == nullptr);
+	memdelete(root);
+	memdelete(root2);
+}
+
 
 } // namespace TestUZUWorldGen

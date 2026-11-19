@@ -32,19 +32,24 @@
 
 #include "core/math/random_pcg.h"
 #include "core/object/class_db.h"
+#include "core/os/os.h"
 #include "core/templates/local_vector.h"
 #include "scene/3d/light_3d.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/multimesh_instance_3d.h"
+#include "scene/3d/navigation/navigation_region_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
 #include "scene/3d/physics/static_body_3d.h"
 #include "scene/3d/uzu_look.h"
 #include "scene/resources/3d/box_shape_3d.h"
 #include "scene/resources/3d/convex_polygon_shape_3d.h"
 #include "scene/resources/3d/height_map_shape_3d.h"
+#include "scene/resources/3d/navigation_mesh_source_geometry_data_3d.h"
 #include "scene/resources/material.h"
 #include "scene/resources/mesh.h"
 #include "scene/resources/multimesh.h"
+#include "scene/resources/navigation_mesh.h"
+#include "servers/navigation_3d/navigation_server_3d.h"
 
 namespace {
 
@@ -111,8 +116,11 @@ Vector<OptionDef> city_defs() {
 	d.push_back({ "lamps", "float", 24.0, 0, 200, {}, "meters between street lamps along the streets (0 = none)" });
 	d.push_back({ "max_lights", "int", 48, 0, 256, {}, "most lamps that really emit light (the rest only glow), to keep it fast" });
 	d.push_back({ "street_trees", "float", 12.0, 0, 100, {}, "meters between street trees (0 = none)" });
+	d.push_back({ "benches", "float", 30.0, 0, 200, {}, "meters between benches along the sidewalks, plus benches around the plaza (0 = none)" });
 	d.push_back({ "palette", "choice", "stone", 0, 0, { "warm", "stone", "modern", "pastel" }, "colors of walls, roofs, streets and sidewalks" });
-	d.push_back({ "collision", "bool", true, 0, 0, {}, "add static bodies for the ground, sidewalks and buildings" });
+	d.push_back({ "collision", "bool", true, 0, 0, {}, "add static bodies for the ground, sidewalks, buildings and benches" });
+	d.push_back({ "navigation", "bool", true, 0, 0, {}, "bake a NavigationMesh (NavigationRegion3D \"Navigation\") of the streets, sidewalks and plaza so AI characters can find paths" });
+	d.push_back({ "ground", "bool", true, 0, 0, {}, "lay a flat ground plane under the city (false when it stands on other ground, like a village on a nature map)" });
 	d.push_back({ "position", "vec3", Vector3(), 0, 0, {}, "center of the city [x, y, z] (the city is flat at y)" });
 	d.push_back({ "name", "name", "City", 0, 0, {}, "name of the node that holds the city" });
 	return d;
@@ -188,6 +196,7 @@ Dictionary presets_for(const String &p_kind) {
 		village["palette"] = "warm";
 		village["lamps"] = 18.0;
 		village["street_trees"] = 14.0;
+		village["benches"] = 40.0;
 		p["village"] = village;
 		Dictionary town;
 		p["town"] = town; // the defaults
@@ -1604,6 +1613,29 @@ void fill_convex(Ref<Image> &p_image, const Vector2 *p_q, int p_count, float p_h
 	}
 }
 
+// A box from its center and three half axes (any orientation).
+void add_box(MeshBuilder &p_mb, const Vector3 &p_c, const Vector3 &p_x, const Vector3 &p_y, const Vector3 &p_z, const Color &p_color) {
+	const Vector3 ax[3] = { p_x, p_y, p_z };
+	for (int a = 0; a < 3; a++) {
+		const Vector3 n = ax[a], u = ax[(a + 1) % 3], v = ax[(a + 2) % 3];
+		for (int sgn = -1; sgn <= 1; sgn += 2) {
+			const Vector3 c = p_c + n * sgn;
+			p_mb.quad(c - u - v, c + u - v, c + u + v, c - u + v, a == 1 && sgn < 0 ? p_color.darkened(0.3f) : p_color, n * sgn);
+		}
+	}
+}
+
+// A bench standing at p_base, p_along its length, the sitter facing p_facing.
+void add_bench(MeshBuilder &p_mb, const Vector3 &p_base, const Vector3 &p_along, const Vector3 &p_facing, const Color &p_wood, const Color &p_iron) {
+	const Vector3 up(0, 1, 0), back = -p_facing;
+	add_box(p_mb, p_base + up * 0.44f, p_along * 0.8f, up * 0.03f, p_facing * 0.22f, p_wood);
+	add_box(p_mb, p_base + up * 0.72f + back * 0.21f, p_along * 0.8f, up * 0.17f, back * 0.025f, p_wood);
+	for (int s = -1; s <= 1; s += 2) {
+		add_box(p_mb, p_base + p_along * (0.68f * s) + up * 0.21f, p_along * 0.03f, up * 0.21f, p_facing * 0.2f, p_iron);
+		add_box(p_mb, p_base + p_along * (0.68f * s) + up * 0.6f + back * 0.21f, p_along * 0.03f, up * 0.2f, back * 0.03f, p_iron);
+	}
+}
+
 void add_convex_shape(Node *p_body, Node *p_owner, const String &p_name, const Vector<Vector3> &p_points) {
 	Ref<ConvexPolygonShape3D> shape;
 	shape.instantiate();
@@ -1671,10 +1703,13 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 		}
 	}
 
-	MeshBuilder ground_mb, road_mb, block_mb, building_mb, window_mb, lit_mb, post_mb, landmark_mb;
+	MeshBuilder ground_mb, road_mb, block_mb, building_mb, window_mb, lit_mb, post_mb, landmark_mb, bench_mb;
 	const Vector3 up(0, 1, 0);
 	const float margin = 20;
-	ground_mb.quad(Vector3(-half - margin, 0, -half - margin), Vector3(half + margin, 0, -half - margin), Vector3(half + margin, 0, half + margin), Vector3(-half - margin, 0, half + margin), pal.ground, up);
+	const bool with_ground = o["ground"];
+	if (with_ground) {
+		ground_mb.quad(Vector3(-half - margin, 0, -half - margin), Vector3(half + margin, 0, -half - margin), Vector3(half + margin, 0, half + margin), Vector3(-half - margin, 0, half + margin), pal.ground, up);
+	}
 	const float ry = 0.02f;
 	float road_length = 0;
 	for (int e = 0; e < edge_a.size(); e++) {
@@ -1697,6 +1732,8 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 		body->set_name("CityBody");
 		holder->add_child(body, true);
 		body->set_owner(owner);
+	}
+	if (body && with_ground) {
 		Ref<BoxShape3D> ground_shape;
 		ground_shape.instantiate();
 		ground_shape->set_size(Vector3(size + 2 * margin, 1, size + 2 * margin));
@@ -1720,6 +1757,10 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	Vector<Color> footprint_c;
 	Vector<Vector<Vector2>> slabs;
 	Vector3 plaza_center;
+	struct BenchSpot {
+		Vector3 base, along, facing;
+	};
+	Vector<BenchSpot> bench_spots;
 	const int window_cap = 250000;
 	for (int bj = 0; bj < m; bj++) {
 		for (int bi = 0; bi < m; bi++) {
@@ -1765,6 +1806,14 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 				for (int t = 0; t < 4; t++) {
 					const Vector2 p = slab[t].lerp(center2, 0.22f);
 					street_trees.push_back(Transform3D(Basis().scaled(Vector3(0.9f, 0.9f, 0.9f)), Vector3(p.x, curb, p.y)));
+				}
+				// Benches around the fountain, facing it.
+				if (double(o["benches"]) > 0) {
+					for (int t = 0; t < 8; t++) {
+						const float a = Math::TAU * (t + 0.5f) / 8;
+						const Vector3 out(Math::cos(a), 0, Math::sin(a));
+						bench_spots.push_back({ plaza_center + out * 6.5f, Vector3(-out.z, 0, out.x), -out });
+					}
 				}
 				continue;
 			}
@@ -1918,6 +1967,20 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 				lamp_positions.push_back(Vector3(p.x, curb, p.y));
 			}
 		}
+		const float bench_step = double(o["benches"]);
+		if (bench_step > 0 && walk >= 1.4f && len > 12) {
+			// On the inner half of the sidewalk, back to the houses, between the lamps and trees.
+			const int count = MAX(1, int(len / bench_step));
+			for (int l = 0; l < count; l++) {
+				const float t = (l + 0.72f) / count;
+				if (t * len < 6 || (1 - t) * len < 6) {
+					continue;
+				}
+				const float sgn = border ? (side.dot(-a.normalized()) > 0 ? 1.0f : -1.0f) : ((l + e) % 2 ? 1.0f : -1.0f);
+				const Vector2 p = a.lerp(b, t) + side * (road_w * 0.5f + walk * 0.62f) * sgn;
+				bench_spots.push_back({ Vector3(p.x, curb, p.y), Vector3(dir.x, 0, dir.y), Vector3(-side.x * sgn, 0, -side.y * sgn) });
+			}
+		}
 		if (tree_step > 0 && walk >= 1.4f) {
 			const int count = int(len / tree_step);
 			for (int l = 0; l < count; l++) {
@@ -1957,7 +2020,22 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 		hints.push_back(vformat("%d lamps, %d of them emit light (max_lights); the rest only glow", lamp_positions.size(), light_count));
 	}
 
-	add_mesh(holder, owner, "Ground", ground_mb.commit(vertex_color_material(0.95f)), false);
+	const Color wood = Color::html("#6b4a2f"), iron = Color::html("#2f3033");
+	for (int k = 0; k < bench_spots.size(); k++) {
+		const BenchSpot &bs = bench_spots[k];
+		add_bench(bench_mb, bs.base, bs.along, bs.facing, wood, iron);
+		if (body) {
+			Vector<Vector3> pts;
+			for (int c = 0; c < 8; c++) {
+				pts.push_back(bs.base + bs.along * ((c & 1) ? 0.8f : -0.8f) + bs.facing * ((c & 2) ? 0.24f : -0.26f) + Vector3(0, (c & 4) ? 0.9f : 0.0f, 0));
+			}
+			add_convex_shape(body, owner, vformat("Bench%d", k), pts);
+		}
+	}
+
+	if (with_ground) {
+		add_mesh(holder, owner, "Ground", ground_mb.commit(vertex_color_material(0.95f)), false);
+	}
 	add_mesh(holder, owner, "Roads", road_mb.commit(vertex_color_material(0.8f)), false);
 	add_mesh(holder, owner, "Blocks", block_mb.commit(vertex_color_material(0.85f)));
 	add_mesh(holder, owner, "Buildings", building_mb.commit(vertex_color_material(0.88f)));
@@ -1967,6 +2045,99 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	add_mesh(holder, owner, "LampBulbs", bulb_mb.commit(glow_material(Color(1, 0.85f, 0.55f), 3.0f)), false);
 	add_mesh(holder, owner, "Landmark", landmark_mb.commit(vertex_color_material(0.7f)));
 	add_multimesh(holder, owner, "StreetTrees", broadleaf_tree_mesh(), street_trees, true);
+	add_mesh(holder, owner, "Benches", bench_mb.commit(vertex_color_material(0.75f)));
+
+	// Navigation (B-1507): the ground, streets, sidewalks and plaza, baked around the buildings,
+	// benches, lamp posts and trees. Polygons left on roofs are dropped.
+	Dictionary nav_info;
+	if (bool(o["navigation"])) {
+		Ref<NavigationMeshSourceGeometryData3D> source;
+		source.instantiate();
+		const Transform3D id;
+		for (const MeshBuilder *mb : { &ground_mb, &road_mb, &block_mb, &building_mb, &bench_mb, &landmark_mb }) {
+			if (!mb->verts.is_empty()) {
+				source->add_faces(mb->verts, id);
+			}
+		}
+		// Posts and trunks as thin boxes so paths go round them.
+		MeshBuilder obstacles;
+		for (const Vector3 &p : lamp_positions) {
+			add_box(obstacles, p + Vector3(0, 1.2f, 0), Vector3(0.12f, 0, 0), Vector3(0, 1.2f, 0), Vector3(0, 0, 0.12f), Color());
+		}
+		for (const Transform3D &t : street_trees) {
+			add_box(obstacles, t.origin + Vector3(0, 1.2f, 0), Vector3(0.2f, 0, 0), Vector3(0, 1.2f, 0), Vector3(0, 0, 0.2f), Color());
+		}
+		if (!obstacles.verts.is_empty()) {
+			source->add_faces(obstacles.verts, id);
+		}
+		Ref<NavigationMesh> nav;
+		nav.instantiate();
+		const float nav_cell = size > 400 ? 0.5f : 0.25f;
+		nav->set_cell_size(nav_cell);
+		nav->set_cell_height(0.25f);
+		// Whole voxels, so Recast does not round them.
+		nav->set_agent_radius(nav_cell * 2);
+		nav->set_agent_height(1.75f);
+		nav->set_agent_max_climb(0.25f);
+		nav->set_agent_max_slope(40.0f);
+		nav->set_filter_baking_aabb(AABB(Vector3(-half - margin, -1, -half - margin), Vector3(size + 2 * margin, fmax * floor_h + 12, size + 2 * margin)));
+		const uint64_t t0 = OS::get_singleton()->get_ticks_msec();
+		NavigationServer3D *ns = NavigationServer3D::get_singleton();
+		if (ns) {
+			ns->bake_from_source_geometry_data(nav, source, Callable());
+		}
+		// Keep the polygons at street level.
+		const Vector<Vector3> nv = nav->get_vertices();
+		Vector<Vector<int>> keep;
+		for (int i = 0; i < nav->get_polygon_count(); i++) {
+			const Vector<int> poly = nav->get_polygon(i);
+			float y = 0;
+			for (int k : poly) {
+				y += nv[k].y;
+			}
+			if (poly.is_empty() || y / poly.size() > curb + 1.0f) {
+				continue;
+			}
+			// Recast also finds the floor inside each closed building: drop those islands.
+			Vector2 c;
+			for (int k : poly) {
+				c += Vector2(nv[k].x, nv[k].z);
+			}
+			c /= poly.size();
+			bool in_building = false;
+			for (int b = 0; b < footprints.size() && !in_building; b++) {
+				in_building = in_convex(footprints[b].ptr(), 4, c);
+			}
+			if (!in_building) {
+				keep.push_back(poly);
+			}
+		}
+		nav->clear_polygons();
+		float area = 0;
+		for (const Vector<int> &poly : keep) {
+			nav->add_polygon(poly);
+			for (int k = 1; k + 1 < poly.size(); k++) {
+				area += 0.5f * (nv[poly[k]] - nv[poly[0]]).cross(nv[poly[k + 1]] - nv[poly[0]]).length();
+			}
+		}
+		NavigationRegion3D *region = memnew(NavigationRegion3D);
+		region->set_name("Navigation");
+		region->set_navigation_mesh(nav);
+		holder->add_child(region, true);
+		region->set_owner(owner);
+		nav_info["node"] = String(p_root->get_path_to(region));
+		nav_info["polygons"] = keep.size();
+		nav_info["walkable_m2"] = Math::snapped(double(area), 1.0);
+		nav_info["bake_ms"] = int64_t(OS::get_singleton()->get_ticks_msec() - t0);
+		nav_info["agent"] = vformat("radius %.2f m, height 1.75 m, steps up to 0.25 m (curbs are 0.15 m)", nav_cell * 2);
+		if (keep.is_empty()) {
+			hints.push_back("the navigation mesh came out empty (no navigation server in this build?); set \"navigation\": false to skip it");
+		}
+		if (nav_cell != 0.25f) {
+			nav_info["cell_size"] = nav_cell;
+			hints.push_back("the navigation mesh uses 0.5 m cells for a city this big; set the navigation map's cell size to 0.5 to match");
+		}
+	}
 
 	// Places.
 	const Vector3 origin = holder->get_position();
@@ -2030,6 +2201,7 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	counts["lamps"] = lamp_positions.size();
 	counts["lights"] = light_count;
 	counts["street_trees"] = street_trees.size();
+	counts["benches"] = bench_spots.size();
 	Dictionary r;
 	r["ok"] = true;
 	r["kind"] = "city";
@@ -2039,8 +2211,11 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	r["size"] = size;
 	r["streets_m"] = Math::snapped(double(road_length), 0.1);
 	r["tallest_m"] = Math::snapped(double(tallest), 0.1);
-	r["triangles"] = ground_mb.triangles() + road_mb.triangles() + block_mb.triangles() + building_mb.triangles() + window_mb.triangles() + lit_mb.triangles() + post_mb.triangles() + bulb_mb.triangles() + landmark_mb.triangles();
+	r["triangles"] = ground_mb.triangles() + road_mb.triangles() + block_mb.triangles() + building_mb.triangles() + window_mb.triangles() + lit_mb.triangles() + post_mb.triangles() + bulb_mb.triangles() + landmark_mb.triangles() + bench_mb.triangles();
 	r["counts"] = counts;
+	if (!nav_info.is_empty()) {
+		r["navigation"] = nav_info;
+	}
 	r["places"] = places;
 	r["hints"] = hints;
 	r["overview"] = overview;
