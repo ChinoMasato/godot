@@ -214,7 +214,7 @@
   (3) フォローアップ（2026-11-20 定期チェックの観察）: map_tool.gd の NavigationRegion3D 保存対応が ai-native に無い。生成都市を map_tool 経由で保存すると NavigationMesh が落ちる可能性があり、本項目の検証で確認して対応する。agent/b-1507-lead の map_tool.gd .res 保存2行と関連。
 
 
-- [ ] B-1509 生成仕様の4点セット（2026-11-19、Kasane Valley の技術分析から）: マップ生成（B-1501〜1507）と宣言的シーン構築（B-1207）の出力を、(1) scene_spec: 意図と固定事項。特に **observed（観測できた事実）／inferred（補完した推論）を分けて記録**する、(2) region_graph: 地域ノードと接続（B-1510 が使う）、(3) asset_registry: 使った部品ファミリーの来歴と構成、(4) validation_report: 判定項目ごとに Verified／Partial／Unverified と証拠（ファイル・数値）への参照を並べる検証文書、の4ファイルに揃える。判定: 見本の生成で4点が揃って出力され、spec の observed／inferred が区別され、validation_report の各判定に証拠参照が付くこと。
+- [x] B-1509 生成仕様の4点セット 【完了 2026-11-20（リード統合）: 新規 ai_loop/spec_set.py が生成記録から (1) scene_spec（intent／解決済みパラメータの given・defaulted 区別／observed 実測／inferred 推論、区別基準も同梱）(2) region_graph（places をノードに最小全域木の辺、B-1510 が歩ける形式）(3) asset_registry（来歴と構成）(4) validation_report（Verified／Partial／Unverified＋証拠参照必須、否定された主張は holds=false で正直に残す）を構築。uzu.py map|build --spec-set と MCP 対応。見本は hikari の村（ノード16・辺13、Verified 12／Unverified 7）。歩行到達性と当たり判定集計は証拠が無いため Unverified のまま（後者は B-1511 の設計次第）】
 - [ ] B-1510 地域グラフと経路の自動歩行検証（2026-11-19、Kasane Valley の技術分析から）: 生成マップに地域ノード＋長さつき双方向経路のグラフ（region_graph、B-1509）を持たせ、AI プレイヤー（B-306）が全経路を双方向に実歩行して、到達可否・所要フレーム・詰まり地点を経路単位の合否 JSON として残す。B-1504 の連結チェック（静的）と B-1507 の NavigationMesh 判定（単体）を、実歩行の証拠に格上げする位置づけ。判定: 見本マップで全経路の合否が出て、通れない経路を仕込むと該当経路だけ fail になること。
 - [ ] B-1511 保存物の再読監査（2026-11-19、Kasane Valley の技術分析から）: 生成・構築したシーンを、生成側の自己申告ではなく **保存済みの .tscn／リソースを再オープンして数え直す**ことで監査する道具。三角形数・テクスチャ寸法と枚数・配置（インスタンス）数・当たり判定の有無を、仕様（B-1509 の registry／spec）と突合し、差分を構造化出力で返す。B-1204 リッチ度レポート（描画の実測）とは別に、保存物の忠実度を担保する。判定: 見本シーンで数値が一致し、保存物から部品を1つ消すと差分として検出できること＋全テスト pass。
 

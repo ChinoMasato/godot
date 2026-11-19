@@ -224,3 +224,5 @@
 - 2026-11-20: B-1306 と B-1004 を ai-native へ統合（agent/b-1306-lead）。『灯りの欠片』の UI を wafu 世界観テーマで作り直し（宣言的タイトル、ゲージ HUD、会話枠）、仮想スティックとインタラクトボタンのタッチ操作を追加。完走検証は同一ハッシュで pass、UI レポートで text_overflow 3件→0件。
 
 - 2026-11-20: B-1508 を ai-native へ統合（agent/b-1508-lead）。『灯りの欠片』の村を UZUWorldGen 生成（Land＋Pond＋City の合成、ground オプション新設、ベンチ当たり追加）に置き換え、完走検証と歩行検証（5/5）が通ることを確認。map_tool の NavigationMesh 保存は実測で問題なしと切り分け。
+
+- 2026-11-20: B-1509 生成仕様の4点セットを ai-native へ統合（agent/b-1509-lead）。生成の記録を scene_spec／region_graph／asset_registry／validation_report に揃える仕組みが入り、観測できた事実と補完した推論が区別して残るようになった。
