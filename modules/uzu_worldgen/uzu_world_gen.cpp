@@ -32,18 +32,23 @@
 
 #include "core/math/random_pcg.h"
 #include "core/object/class_db.h"
+#include "core/os/os.h"
 #include "scene/3d/light_3d.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/multimesh_instance_3d.h"
+#include "scene/3d/navigation/navigation_region_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
 #include "scene/3d/physics/static_body_3d.h"
 #include "scene/3d/uzu_look.h"
 #include "scene/resources/3d/box_shape_3d.h"
 #include "scene/resources/3d/convex_polygon_shape_3d.h"
 #include "scene/resources/3d/height_map_shape_3d.h"
+#include "scene/resources/3d/navigation_mesh_source_geometry_data_3d.h"
 #include "scene/resources/material.h"
 #include "scene/resources/mesh.h"
 #include "scene/resources/multimesh.h"
+#include "scene/resources/navigation_mesh.h"
+#include "servers/navigation_3d/navigation_server_3d.h"
 
 namespace {
 
@@ -75,6 +80,11 @@ Vector<OptionDef> nature_defs() {
 	d.push_back({ "trees", "float", 2.0, 0, 20, {}, "trees per 100 square meters inside forests (forests leave clearings)" });
 	d.push_back({ "rocks", "float", 0.4, 0, 20, {}, "rocks per 100 square meters, more on slopes" });
 	d.push_back({ "grass", "float", 0.0, 0, 400, {}, "grass tufts per 100 square meters on flat dry ground" });
+	d.push_back({ "villages", "int", 0, 0, 8, {}, "small villages on the flattest dry ground (the ground is leveled under each one)" });
+	d.push_back({ "village_size", "float", 72.0, 48, 200, {}, "side of each village in meters" });
+	d.push_back({ "roads", "bool", true, 0, 0, {}, "join the spawn and the villages with dirt roads that keep to gentle ground and stay out of the water" });
+	d.push_back({ "road_width", "float", 3.5, 2, 10, {}, "width of the roads between villages in meters" });
+	d.push_back({ "road_color", "color", Color::html("#9a8462"), 0, 0, {}, "color of the roads between villages" });
 	d.push_back({ "collision", "bool", true, 0, 0, {}, "add a static body so characters can walk on the ground" });
 	d.push_back({ "position", "vec3", Vector3(), 0, 0, {}, "center of the map [x, y, z]; y is the height of the lowest possible ground" });
 	d.push_back({ "name", "name", "Nature", 0, 0, {}, "name of the node that holds the map" });
@@ -108,8 +118,11 @@ Vector<OptionDef> city_defs() {
 	d.push_back({ "lamps", "float", 24.0, 0, 200, {}, "meters between street lamps along the streets (0 = none)" });
 	d.push_back({ "max_lights", "int", 48, 0, 256, {}, "most lamps that really emit light (the rest only glow), to keep it fast" });
 	d.push_back({ "street_trees", "float", 12.0, 0, 100, {}, "meters between street trees (0 = none)" });
+	d.push_back({ "benches", "float", 30.0, 0, 200, {}, "meters between benches along the sidewalks, plus benches around the plaza (0 = none)" });
 	d.push_back({ "palette", "choice", "stone", 0, 0, { "warm", "stone", "modern", "pastel" }, "colors of walls, roofs, streets and sidewalks" });
-	d.push_back({ "collision", "bool", true, 0, 0, {}, "add static bodies for the ground, sidewalks and buildings" });
+	d.push_back({ "collision", "bool", true, 0, 0, {}, "add static bodies for the ground, sidewalks, buildings and benches" });
+	d.push_back({ "navigation", "bool", true, 0, 0, {}, "bake a NavigationMesh (NavigationRegion3D \"Navigation\") of the streets, sidewalks and plaza so AI characters can find paths" });
+	d.push_back({ "ground", "bool", true, 0, 0, {}, "lay a flat ground plane under the city (false when it stands on other ground, like a village on a nature map)" });
 	d.push_back({ "position", "vec3", Vector3(), 0, 0, {}, "center of the city [x, y, z] (the city is flat at y)" });
 	d.push_back({ "name", "name", "City", 0, 0, {}, "name of the node that holds the city" });
 	return d;
@@ -185,6 +198,7 @@ Dictionary presets_for(const String &p_kind) {
 		village["palette"] = "warm";
 		village["lamps"] = 18.0;
 		village["street_trees"] = 14.0;
+		village["benches"] = 40.0;
 		p["village"] = village;
 		Dictionary town;
 		p["town"] = town; // the defaults
@@ -804,6 +818,72 @@ Dictionary UZUWorldGen::resolve(const String &p_kind, const Dictionary &p_spec) 
 
 // ---------------------------------------------------------------------------------------
 
+namespace {
+
+// A tiny binary heap of (cost, index) for the road search.
+struct OpenHeap {
+	Vector<float> keys;
+	Vector<int> items;
+	void push(float p_key, int p_item) {
+		keys.push_back(p_key);
+		items.push_back(p_item);
+		int i = keys.size() - 1;
+		while (i > 0) {
+			const int parent = (i - 1) / 2;
+			if (keys[parent] <= keys[i]) {
+				break;
+			}
+			SWAP(keys.write[parent], keys.write[i]);
+			SWAP(items.write[parent], items.write[i]);
+			i = parent;
+		}
+	}
+	int pop() {
+		const int top = items[0];
+		const int last = keys.size() - 1;
+		keys.write[0] = keys[last];
+		items.write[0] = items[last];
+		keys.resize(last);
+		items.resize(last);
+		int i = 0;
+		while (true) {
+			const int l = 2 * i + 1, r = l + 1;
+			int m = i;
+			if (l < keys.size() && keys[l] < keys[m]) {
+				m = l;
+			}
+			if (r < keys.size() && keys[r] < keys[m]) {
+				m = r;
+			}
+			if (m == i) {
+				break;
+			}
+			SWAP(keys.write[m], keys.write[i]);
+			SWAP(items.write[m], items.write[i]);
+			i = m;
+		}
+		return top;
+	}
+	bool is_empty() const { return keys.is_empty(); }
+};
+
+int find_root(Vector<int> &p_parent, int p_i) {
+	while (p_parent[p_i] != p_i) {
+		p_parent.write[p_i] = p_parent[p_parent[p_i]];
+		p_i = p_parent[p_i];
+	}
+	return p_i;
+}
+
+// The terrain vertices of a saved nature map, cached by mesh so height_at stays cheap in loops.
+struct TerrainCache {
+	ObjectID mesh;
+	PackedVector3Array verts;
+};
+TerrainCache terrain_cache;
+
+} // namespace
+
 Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) {
 	if (!p_root) {
 		return fail("no root node to build under");
@@ -824,22 +904,357 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 	Node *owner = nullptr;
 	Node3D *holder = add_holder(p_root, o, "nature", owner);
 
-	// Terrain: heights on the grid, smooth normals, colors by height, slope and water.
+	// Heights on the grid.
 	const int w = n + 1;
 	Vector<float> heights;
 	heights.resize(w * w);
-	float min_y = 1e20f, max_y = -1e20f;
-	int under = 0;
 	for (int j = 0; j < w; j++) {
 		for (int i = 0; i < w; i++) {
-			const float y = f.y(-half + i * cell, -half + j * cell);
-			heights.write[j * w + i] = y;
-			min_y = MIN(min_y, y);
-			max_y = MAX(max_y, y);
-			under += y < wy ? 1 : 0;
+			heights.write[j * w + i] = f.y(-half + i * cell, -half + j * cell);
 		}
 	}
 	auto H = [&](int p_i, int p_j) { return heights[CLAMP(p_j, 0, n) * w + CLAMP(p_i, 0, n)]; };
+	auto X = [&](int p_i) { return -half + p_i * cell; };
+	auto grid_normal = [&](int p_i, int p_j) { return Vector3(H(p_i - 1, p_j) - H(p_i + 1, p_j), 2 * cell, H(p_i, p_j - 1) - H(p_i, p_j + 1)).normalized(); };
+	auto slope_at = [&](int p_i, int p_j) { return Math::rad_to_deg(Math::acos(CLAMP(grid_normal(p_i, p_j).y, -1.0f, 1.0f))); };
+	auto nearest = [&](float p_x, float p_z) { return Vector2i(CLAMP(int(Math::round((p_x + half) / cell)), 0, n), CLAMP(int(Math::round((p_z + half) / cell)), 0, n)); };
+	// 0 = free, 1 = road band, 2 = village ground (no trees, no rocks).
+	Vector<uint8_t> mask;
+	mask.resize(w * w);
+	mask.fill(0);
+
+	// Villages (B-1504): the flattest dry places, apart from each other; the ground is made
+	// flat under each one and eased back into the hills around it.
+	struct Site {
+		float x, z, y, r;
+	};
+	Vector<Site> villages;
+	const int village_wanted = int64_t(o["villages"]);
+	const float village_size = double(o["village_size"]);
+	if (village_wanted > 0) {
+		const float R = village_size * 0.5f + 4.0f;
+		const float blend = R * 0.7f;
+		struct Candidate {
+			float score, x, z, y;
+			bool operator<(const Candidate &p_other) const { return score < p_other.score; }
+		};
+		Vector<Candidate> candidates;
+		const int stride = MAX(1, int(R / (2 * cell)));
+		for (int j = 0; j < w; j += stride) {
+			for (int i = 0; i < w; i += stride) {
+				const float x = X(i), z = X(j);
+				if (Math::abs(x) > half - R - blend * 0.5f || Math::abs(z) > half - R - blend * 0.5f) {
+					continue;
+				}
+				float lo = 1e20f, hi = -1e20f;
+				Vector<float> samples;
+				bool ok = true;
+				for (int ring = 0; ring <= 2 && ok; ring++) {
+					const int steps = ring == 0 ? 1 : 8;
+					for (int k = 0; k < steps; k++) {
+						const float a = Math::TAU * k / steps;
+						const Vector2i g = nearest(x + Math::cos(a) * R * ring * 0.7f, z + Math::sin(a) * R * ring * 0.7f); // out to the corners
+						const float y = H(g.x, g.y);
+						if (y < wy + 0.8f || (f.height > 0 && y / f.height > f.snow_line - 0.02f)) {
+							ok = false;
+							break;
+						}
+						lo = MIN(lo, y);
+						hi = MAX(hi, y);
+						samples.push_back(y);
+					}
+				}
+				if (!ok) {
+					continue;
+				}
+				samples.sort();
+				candidates.push_back({ (hi - lo) + 0.01f * Math::sqrt(x * x + z * z), x, z, samples[samples.size() / 2] });
+			}
+		}
+		candidates.sort();
+		for (const Candidate &c : candidates) {
+			if (villages.size() >= village_wanted) {
+				break;
+			}
+			bool apart = true;
+			for (const Site &s : villages) {
+				apart = apart && MAX(Math::abs(c.x - s.x), Math::abs(c.z - s.z)) > 2 * R + blend;
+			}
+			if (apart) {
+				villages.push_back({ c.x, c.z, c.y, R });
+			}
+		}
+		if (villages.size() < village_wanted) {
+			hints.push_back(vformat("only %d of %d villages fit on flat dry ground; lower \"village_size\" or \"water_level\", or raise \"size\"", villages.size(), village_wanted));
+		}
+		for (const Site &s : villages) {
+			const Vector2i lo = nearest(s.x - s.r - blend, s.z - s.r - blend), hi = nearest(s.x + s.r + blend, s.z + s.r + blend);
+			for (int j = lo.y; j <= hi.y; j++) {
+				for (int i = lo.x; i <= hi.x; i++) {
+					const float d = MAX(Math::abs(X(i) - s.x), Math::abs(X(j) - s.z)); // villages are square
+					const int k = j * w + i;
+					if (d < s.r) {
+						heights.write[k] = s.y;
+						mask.write[k] = 2;
+					} else if (d < s.r + blend) {
+						heights.write[k] = Math::lerp(s.y, heights[k], Math::smoothstep(s.r, s.r + blend, d));
+					}
+				}
+			}
+		}
+	}
+
+	// Spawn: flat dry ground near the center, outside the villages.
+	int spawn = -1;
+	{
+		float best_score = 1e20f;
+		const int stride = MAX(1, w / 64);
+		for (int j = 0; j < w; j += stride) {
+			for (int i = 0; i < w; i += stride) {
+				const float x = X(i), z = X(j), y = H(i, j);
+				const float d = Math::sqrt(x * x + z * z) / size;
+				if (d > 0.35f || y < wy + 0.5f || mask[j * w + i] == 2) {
+					continue;
+				}
+				const float score = slope_at(i, j) + d * 40.0f;
+				if (score < best_score) {
+					best_score = score;
+					spawn = j * w + i;
+				}
+			}
+		}
+	}
+
+	// Roads (B-1504): the spawn and the villages joined by a minimum spanning tree, each link
+	// found on the grid where the ground is gentle and dry, then smoothed and cut into the slope.
+	Dictionary roads_info;
+	Array road_paths;
+	float road_length = 0;
+	const float road_w = double(o["road_width"]);
+	Vector<float> paint;
+	paint.resize(w * w);
+	paint.fill(0);
+	if (bool(o["roads"]) && villages.size() > 0) {
+		Vector<Vector2i> stops;
+		if (spawn >= 0) {
+			stops.push_back(Vector2i(spawn % w, spawn / w));
+		}
+		for (const Site &s : villages) {
+			stops.push_back(nearest(s.x, s.z));
+		}
+		// Prim's tree on straight distances.
+		Vector<Vector2i> links;
+		{
+			Vector<bool> in_tree;
+			in_tree.resize(stops.size());
+			in_tree.fill(false);
+			in_tree.write[0] = true;
+			for (int added = 1; added < stops.size(); added++) {
+				float best = 1e20f;
+				Vector2i link(-1, -1);
+				for (int a = 0; a < stops.size(); a++) {
+					for (int b = 0; b < stops.size() && in_tree[a]; b++) {
+						if (!in_tree[b]) {
+							const float d = Vector2(stops[a] - stops[b]).length();
+							if (d < best) {
+								best = d;
+								link = Vector2i(a, b);
+							}
+						}
+					}
+				}
+				in_tree.write[link.y] = true;
+				links.push_back(link);
+			}
+		}
+		Vector<int> parent_set;
+		parent_set.resize(stops.size());
+		for (int i = 0; i < stops.size(); i++) {
+			parent_set.write[i] = i;
+		}
+		Array unreachable;
+		Vector<float> best_d, best_y;
+		best_d.resize(w * w);
+		best_d.fill(1e20f);
+		best_y.resize(w * w);
+		best_y.fill(0);
+		const float hw = road_w * 0.5f, shoulder = 1.5f;
+		Vector<Vector<Vector3>> smooth_paths;
+		for (const Vector2i &link : links) {
+			// A* over the grid vertices, 8 neighbours.
+			const int start = stops[link.x].y * w + stops[link.x].x, goal = stops[link.y].y * w + stops[link.y].x;
+			Vector<float> g;
+			g.resize(w * w);
+			g.fill(1e30f);
+			Vector<int> came;
+			came.resize(w * w);
+			came.fill(-1);
+			Vector<uint8_t> closed;
+			closed.resize(w * w);
+			closed.fill(0);
+			OpenHeap open;
+			g.write[start] = 0;
+			auto heuristic = [&](int p_k) { return Vector2(p_k % w - goal % w, p_k / w - goal / w).length() * cell; };
+			open.push(heuristic(start), start);
+			bool found = false;
+			while (!open.is_empty()) {
+				const int k = open.pop();
+				if (closed[k]) {
+					continue;
+				}
+				if (k == goal) {
+					found = true;
+					break;
+				}
+				closed.write[k] = 1;
+				const int ki = k % w, kj = k / w;
+				for (int dj = -1; dj <= 1; dj++) {
+					for (int di = -1; di <= 1; di++) {
+						const int ni = ki + di, nj = kj + dj;
+						if ((di == 0 && dj == 0) || ni < 0 || nj < 0 || ni > n || nj > n) {
+							continue;
+						}
+						const int nk = nj * w + ni;
+						if (closed[nk] || heights[nk] < wy + 0.3f) {
+							continue;
+						}
+						const float dist = (di != 0 && dj != 0 ? 1.41421f : 1.0f) * cell;
+						const float grade = Math::abs(heights[nk] - heights[k]) / dist;
+						const float cost = g[k] + dist * (1.0f + 30.0f * grade * grade);
+						if (cost < g[nk]) {
+							g.write[nk] = cost;
+							came.write[nk] = k;
+							open.push(cost + heuristic(nk), nk);
+						}
+					}
+				}
+			}
+			if (!found) {
+				unreachable.push_back(vformat("%d-%d", link.x, link.y));
+				continue;
+			}
+			parent_set.write[find_root(parent_set, link.x)] = find_root(parent_set, link.y);
+			// The grid path, then two rounds of corner cutting, heights smoothed along it.
+			Vector<Vector3> path;
+			for (int k = goal; k != -1; k = came[k]) {
+				path.push_back(Vector3(X(k % w), heights[k], X(k / w)));
+			}
+			path.reverse();
+			for (int round = 0; round < 2 && path.size() > 2; round++) {
+				Vector<Vector3> cut;
+				cut.push_back(path[0]);
+				for (int i = 0; i + 1 < path.size(); i++) {
+					cut.push_back(path[i].lerp(path[i + 1], 0.25f));
+					cut.push_back(path[i].lerp(path[i + 1], 0.75f));
+				}
+				cut.push_back(path[path.size() - 1]);
+				path = cut;
+			}
+			Vector<Vector3> smooth = path;
+			for (int i = 0; i < path.size(); i++) {
+				float sum = 0;
+				int count = 0;
+				for (int k = MAX(0, i - 4); k <= MIN(path.size() - 1, i + 4); k++) {
+					sum += path[k].y;
+					count++;
+				}
+				smooth.write[i].y = sum / count;
+			}
+			// The band around each segment: nearest road point per vertex.
+			for (int s = 0; s + 1 < smooth.size(); s++) {
+				const Vector3 a = smooth[s], b = smooth[s + 1];
+				const Vector2i lo = nearest(MIN(a.x, b.x) - hw - shoulder, MIN(a.z, b.z) - hw - shoulder);
+				const Vector2i hi = nearest(MAX(a.x, b.x) + hw + shoulder, MAX(a.z, b.z) + hw + shoulder);
+				const Vector2 a2(a.x, a.z), ab(b.x - a.x, b.z - a.z);
+				const float len2 = MAX(ab.length_squared(), 1e-6f);
+				for (int j = lo.y; j <= hi.y; j++) {
+					for (int i = lo.x; i <= hi.x; i++) {
+						const Vector2 p(X(i), X(j));
+						const float t = CLAMP((p - a2).dot(ab) / len2, 0.0f, 1.0f);
+						const float d = p.distance_to(a2 + ab * t);
+						const int k = j * w + i;
+						if (d < best_d[k]) {
+							best_d.write[k] = d;
+							best_y.write[k] = Math::lerp(a.y, b.y, t);
+						}
+					}
+				}
+				road_length += a2.distance_to(Vector2(b.x, b.z));
+			}
+			smooth_paths.push_back(smooth);
+		}
+		for (int k = 0; k < w * w; k++) {
+			if (best_d[k] > hw + shoulder || mask[k] == 2) {
+				continue;
+			}
+			if (best_d[k] < hw) {
+				heights.write[k] = best_y[k] - 0.05f;
+				paint.write[k] = 1.0f;
+			} else {
+				const float s = Math::smoothstep(hw, hw + shoulder, best_d[k]);
+				heights.write[k] = Math::lerp(best_y[k], heights[k], s);
+				paint.write[k] = 1.0f - s;
+			}
+			mask.write[k] = MAX(mask[k], uint8_t(1));
+		}
+		// The paths as points about 4 m apart, on the finished ground. Inside a village the road
+		// stops at the village's edge street (its outer ring), so it does not cross the lots.
+		auto inside_village = [&](const Vector3 &p_p) {
+			for (const Site &s : villages) {
+				if (MAX(Math::abs(p_p.x - s.x), Math::abs(p_p.z - s.z)) < village_size * 0.5f - 0.5f) {
+					return true;
+				}
+			}
+			return false;
+		};
+		for (const Vector<Vector3> &smooth : smooth_paths) {
+			Array points;
+			float since = 1e9f;
+			for (int i = 0; i < smooth.size(); i++) {
+				since += i > 0 ? Vector2(smooth[i].x - smooth[i - 1].x, smooth[i].z - smooth[i - 1].z).length() : 0;
+				const bool in = inside_village(smooth[i]);
+				const bool edge = in && ((i > 0 && !inside_village(smooth[i - 1])) || (i + 1 < smooth.size() && !inside_village(smooth[i + 1])));
+				if (in && !edge) {
+					continue;
+				}
+				if (since >= 4.0f || points.is_empty() || edge || i == smooth.size() - 1) {
+					Vector3 p = smooth[i];
+					const float gi = (p.x + half) / cell, gj = (p.z + half) / cell;
+					const int ci = CLAMP(int(gi), 0, n - 1), cj = CLAMP(int(gj), 0, n - 1);
+					const float fx = gi - ci, fz = gj - cj;
+					const float h00 = H(ci, cj), h10 = H(ci + 1, cj), h01 = H(ci, cj + 1), h11 = H(ci + 1, cj + 1);
+					p.y = fx >= fz ? h00 + fx * (h10 - h00) + fz * (h11 - h10) : h00 + fz * (h01 - h00) + fx * (h11 - h01);
+					points.push_back(vec_array(holder->get_position() + p));
+					since = 0;
+				}
+			}
+			if (points.size() >= 2) {
+				road_paths.push_back(points);
+			}
+		}
+		bool connected = true;
+		for (int i = 0; i < stops.size(); i++) {
+			connected = connected && find_root(parent_set, i) == find_root(parent_set, 0);
+		}
+		roads_info["count"] = road_paths.size();
+		roads_info["length_m"] = Math::snapped(double(road_length), 0.1);
+		roads_info["connected"] = connected;
+		roads_info["paths"] = road_paths;
+		if (!connected) {
+			roads_info["unreachable"] = unreachable;
+			hints.push_back("some villages could not be reached by road (water in between): lower \"water_level\" or use another seed");
+		}
+	}
+
+	// Terrain mesh: smooth normals, colors by height, slope and water, roads painted in.
+	float min_y = 1e20f, max_y = -1e20f;
+	int under = 0;
+	for (int k = 0; k < w * w; k++) {
+		min_y = MIN(min_y, heights[k]);
+		max_y = MAX(max_y, heights[k]);
+		under += heights[k] < wy ? 1 : 0;
+	}
+	const Color road_color = o["road_color"];
 	PackedVector3Array verts, normals;
 	PackedColorArray colors;
 	PackedInt32Array indices;
@@ -848,26 +1263,32 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 	colors.resize(w * w);
 	for (int j = 0; j < w; j++) {
 		for (int i = 0; i < w; i++) {
-			const float x = -half + i * cell, z = -half + j * cell, y = H(i, j);
-			const Vector3 nrm = Vector3(H(i - 1, j) - H(i + 1, j), 2 * cell, H(i, j - 1) - H(i, j + 1)).normalized();
+			const float x = X(i), z = X(j), y = H(i, j);
+			const Vector3 nrm = grid_normal(i, j);
 			const float slope = Math::rad_to_deg(Math::acos(CLAMP(nrm.y, -1.0f, 1.0f)));
-			verts.set(j * w + i, Vector3(x, y, z));
-			normals.set(j * w + i, nrm);
-			colors.set(j * w + i, ground_color(f, o, x, z, y, slope));
+			const int k = j * w + i;
+			Color c = ground_color(f, o, x, z, y, slope);
+			if (paint[k] > 0) {
+				const float grain = 0.92f + 0.16f * hash01(i, j, f.seed + 777);
+				c = c.lerp(Color(road_color.r * grain, road_color.g * grain, road_color.b * grain), paint[k]);
+			}
+			verts.set(k, Vector3(x, y, z));
+			normals.set(k, nrm);
+			colors.set(k, c);
 		}
 	}
 	indices.resize(n * n * 6);
-	int k = 0;
+	int idx = 0;
 	for (int j = 0; j < n; j++) {
 		for (int i = 0; i < n; i++) {
 			const int p00 = j * w + i, p10 = p00 + 1, p01 = p00 + w, p11 = p01 + 1;
 			// Clockwise from above: (p00, p10, p11) and (p00, p11, p01); height_at uses the same split.
-			indices.set(k++, p00);
-			indices.set(k++, p10);
-			indices.set(k++, p11);
-			indices.set(k++, p00);
-			indices.set(k++, p11);
-			indices.set(k++, p01);
+			indices.set(idx++, p00);
+			indices.set(idx++, p10);
+			indices.set(idx++, p11);
+			indices.set(idx++, p00);
+			indices.set(idx++, p11);
+			indices.set(idx++, p01);
 		}
 	}
 	Array arrays;
@@ -918,7 +1339,7 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 		}
 	}
 
-	// Trees, rocks and grass on a jittered grid: same seed, same places.
+	// Trees, rocks and grass on a jittered grid: same seed, same places; none on roads or in villages.
 	Vector<Transform3D> broadleaf, conifer, rocks, grass;
 	const int caps[3] = { 30000, 15000, 150000 };
 	const float densities[3] = { float(o["trees"]), float(o["rocks"]), float(o["grass"]) };
@@ -938,14 +1359,18 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 				if (Math::abs(x) > half - 0.5f || Math::abs(z) > half - 0.5f) {
 					continue;
 				}
+				const Vector2i near = nearest(x, z);
+				const uint8_t m = mask[near.y * w + near.x];
+				if (m == 2 || (m == 1 && kind != 2) || (kind == 2 && paint[near.y * w + near.x] > 0.3f)) {
+					continue;
+				}
 				// Exact ground height on the triangles, like height_at.
 				const float gi = (x + half) / cell, gj = (z + half) / cell;
 				const int ci = CLAMP(int(gi), 0, n - 1), cj = CLAMP(int(gj), 0, n - 1);
 				const float fx = gi - ci, fz = gj - cj;
 				const float h00 = H(ci, cj), h10 = H(ci + 1, cj), h01 = H(ci, cj + 1), h11 = H(ci + 1, cj + 1);
 				const float gy = fx >= fz ? h00 + fx * (h10 - h00) + fz * (h11 - h10) : h00 + fz * (h01 - h00) + fx * (h11 - h01);
-				const Vector3 nrm = f.normal(x, z, cell);
-				const float slope = Math::rad_to_deg(Math::acos(CLAMP(nrm.y, -1.0f, 1.0f)));
+				const float slope = Math::rad_to_deg(Math::acos(CLAMP(normals[near.y * w + near.x].y, -1.0f, 1.0f)));
 				const float h = f.height > 0 ? gy / f.height : 0;
 				const bool dry = gy > wy + 0.4f;
 				if (kind == 0) {
@@ -984,9 +1409,40 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 	add_multimesh(holder, owner, "Rocks", rock_mesh(Color(o["rock_color"]).lerp(Color(0.55f, 0.53f, 0.5f), 0.4f)), rocks, true);
 	add_multimesh(holder, owner, "Grass", grass_mesh(Color(o["grass_color"]).lightened(0.05f)), grass, false);
 
+	// The villages themselves: small cities on the flattened ground, without their own ground plane.
+	const Vector3 origin = holder->get_position();
+	Array village_places;
+	int village_buildings = 0;
+	for (int v = 0; v < villages.size(); v++) {
+		Dictionary spec;
+		spec["preset"] = "village";
+		spec["size"] = village_size;
+		spec["seed"] = int64_t(f.seed) * 31 + v * 7 + 1;
+		spec["position"] = Vector3(villages[v].x, villages[v].y, villages[v].z);
+		spec["name"] = vformat("Village%d", v);
+		spec["ground"] = false;
+		spec["navigation"] = false;
+		spec["collision"] = o["collision"];
+		const Dictionary made = generate_city(holder, spec);
+		if (!bool(made["ok"])) {
+			hints.push_back("a village could not be built: " + String(made["error"]));
+			continue;
+		}
+		village_buildings += int(Dictionary(made["counts"])["buildings"]);
+		Dictionary vp;
+		vp["position"] = vec_array(origin + Vector3(villages[v].x, villages[v].y, villages[v].z));
+		vp["about"] = vformat("village %d: about %d houses on flat ground, joined to the spawn by road", v, int(Dictionary(made["counts"])["buildings"]));
+		vp["node"] = String(p_root->get_path_to(holder)) + "/" + String(made["node"]);
+		const Dictionary vplaces = made["places"];
+		if (vplaces.has("plaza")) {
+			const Array pp = Dictionary(vplaces["plaza"])["position"];
+			vp["plaza"] = vec_array(origin + Vector3(double(pp[0]), double(pp[1]), double(pp[2])));
+		}
+		village_places.push_back(vp);
+	}
+
 	// Places to use next.
 	Dictionary places;
-	const Vector3 origin = holder->get_position();
 	int peak = 0, low = 0;
 	for (int i = 1; i < w * w; i++) {
 		peak = heights[i] > heights[peak] ? i : peak;
@@ -1000,7 +1456,7 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 		float shore_d = 1e20f;
 		for (int i = 0; i < w * w; i++) {
 			const Vector3 v = verts[i];
-			if (v.y > wy + 0.2f && v.y < wy + 1.5f && normals[i].y > 0.9f) {
+			if (v.y > wy + 0.2f && v.y < wy + 1.5f && normals[i].y > 0.9f && mask[i] == 0) {
 				const float d = v.x * v.x + v.z * v.z;
 				if (d < shore_d) {
 					shore_d = d;
@@ -1012,38 +1468,21 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 			places["shore"] = place(origin + verts[shore], "flat ground at the water's edge: a beach, a dock or a landing");
 		}
 	}
-	// Spawn: flat dry ground near the center.
-	int best = -1;
-	float best_score = 1e20f;
-	const int stride = MAX(1, w / 64);
-	for (int j = 0; j < w; j += stride) {
-		for (int i = 0; i < w; i += stride) {
-			const Vector3 v = verts[j * w + i];
-			const float d = Math::sqrt(v.x * v.x + v.z * v.z) / size;
-			if (d > 0.35f || v.y < wy + 0.5f) {
-				continue;
-			}
-			const float slope = Math::rad_to_deg(Math::acos(CLAMP(normals[j * w + i].y, -1.0f, 1.0f)));
-			const float score = slope + d * 40.0f;
-			if (score < best_score) {
-				best_score = score;
-				best = j * w + i;
-			}
-		}
-	}
-	if (best >= 0) {
-		places["spawn"] = place(origin + verts[best], "flat dry ground near the center, a good start for the player");
+	if (spawn >= 0) {
+		places["spawn"] = place(origin + verts[spawn], villages.is_empty() ? "flat dry ground near the center, a good start for the player" : "flat dry ground near the center, on the road to the villages");
 	} else {
+		spawn = peak;
 		places["spawn"] = place(origin + verts[peak], "the highest ground (no dry flat ground near the center)");
 		hints.push_back("no dry flat ground near the center: lower \"water_level\" or use another seed");
 	}
-	// Clearings: flat dry ground with few trees, apart from each other.
+	// Clearings: flat dry ground with few trees, apart from each other and from villages and roads.
 	Array clearings;
-	for (int j = stride; j < w - stride && clearings.size() < 3; j += stride * 3) {
-		for (int i = stride; i < w - stride && clearings.size() < 3; i += stride * 3) {
+	const int cstride = MAX(1, w / 64);
+	for (int j = cstride; j < w - cstride && clearings.size() < 3; j += cstride * 3) {
+		for (int i = cstride; i < w - cstride && clearings.size() < 3; i += cstride * 3) {
 			const Vector3 v = verts[j * w + i];
 			const float slope = Math::rad_to_deg(Math::acos(CLAMP(normals[j * w + i].y, -1.0f, 1.0f)));
-			if (v.y < wy + 0.5f || slope > 8 || f.forest(v.x, v.z) > 0.3f || (f.height > 0 && v.y / f.height > f.snow_line)) {
+			if (v.y < wy + 0.5f || slope > 8 || mask[j * w + i] != 0 || f.forest(v.x, v.z) > 0.3f || (f.height > 0 && v.y / f.height > f.snow_line)) {
 				continue;
 			}
 			bool apart = true;
@@ -1051,26 +1490,34 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 				const Array p = Dictionary(clearings[c])["position"];
 				apart = apart && Vector2(double(p[0]) - origin.x - v.x, double(p[2]) - origin.z - v.z).length() > size / 5;
 			}
+			for (const Site &s : villages) {
+				apart = apart && MAX(Math::abs(v.x - s.x), Math::abs(v.z - s.z)) > s.r * 1.6f;
+			}
 			if (apart) {
 				clearings.push_back(place(origin + v, "a flat open spot (few trees): room for a camp, a house or a village"));
 			}
 		}
 	}
 	places["clearings"] = clearings;
+	if (!village_places.is_empty()) {
+		places["villages"] = village_places;
+	}
 
-	// A small top-down overview: x to the right, +z down.
+	// A small top-down overview from the finished grid: x to the right, +z down.
 	const int ow = 256;
 	Ref<Image> overview = Image::create_empty(ow, ow, false, Image::FORMAT_RGB8);
 	const Vector3 light = Vector3(-1, 1.4f, -1).normalized();
 	for (int py = 0; py < ow; py++) {
 		for (int px = 0; px < ow; px++) {
-			const float x = -half + (px + 0.5f) * size / ow, z = -half + (py + 0.5f) * size / ow;
-			const float y = f.y(x, z);
-			const Vector3 nrm = f.normal(x, z, size / ow);
-			const float slope = Math::rad_to_deg(Math::acos(CLAMP(nrm.y, -1.0f, 1.0f)));
-			Color c = ground_color(f, o, x, z, y, slope);
+			const float gi = (px + 0.5f) / ow * n, gj = (py + 0.5f) / ow * n;
+			const int i0 = CLAMP(int(gi), 0, n - 1), j0 = CLAMP(int(gj), 0, n - 1);
+			const float fx = gi - i0, fz = gj - j0;
+			auto mix = [&](const auto &p_get) { return p_get(i0, j0).lerp(p_get(i0 + 1, j0), fx).lerp(p_get(i0, j0 + 1).lerp(p_get(i0 + 1, j0 + 1), fx), fz); };
+			const Color c0 = mix([&](int p_i, int p_j) { return colors[p_j * w + p_i]; });
+			const Vector3 nrm = mix([&](int p_i, int p_j) { return normals[p_j * w + p_i]; }).normalized();
+			const float y = Math::lerp(Math::lerp(H(i0, j0), H(i0 + 1, j0), fx), Math::lerp(H(i0, j0 + 1), H(i0 + 1, j0 + 1), fx), fz);
 			const float shade = CLAMP(0.55f + 0.6f * nrm.dot(light), 0.25f, 1.15f);
-			c = Color(c.r * shade, c.g * shade, c.b * shade);
+			Color c(c0.r * shade, c0.g * shade, c0.b * shade);
 			if (y < wy) {
 				c = c.lerp(Color(o["water_deep"]).lerp(Color(o["water_shallow"]), CLAMP(1.0f - (wy - y) / MAX(f.height * 0.15f, 1.0f), 0.0f, 1.0f)), 0.8f);
 			}
@@ -1084,6 +1531,16 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 			mark(overview, p.x, p.y, Color(0.12f, 0.3f, 0.12f), 0);
 		}
 	}
+	for (const Site &s : villages) {
+		const Vector2i q = to_px(Vector3(s.x, 0, s.z));
+		const int r = int(village_size * 0.5f / size * ow);
+		for (int k = -r; k <= r; k++) {
+			mark(overview, q.x + k, q.y - r, Color(0.85f, 0.45f, 0.2f), 0);
+			mark(overview, q.x + k, q.y + r, Color(0.85f, 0.45f, 0.2f), 0);
+			mark(overview, q.x - r, q.y + k, Color(0.85f, 0.45f, 0.2f), 0);
+			mark(overview, q.x + r, q.y + k, Color(0.85f, 0.45f, 0.2f), 0);
+		}
+	}
 	for (int c = 0; c < clearings.size(); c++) {
 		const Array p = Dictionary(clearings[c])["position"];
 		const Vector2i q = to_px(Vector3(double(p[0]), 0, double(p[2])) - origin);
@@ -1095,8 +1552,7 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 		const Vector2i lk = to_px(verts[low]);
 		mark(overview, lk.x, lk.y, Color(0.2f, 0.5f, 1));
 	}
-	const Array sp = Dictionary(places["spawn"])["position"];
-	const Vector2i spx = to_px(Vector3(double(sp[0]), 0, double(sp[2])) - origin);
+	const Vector2i spx = to_px(verts[spawn]);
 	mark(overview, spx.x, spx.y, Color(1, 0.15f, 0.15f), 3);
 
 	Dictionary counts;
@@ -1105,6 +1561,8 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 	counts["trees_conifer"] = conifer.size();
 	counts["rocks"] = rocks.size();
 	counts["grass"] = grass.size();
+	counts["villages"] = village_places.size();
+	counts["village_buildings"] = village_buildings;
 	Dictionary r;
 	r["ok"] = true;
 	r["kind"] = "nature";
@@ -1122,9 +1580,12 @@ Dictionary UZUWorldGen::generate_nature(Node *p_root, const Dictionary &p_spec) 
 	r["water_fraction"] = Math::snapped(double(under) / (w * w), 0.001);
 	r["counts"] = counts;
 	r["places"] = places;
+	if (!roads_info.is_empty()) {
+		r["roads"] = roads_info;
+	}
 	r["hints"] = hints;
 	r["overview"] = overview;
-	r["overview_about"] = "256x256 top-down: x to the right, +z down; red spawn, white peak, blue deepest water, yellow clearings, dark dots trees";
+	r["overview_about"] = "256x256 top-down: x to the right, +z down; red spawn, white peak, blue deepest water, yellow clearings, orange squares villages, dark dots trees; roads are painted in";
 	Dictionary echo = o.duplicate();
 	const Array ok = echo.keys();
 	for (int i = 0; i < ok.size(); i++) {
@@ -1149,16 +1610,30 @@ float UZUWorldGen::height_at(Node3D *p_nature, float p_x, float p_z) {
 	const Dictionary o = meta["options"];
 	const NatureField f(o);
 	const int n = MAX(2, int(Math::round(f.size / double(o["cell"]))));
+	const int w = n + 1;
 	const float cell = f.size / n, half = f.size * 0.5f;
 	const Vector3 pos = p_nature->get_position();
 	const float x = p_x - pos.x, z = p_z - pos.z;
 	if (Math::abs(x) > half || Math::abs(z) > half) {
 		return NAN;
 	}
+	// The saved terrain (villages and roads change the ground), or the field when it is missing.
+	MeshInstance3D *terrain = Object::cast_to<MeshInstance3D>(p_nature->get_node_or_null(NodePath("Terrain")));
+	const PackedVector3Array *verts = nullptr;
+	if (terrain && terrain->get_mesh().is_valid() && terrain->get_mesh()->get_surface_count() > 0) {
+		const ObjectID id = terrain->get_mesh()->get_instance_id();
+		if (terrain_cache.mesh != id) {
+			terrain_cache.mesh = id;
+			terrain_cache.verts = Array(terrain->get_mesh()->surface_get_arrays(0))[Mesh::ARRAY_VERTEX];
+		}
+		if (terrain_cache.verts.size() == w * w) {
+			verts = &terrain_cache.verts;
+		}
+	}
 	const float gi = (x + half) / cell, gj = (z + half) / cell;
 	const int ci = CLAMP(int(gi), 0, n - 1), cj = CLAMP(int(gj), 0, n - 1);
 	const float fx = gi - ci, fz = gj - cj;
-	auto Y = [&](int p_i, int p_j) { return f.y(-half + p_i * cell, -half + p_j * cell); };
+	auto Y = [&](int p_i, int p_j) { return verts ? (*verts)[p_j * w + p_i].y : f.y(-half + p_i * cell, -half + p_j * cell); };
 	const float h00 = Y(ci, cj), h10 = Y(ci + 1, cj), h01 = Y(ci, cj + 1), h11 = Y(ci + 1, cj + 1);
 	const float gy = fx >= fz ? h00 + fx * (h10 - h00) + fz * (h11 - h10) : h00 + fz * (h01 - h00) + fx * (h11 - h01);
 	return pos.y + gy;
@@ -1284,6 +1759,29 @@ void fill_convex(Ref<Image> &p_image, const Vector2 *p_q, int p_count, float p_h
 	}
 }
 
+// A box from its center and three half axes (any orientation).
+void add_box(MeshBuilder &p_mb, const Vector3 &p_c, const Vector3 &p_x, const Vector3 &p_y, const Vector3 &p_z, const Color &p_color) {
+	const Vector3 ax[3] = { p_x, p_y, p_z };
+	for (int a = 0; a < 3; a++) {
+		const Vector3 n = ax[a], u = ax[(a + 1) % 3], v = ax[(a + 2) % 3];
+		for (int sgn = -1; sgn <= 1; sgn += 2) {
+			const Vector3 c = p_c + n * sgn;
+			p_mb.quad(c - u - v, c + u - v, c + u + v, c - u + v, a == 1 && sgn < 0 ? p_color.darkened(0.3f) : p_color, n * sgn);
+		}
+	}
+}
+
+// A bench standing at p_base, p_along its length, the sitter facing p_facing.
+void add_bench(MeshBuilder &p_mb, const Vector3 &p_base, const Vector3 &p_along, const Vector3 &p_facing, const Color &p_wood, const Color &p_iron) {
+	const Vector3 up(0, 1, 0), back = -p_facing;
+	add_box(p_mb, p_base + up * 0.44f, p_along * 0.8f, up * 0.03f, p_facing * 0.22f, p_wood);
+	add_box(p_mb, p_base + up * 0.72f + back * 0.21f, p_along * 0.8f, up * 0.17f, back * 0.025f, p_wood);
+	for (int s = -1; s <= 1; s += 2) {
+		add_box(p_mb, p_base + p_along * (0.68f * s) + up * 0.21f, p_along * 0.03f, up * 0.21f, p_facing * 0.2f, p_iron);
+		add_box(p_mb, p_base + p_along * (0.68f * s) + up * 0.6f + back * 0.21f, p_along * 0.03f, up * 0.2f, back * 0.03f, p_iron);
+	}
+}
+
 void add_convex_shape(Node *p_body, Node *p_owner, const String &p_name, const Vector<Vector3> &p_points) {
 	Ref<ConvexPolygonShape3D> shape;
 	shape.instantiate();
@@ -1351,10 +1849,13 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 		}
 	}
 
-	MeshBuilder ground_mb, road_mb, block_mb, building_mb, window_mb, lit_mb, post_mb, landmark_mb;
+	MeshBuilder ground_mb, road_mb, block_mb, building_mb, window_mb, lit_mb, post_mb, landmark_mb, bench_mb;
 	const Vector3 up(0, 1, 0);
 	const float margin = 20;
-	ground_mb.quad(Vector3(-half - margin, 0, -half - margin), Vector3(half + margin, 0, -half - margin), Vector3(half + margin, 0, half + margin), Vector3(-half - margin, 0, half + margin), pal.ground, up);
+	const bool with_ground = o["ground"];
+	if (with_ground) {
+		ground_mb.quad(Vector3(-half - margin, 0, -half - margin), Vector3(half + margin, 0, -half - margin), Vector3(half + margin, 0, half + margin), Vector3(-half - margin, 0, half + margin), pal.ground, up);
+	}
 	const float ry = 0.02f;
 	float road_length = 0;
 	for (int e = 0; e < edge_a.size(); e++) {
@@ -1377,6 +1878,8 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 		body->set_name("CityBody");
 		holder->add_child(body, true);
 		body->set_owner(owner);
+	}
+	if (body && with_ground) {
 		Ref<BoxShape3D> ground_shape;
 		ground_shape.instantiate();
 		ground_shape->set_size(Vector3(size + 2 * margin, 1, size + 2 * margin));
@@ -1400,6 +1903,10 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	Vector<Color> footprint_c;
 	Vector<Vector<Vector2>> slabs;
 	Vector3 plaza_center;
+	struct BenchSpot {
+		Vector3 base, along, facing;
+	};
+	Vector<BenchSpot> bench_spots;
 	const int window_cap = 250000;
 	for (int bj = 0; bj < m; bj++) {
 		for (int bi = 0; bi < m; bi++) {
@@ -1445,6 +1952,14 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 				for (int t = 0; t < 4; t++) {
 					const Vector2 p = slab[t].lerp(center2, 0.22f);
 					street_trees.push_back(Transform3D(Basis().scaled(Vector3(0.9f, 0.9f, 0.9f)), Vector3(p.x, curb, p.y)));
+				}
+				// Benches around the fountain, facing it.
+				if (double(o["benches"]) > 0) {
+					for (int t = 0; t < 8; t++) {
+						const float a = Math::TAU * (t + 0.5f) / 8;
+						const Vector3 out(Math::cos(a), 0, Math::sin(a));
+						bench_spots.push_back({ plaza_center + out * 6.5f, Vector3(-out.z, 0, out.x), -out });
+					}
 				}
 				continue;
 			}
@@ -1598,6 +2113,20 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 				lamp_positions.push_back(Vector3(p.x, curb, p.y));
 			}
 		}
+		const float bench_step = double(o["benches"]);
+		if (bench_step > 0 && walk >= 1.4f && len > 12) {
+			// On the inner half of the sidewalk, back to the houses, between the lamps and trees.
+			const int count = MAX(1, int(len / bench_step));
+			for (int l = 0; l < count; l++) {
+				const float t = (l + 0.72f) / count;
+				if (t * len < 6 || (1 - t) * len < 6) {
+					continue;
+				}
+				const float sgn = border ? (side.dot(-a.normalized()) > 0 ? 1.0f : -1.0f) : ((l + e) % 2 ? 1.0f : -1.0f);
+				const Vector2 p = a.lerp(b, t) + side * (road_w * 0.5f + walk * 0.62f) * sgn;
+				bench_spots.push_back({ Vector3(p.x, curb, p.y), Vector3(dir.x, 0, dir.y), Vector3(-side.x * sgn, 0, -side.y * sgn) });
+			}
+		}
 		if (tree_step > 0 && walk >= 1.4f) {
 			const int count = int(len / tree_step);
 			for (int l = 0; l < count; l++) {
@@ -1637,7 +2166,22 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 		hints.push_back(vformat("%d lamps, %d of them emit light (max_lights); the rest only glow", lamp_positions.size(), light_count));
 	}
 
-	add_mesh(holder, owner, "Ground", ground_mb.commit(vertex_color_material(0.95f)), false);
+	const Color wood = Color::html("#6b4a2f"), iron = Color::html("#2f3033");
+	for (int k = 0; k < bench_spots.size(); k++) {
+		const BenchSpot &bs = bench_spots[k];
+		add_bench(bench_mb, bs.base, bs.along, bs.facing, wood, iron);
+		if (body) {
+			Vector<Vector3> pts;
+			for (int c = 0; c < 8; c++) {
+				pts.push_back(bs.base + bs.along * ((c & 1) ? 0.8f : -0.8f) + bs.facing * ((c & 2) ? 0.24f : -0.26f) + Vector3(0, (c & 4) ? 0.9f : 0.0f, 0));
+			}
+			add_convex_shape(body, owner, vformat("Bench%d", k), pts);
+		}
+	}
+
+	if (with_ground) {
+		add_mesh(holder, owner, "Ground", ground_mb.commit(vertex_color_material(0.95f)), false);
+	}
 	add_mesh(holder, owner, "Roads", road_mb.commit(vertex_color_material(0.8f)), false);
 	add_mesh(holder, owner, "Blocks", block_mb.commit(vertex_color_material(0.85f)));
 	add_mesh(holder, owner, "Buildings", building_mb.commit(vertex_color_material(0.88f)));
@@ -1647,6 +2191,99 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	add_mesh(holder, owner, "LampBulbs", bulb_mb.commit(glow_material(Color(1, 0.85f, 0.55f), 3.0f)), false);
 	add_mesh(holder, owner, "Landmark", landmark_mb.commit(vertex_color_material(0.7f)));
 	add_multimesh(holder, owner, "StreetTrees", broadleaf_tree_mesh(), street_trees, true);
+	add_mesh(holder, owner, "Benches", bench_mb.commit(vertex_color_material(0.75f)));
+
+	// Navigation (B-1507): the ground, streets, sidewalks and plaza, baked around the buildings,
+	// benches, lamp posts and trees. Polygons left on roofs are dropped.
+	Dictionary nav_info;
+	if (bool(o["navigation"])) {
+		Ref<NavigationMeshSourceGeometryData3D> source;
+		source.instantiate();
+		const Transform3D id;
+		for (const MeshBuilder *mb : { &ground_mb, &road_mb, &block_mb, &building_mb, &bench_mb, &landmark_mb }) {
+			if (!mb->verts.is_empty()) {
+				source->add_faces(mb->verts, id);
+			}
+		}
+		// Posts and trunks as thin boxes so paths go round them.
+		MeshBuilder obstacles;
+		for (const Vector3 &p : lamp_positions) {
+			add_box(obstacles, p + Vector3(0, 1.2f, 0), Vector3(0.12f, 0, 0), Vector3(0, 1.2f, 0), Vector3(0, 0, 0.12f), Color());
+		}
+		for (const Transform3D &t : street_trees) {
+			add_box(obstacles, t.origin + Vector3(0, 1.2f, 0), Vector3(0.2f, 0, 0), Vector3(0, 1.2f, 0), Vector3(0, 0, 0.2f), Color());
+		}
+		if (!obstacles.verts.is_empty()) {
+			source->add_faces(obstacles.verts, id);
+		}
+		Ref<NavigationMesh> nav;
+		nav.instantiate();
+		const float nav_cell = size > 400 ? 0.5f : 0.25f;
+		nav->set_cell_size(nav_cell);
+		nav->set_cell_height(0.25f);
+		// Whole voxels, so Recast does not round them.
+		nav->set_agent_radius(nav_cell * 2);
+		nav->set_agent_height(1.75f);
+		nav->set_agent_max_climb(0.25f);
+		nav->set_agent_max_slope(40.0f);
+		nav->set_filter_baking_aabb(AABB(Vector3(-half - margin, -1, -half - margin), Vector3(size + 2 * margin, fmax * floor_h + 12, size + 2 * margin)));
+		const uint64_t t0 = OS::get_singleton()->get_ticks_msec();
+		NavigationServer3D *ns = NavigationServer3D::get_singleton();
+		if (ns) {
+			ns->bake_from_source_geometry_data(nav, source, Callable());
+		}
+		// Keep the polygons at street level.
+		const Vector<Vector3> nv = nav->get_vertices();
+		Vector<Vector<int>> keep;
+		for (int i = 0; i < nav->get_polygon_count(); i++) {
+			const Vector<int> poly = nav->get_polygon(i);
+			float y = 0;
+			for (int k : poly) {
+				y += nv[k].y;
+			}
+			if (poly.is_empty() || y / poly.size() > curb + 1.0f) {
+				continue;
+			}
+			// Recast also finds the floor inside each closed building: drop those islands.
+			Vector2 c;
+			for (int k : poly) {
+				c += Vector2(nv[k].x, nv[k].z);
+			}
+			c /= poly.size();
+			bool in_building = false;
+			for (int b = 0; b < footprints.size() && !in_building; b++) {
+				in_building = in_convex(footprints[b].ptr(), 4, c);
+			}
+			if (!in_building) {
+				keep.push_back(poly);
+			}
+		}
+		nav->clear_polygons();
+		float area = 0;
+		for (const Vector<int> &poly : keep) {
+			nav->add_polygon(poly);
+			for (int k = 1; k + 1 < poly.size(); k++) {
+				area += 0.5f * (nv[poly[k]] - nv[poly[0]]).cross(nv[poly[k + 1]] - nv[poly[0]]).length();
+			}
+		}
+		NavigationRegion3D *region = memnew(NavigationRegion3D);
+		region->set_name("Navigation");
+		region->set_navigation_mesh(nav);
+		holder->add_child(region, true);
+		region->set_owner(owner);
+		nav_info["node"] = String(p_root->get_path_to(region));
+		nav_info["polygons"] = keep.size();
+		nav_info["walkable_m2"] = Math::snapped(double(area), 1.0);
+		nav_info["bake_ms"] = int64_t(OS::get_singleton()->get_ticks_msec() - t0);
+		nav_info["agent"] = vformat("radius %.2f m, height 1.75 m, steps up to 0.25 m (curbs are 0.15 m)", nav_cell * 2);
+		if (keep.is_empty()) {
+			hints.push_back("the navigation mesh came out empty (no navigation server in this build?); set \"navigation\": false to skip it");
+		}
+		if (nav_cell != 0.25f) {
+			nav_info["cell_size"] = nav_cell;
+			hints.push_back("the navigation mesh uses 0.5 m cells for a city this big; set the navigation map's cell size to 0.5 to match");
+		}
+	}
 
 	// Places.
 	const Vector3 origin = holder->get_position();
@@ -1710,6 +2347,7 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	counts["lamps"] = lamp_positions.size();
 	counts["lights"] = light_count;
 	counts["street_trees"] = street_trees.size();
+	counts["benches"] = bench_spots.size();
 	Dictionary r;
 	r["ok"] = true;
 	r["kind"] = "city";
@@ -1719,8 +2357,11 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	r["size"] = size;
 	r["streets_m"] = Math::snapped(double(road_length), 0.1);
 	r["tallest_m"] = Math::snapped(double(tallest), 0.1);
-	r["triangles"] = ground_mb.triangles() + road_mb.triangles() + block_mb.triangles() + building_mb.triangles() + window_mb.triangles() + lit_mb.triangles() + post_mb.triangles() + bulb_mb.triangles() + landmark_mb.triangles();
+	r["triangles"] = ground_mb.triangles() + road_mb.triangles() + block_mb.triangles() + building_mb.triangles() + window_mb.triangles() + lit_mb.triangles() + post_mb.triangles() + bulb_mb.triangles() + landmark_mb.triangles() + bench_mb.triangles();
 	r["counts"] = counts;
+	if (!nav_info.is_empty()) {
+		r["navigation"] = nav_info;
+	}
 	r["places"] = places;
 	r["hints"] = hints;
 	r["overview"] = overview;

@@ -21,7 +21,7 @@
 			<param index="0" name="root" type="Node" />
 			<param index="1" name="spec" type="Dictionary" default="{}" />
 			<description>
-				Builds a city under [param root]. New nodes are owned by [param root]'s owner (or [param root]), so they are saved with the scene. Returns [code]{"ok", "kind", "node", "counts", "places", "hints", "overview", "options", ...}[/code], or [code]{"ok": false, "error", "key", "hint"}[/code] without building anything. See [method get_options] for the keys.
+				Builds a city under [param root]. New nodes are owned by [param root]'s owner (or [param root]), so they are saved with the scene. Returns [code]{"ok", "kind", "node", "counts", "places", "hints", "overview", "options", ...}[/code], or [code]{"ok": false, "error", "key", "hint"}[/code] without building anything. See [method get_options] for the keys. With [code]"navigation": true[/code] (the default) it also has a [NavigationRegion3D] [code]Navigation[/code] baked over the streets, sidewalks and plaza (agent radius 0.5 m, height 1.75 m; buildings, benches, lamp posts and trees are left out), and [code]"navigation": {"polygons", "walkable_m2", "bake_ms", ...}[/code] in the result. Benches stand along the sidewalks and around the plaza ([code]"benches"[/code]).
 			</description>
 		</method>
 		<method name="generate_nature" qualifiers="static">
@@ -29,7 +29,7 @@
 			<param index="0" name="root" type="Node" />
 			<param index="1" name="spec" type="Dictionary" default="{}" />
 			<description>
-				Builds a natural map under [param root], like [method generate_city]. The places are [code]spawn[/code] (flat dry ground near the center), [code]peak[/code], [code]water[/code] and [code]shore[/code] (when there is water) and [code]clearings[/code].
+				Builds a natural map under [param root], like [method generate_city]. The places are [code]spawn[/code] (flat dry ground near the center), [code]peak[/code], [code]water[/code] and [code]shore[/code] (when there is water) and [code]clearings[/code]. With [code]"villages": n[/code] it levels the flattest dry ground for up to n villages (small cities, [code]"preset": "village"[/code], without their own ground plane), lists them in [code]places.villages[/code] and, with [code]"roads": true[/code], joins them and the spawn with roads that keep to gentle dry ground: [code]roads = {"count", "length_m", "connected", "paths"}[/code], each path a list of points about 4 m apart on the ground.
 			</description>
 		</method>
 		<method name="get_options" qualifiers="static">

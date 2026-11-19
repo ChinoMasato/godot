@@ -32,10 +32,15 @@
 
 #include "../uzu_world_gen.h"
 
+#include "core/math/geometry_2d.h"
+
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/multimesh_instance_3d.h"
+#include "scene/3d/navigation/navigation_region_3d.h"
 #include "scene/3d/node_3d.h"
 #include "scene/resources/mesh.h"
+#include "scene/resources/multimesh.h"
+#include "scene/resources/navigation_mesh.h"
 
 #include "tests/test_macros.h"
 
@@ -223,6 +228,251 @@ TEST_CASE("[SceneTree][UZUWorldGen] City: buildings stay off the streets, the sa
 	for (int i = 0; i < all.size(); i++) {
 		CHECK(Object::cast_to<Node>(all[i])->get_owner() == root);
 	}
+	memdelete(root);
+	memdelete(root2);
+}
+
+static float distance_to_path(const Array &p_points, const Vector2 &p_p) {
+	float best = 1e20f;
+	for (int i = 0; i + 1 < p_points.size(); i++) {
+		const Array a = p_points[i], b = p_points[i + 1];
+		const Vector2 a2 = Vector2(double(a[0]), double(a[2])), b2 = Vector2(double(b[0]), double(b[2]));
+		const Vector2 ab = b2 - a2;
+		const float t = CLAMP((p_p - a2).dot(ab) / MAX(ab.length_squared(), 1e-6f), 0.0f, 1.0f);
+		best = MIN(best, p_p.distance_to(a2 + ab * t));
+	}
+	return best;
+}
+
+TEST_CASE("[SceneTree][UZUWorldGen] Nature: villages on flat ground, all joined by roads") {
+	Dictionary s;
+	s["size"] = 320;
+	s["seed"] = 7;
+	s["villages"] = 3;
+	s["trees"] = 3.0;
+	s["position"] = Vector3(10, 0, -5);
+	Node3D *root = memnew(Node3D);
+	const Dictionary r = UZUWorldGen::generate_nature(root, s);
+	REQUIRE(bool(r["ok"]));
+	Node3D *nature = Object::cast_to<Node3D>(root->get_child(0));
+	const Dictionary counts = r["counts"];
+	CHECK(int(counts["villages"]) >= 2);
+	CHECK(int(counts["village_buildings"]) > 0);
+	const Array villages = Dictionary(r["places"])["villages"];
+	CHECK(villages.size() == int(counts["villages"]));
+
+	// Each village stands on leveled ground: the terrain under its plaza is at its height.
+	for (int v = 0; v < villages.size(); v++) {
+		const Array p = Dictionary(villages[v])["position"];
+		for (float dx = -15; dx <= 15; dx += 7.5f) {
+			CHECK(UZUWorldGen::height_at(nature, double(p[0]) + dx, double(p[2]) - dx * 0.5f) == doctest::Approx(double(p[1])).epsilon(0.001));
+		}
+		CHECK(nature->get_node_or_null(NodePath(vformat("Village%d/Buildings", v))) != nullptr);
+		CHECK(nature->get_node_or_null(NodePath(vformat("Village%d/Ground", v))) == nullptr);
+	}
+
+	// One road per village (a tree), connected, continuous, dry and on the ground.
+	REQUIRE(r.has("roads"));
+	const Dictionary roads = r["roads"];
+	CHECK(bool(roads["connected"]));
+	CHECK(int(roads["count"]) == villages.size());
+	const Array paths = roads["paths"];
+	const float wy = r["water_y"].get_type() == Variant::NIL ? -1e20f : float(double(r["water_y"]));
+	Vector<Vector2> stops;
+	const Array spawn = Dictionary(Dictionary(r["places"])["spawn"])["position"];
+	stops.push_back(Vector2(double(spawn[0]), double(spawn[2])));
+	for (int v = 0; v < villages.size(); v++) {
+		const Array p = Dictionary(villages[v])["position"];
+		stops.push_back(Vector2(double(p[0]), double(p[2])));
+	}
+	// Union of the stops through the road ends.
+	Vector<int> parent;
+	for (int i = 0; i < stops.size(); i++) {
+		parent.push_back(i);
+	}
+	auto root_of = [&](int p_i) {
+		while (parent[p_i] != p_i) {
+			p_i = parent[p_i];
+		}
+		return p_i;
+	};
+	auto stop_at = [&](const Array &p_point) {
+		const Vector2 q = Vector2(double(p_point[0]), double(p_point[2]));
+		// The spawn itself, or the edge street of a village (roads stop at a village's outer ring).
+		if (stops[0].distance_to(q) < 4) {
+			return 0;
+		}
+		for (int i = 1; i < stops.size(); i++) {
+			const Vector2 d = (stops[i] - q).abs();
+			if (MAX(d.x, d.y) < 72 * 0.5f + 3) {
+				return i;
+			}
+		}
+		return -1;
+	};
+	bool continuous = true, dry = true, grounded = true;
+	for (int k = 0; k < paths.size(); k++) {
+		const Array points = paths[k];
+		REQUIRE(points.size() >= 2);
+		const int a = stop_at(points[0]), b = stop_at(points[points.size() - 1]);
+		CHECK(a >= 0);
+		CHECK(b >= 0);
+		if (a >= 0 && b >= 0) {
+			parent.write[root_of(a)] = root_of(b);
+		}
+		for (int i = 0; i < points.size(); i++) {
+			const Array p = points[i];
+			dry = dry && double(p[1]) > wy;
+			grounded = grounded && Math::abs(double(p[1]) - UZUWorldGen::height_at(nature, double(p[0]), double(p[2]))) < 0.35;
+			if (i > 0) {
+				const Array q = points[i - 1];
+				continuous = continuous && Vector2(double(p[0]) - double(q[0]), double(p[2]) - double(q[2])).length() < 8;
+			}
+		}
+	}
+	CHECK(continuous);
+	CHECK(dry);
+	CHECK(grounded);
+	for (int i = 1; i < stops.size(); i++) {
+		CHECK(root_of(i) == root_of(0));
+	}
+
+	// No tree on a road.
+	bool clear = true;
+	for (const char *name : { "TreesBroadleaf", "TreesConifer" }) {
+		MultiMeshInstance3D *mmi = Object::cast_to<MultiMeshInstance3D>(nature->get_node_or_null(NodePath(name)));
+		if (!mmi || mmi->get_multimesh().is_null()) {
+			continue;
+		}
+		// The positions from the buffer (12 floats per tree, the origin at 3, 7 and 11): headless
+		// servers keep the buffer but not the per-instance transforms.
+		const Vector<float> buffer = mmi->get_multimesh()->get_buffer();
+		REQUIRE(buffer.size() >= 12);
+		for (int i = 0; i + 11 < buffer.size(); i += 12) {
+			const Vector3 t = nature->get_position() + Vector3(buffer[i + 3], buffer[i + 7], buffer[i + 11]);
+			for (int k = 0; k < paths.size(); k++) {
+				clear = clear && distance_to_path(paths[k], Vector2(t.x, t.z)) > 1.0f;
+			}
+		}
+	}
+	CHECK(clear);
+
+	// Without villages there are no roads and the map is as before.
+	s["villages"] = 0;
+	Node3D *root2 = memnew(Node3D);
+	const Dictionary r2 = UZUWorldGen::generate_nature(root2, s);
+	CHECK_FALSE(r2.has("roads"));
+	CHECK_FALSE(Dictionary(r2["places"]).has("villages"));
+	memdelete(root);
+	memdelete(root2);
+}
+
+TEST_CASE("[SceneTree][UZUWorldGen] City: benches, and a navigation mesh that joins the streets and stays out of buildings") {
+	Dictionary s;
+	s["size"] = 120;
+	s["block"] = 40;
+	s["road_width"] = 8;
+	s["sidewalk"] = 2.5;
+	s["seed"] = 4;
+	s["roof"] = "flat";
+	s["density"] = 1.0;
+	s["benches"] = 15;
+	Node3D *root = memnew(Node3D);
+	const Dictionary r = UZUWorldGen::generate_city(root, s);
+	REQUIRE(bool(r["ok"]));
+	Node *city = root->get_child(0);
+	CHECK(int(Dictionary(r["counts"])["benches"]) > 8);
+	CHECK(mesh_vertices(city, "Benches").size() > 0);
+	CHECK(city->get_node_or_null(NodePath("CityBody/Bench0")) != nullptr);
+
+	REQUIRE(r.has("navigation"));
+	NavigationRegion3D *region = Object::cast_to<NavigationRegion3D>(city->get_node_or_null(NodePath("Navigation")));
+	REQUIRE(region);
+	CHECK(region->get_owner() == root);
+	Ref<NavigationMesh> nav = region->get_navigation_mesh();
+	REQUIRE(nav.is_valid());
+	const int polys = nav->get_polygon_count();
+	CHECK(polys > 0);
+	CHECK(int(Dictionary(r["navigation"])["polygons"]) == polys);
+	if (polys == 0) {
+		memdelete(root);
+		return;
+	}
+
+	// Flat roofs are the footprints: no walkable polygon inside one.
+	const PackedVector3Array bv = mesh_vertices(city, "Buildings");
+	Vector<Vector3> roof_tris;
+	for (int i = 0; i + 2 < bv.size(); i += 3) {
+		const Vector3 n = (bv[i + 2] - bv[i]).cross(bv[i + 1] - bv[i]);
+		if (bv[i].y > 1.0f && Math::abs(n.normalized().y) > 0.99f) {
+			roof_tris.push_back(bv[i]);
+			roof_tris.push_back(bv[i + 1]);
+			roof_tris.push_back(bv[i + 2]);
+		}
+	}
+	REQUIRE(roof_tris.size() > 0);
+	const Vector<Vector3> nv = nav->get_vertices();
+	Vector<Vector3> centers;
+	bool outside = true, low = true;
+	for (int i = 0; i < polys; i++) {
+		const Vector<int> poly = nav->get_polygon(i);
+		Vector3 c;
+		for (int k : poly) {
+			c += nv[k];
+		}
+		c /= poly.size();
+		centers.push_back(c);
+		low = low && c.y < 1.2f;
+		for (int t = 0; t < roof_tris.size(); t += 3) {
+			outside = outside && !Geometry2D::is_point_in_triangle(Vector2(c.x, c.z), Vector2(roof_tris[t].x, roof_tris[t].z), Vector2(roof_tris[t + 1].x, roof_tris[t + 1].z), Vector2(roof_tris[t + 2].x, roof_tris[t + 2].z));
+		}
+	}
+	CHECK(low);
+	CHECK(outside);
+
+	// An AI can walk from the spawn to every gate and the plaza: their polygons are linked.
+	Vector<int> parent;
+	for (int i = 0; i < polys; i++) {
+		parent.push_back(i);
+	}
+	auto root_of = [&](int p_i) {
+		while (parent[p_i] != p_i) {
+			p_i = parent[p_i];
+		}
+		return p_i;
+	};
+	HashMap<int, int> first_poly_of_vertex;
+	for (int i = 0; i < polys; i++) {
+		for (int k : nav->get_polygon(i)) {
+			if (first_poly_of_vertex.has(k)) {
+				parent.write[root_of(i)] = root_of(first_poly_of_vertex[k]);
+			} else {
+				first_poly_of_vertex[k] = i;
+			}
+		}
+	}
+	auto poly_near = [&](const Array &p_pos) {
+		const Vector3 p = Vector3(double(p_pos[0]), double(p_pos[1]), double(p_pos[2]));
+		int best = 0;
+		for (int i = 1; i < centers.size(); i++) {
+			best = centers[i].distance_to(p) < centers[best].distance_to(p) ? i : best;
+		}
+		return best;
+	};
+	const Dictionary places = r["places"];
+	const int spawn = root_of(poly_near(Dictionary(places["spawn"])["position"]));
+	for (const char *name : { "gate_north", "gate_south", "gate_east", "gate_west", "plaza" }) {
+		CHECK(root_of(poly_near(Dictionary(places[name])["position"])) == spawn);
+	}
+
+	// navigation: false skips it; ground: false leaves the ground plane out.
+	s["navigation"] = false;
+	s["ground"] = false;
+	Node3D *root2 = memnew(Node3D);
+	const Dictionary r2 = UZUWorldGen::generate_city(root2, s);
+	CHECK_FALSE(r2.has("navigation"));
+	CHECK(root2->get_child(0)->get_node_or_null(NodePath("Ground")) == nullptr);
+	CHECK(root2->get_child(0)->get_node_or_null(NodePath("CityBody/Ground")) == nullptr);
 	memdelete(root);
 	memdelete(root2);
 }
