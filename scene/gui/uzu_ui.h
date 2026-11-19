@@ -34,8 +34,10 @@
 #include "core/object/object.h"
 #include "core/variant/dictionary.h"
 #include "core/variant/typed_array.h"
+#include "scene/main/node.h"
 
 class Control;
+class ShaderMaterial;
 class StyleBox;
 class Theme;
 
@@ -87,6 +89,11 @@ public:
 	static Control *make_ribbon(const String &p_text);
 	static Control *make_separator();
 
+	// The moving decoration of a world's frames (B-1307 stage 2): a canvas shader that
+	// glints, pulses, flickers or flows over the frame (never over the text). Null for an
+	// unknown world.
+	static Ref<ShaderMaterial> create_world_material(const String &p_world);
+
 	// Parts. Each returns a new Control, not yet added anywhere.
 	static Control *make_panel(Control *p_content = nullptr);
 	static Control *make_button(const String &p_text);
@@ -94,4 +101,46 @@ public:
 	static Control *make_tabs(const PackedStringArray &p_titles);
 	static Control *make_list(const PackedStringArray &p_items);
 	static Control *make_dialog(const String &p_title, const String &p_text, const PackedStringArray &p_buttons);
+};
+
+// The motion of a world UI (B-1307 stage 2), as a node saved with the screen. When the
+// screen starts it gives the frames (panels, buttons, tabs) the world's moving decoration,
+// opens the top-level panels with the world's motion (UZUUIJuice), makes buttons swell on
+// hover, and while it runs it sways ribbons and blinks the talk window's next mark. So a
+// world UI is never still. Its counts are in get_stats() for self-verifying play.
+class UZUUIWorld : public Node {
+	GDCLASS(UZUUIWorld, Node);
+
+	String world = "fantasy";
+	bool open_on_ready = true;
+	bool hover = true;
+	bool ambient = true;
+	double time = 0.0;
+	Dictionary stats;
+	Vector<ObjectID> ribbons;
+	Vector<ObjectID> next_marks;
+
+	void _on_hover(ObjectID p_control);
+
+protected:
+	static void _bind_methods();
+	void _notification(int p_what);
+
+public:
+	void set_world(const String &p_world);
+	String get_world() const;
+	void set_open_on_ready(bool p_enable);
+	bool is_open_on_ready() const;
+	void set_hover(bool p_enable);
+	bool is_hover() const;
+	void set_ambient(bool p_enable);
+	bool is_ambient() const;
+
+	// Decorates the parent Control's tree now (also done when the node becomes ready).
+	// Returns {"panels", "buttons", "opened", "ribbons", "next_marks"}.
+	Dictionary decorate();
+	// Advances the ambient motion (ribbon sway, next-mark blink) by p_delta seconds;
+	// called every frame, and directly by tests.
+	void advance(double p_delta);
+	Dictionary get_stats() const;
 };

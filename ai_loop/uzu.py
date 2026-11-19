@@ -1618,6 +1618,11 @@ def selftest_engine():
                     saved[world] = f.read()
                 c.expect(f"ui world {world}", r.get("ok") and r["world"] == world and all(v in saved[world] for v in ('"UZUGauge"', '"UZUTalk"', '"UZUSlot"', '"UZURibbon"', 'name="NameTag"')), r)
             c.expect("ui worlds differ", saved["fantasy"] != saved["sf"])
+            # B-1307 stage 2: the world screen carries its motion node, and the UI report sees it move.
+            c.expect("ui world motion node", 'type="UZUUIWorld"' in saved["sf"] and 'world = "sf"' in saved["sf"], saved["sf"][-400:])
+            r = ui_report(q, ["--scene", "res://ui/world.tscn", "--frames", "20"])
+            mo = r.get("motion", {})
+            c.expect("ui-report motion", mo.get("moving_frames", 0) >= 3 and mo.get("worlds") and mo["worlds"][0]["opened"] >= 2 and any(k.startswith("open") for k in mo.get("events", {})) and not any(p["kind"] == "overlap" for p in r["problems"]), r)
             r = ui(q, ["--spec", "res://world.json", "--world", "steampunk"])
             c.expect("ui unknown world", not r["ok"] and "theme.world" in " ".join(r.get("problems", [])), r)
             # B-1305: the UI report finds the problems of a deliberately poor screen, and none of

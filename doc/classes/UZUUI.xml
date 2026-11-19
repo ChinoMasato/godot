@@ -48,6 +48,13 @@
 				- [code]panel[/code], [code]button[/code] and [code]bar[/code]: style dictionaries as in [method create_panel_style]. Buttons also take [code]hover[/code] and [code]pressed[/code] colors; bars take [code]fill[/code].
 			</description>
 		</method>
+		<method name="create_world_material" qualifiers="static">
+			<return type="ShaderMaterial" />
+			<param index="0" name="world" type="String" />
+			<description>
+				Returns the moving decoration of a world's frames: a canvas shader that glints (fantasy, wafu, persona), flows with scan lines (sf), flickers (horror), or blinks in steps (pixel). [UZUUIWorld] puts it on the frames. Returns [code]null[/code] for an unknown world.
+			</description>
+		</method>
 		<method name="create_world_theme" qualifiers="static">
 			<return type="Theme" />
 			<param index="0" name="world" type="String" />

@@ -40,9 +40,14 @@ TEST_FORCE_LINK(test_uzu_ui)
 #include "scene/gui/progress_bar.h"
 #include "scene/gui/tab_container.h"
 #include "scene/gui/uzu_ui.h"
+#include "scene/gui/uzu_ui_juice.h"
+#include "scene/main/scene_tree.h"
+#include "scene/main/window.h"
+#include "scene/resources/material.h"
 #include "scene/resources/style_box_flat.h"
 #include "scene/resources/style_box_texture.h"
 #include "scene/resources/theme.h"
+#include "scene/scene_string_names.h"
 
 namespace TestUZUUI {
 
@@ -247,6 +252,73 @@ TEST_CASE("[SceneTree][UZUUI] World themes and game parts") {
 	for (Control *c : { gauge, talk, slot, ribbon, sep }) {
 		memdelete(c);
 	}
+}
+
+TEST_CASE("[SceneTree][UZUUI] World motion: moving frames, opening, hover, ambient sway") {
+	// Each world has its own moving decoration; an unknown one has none.
+	int modes = 0;
+	int last = -1;
+	for (const String &w : UZUUI::get_world_names()) {
+		const Ref<ShaderMaterial> m = UZUUI::create_world_material(w);
+		REQUIRE_MESSAGE(m.is_valid(), w);
+		CHECK(m->get_shader()->get_code().contains("TIME"));
+		const int mode = m->get_shader_parameter("mode");
+		modes += mode != last;
+		last = mode;
+	}
+	CHECK(modes >= 4);
+	ERR_PRINT_OFF;
+	CHECK(UZUUI::create_world_material("steampunk").is_null());
+	ERR_PRINT_ON;
+
+	Control *screen = memnew(Control);
+	screen->set_theme(UZUUI::create_world_theme("fantasy"));
+	SceneTree::get_singleton()->get_root()->add_child(screen);
+	screen->set_size(Size2(1280, 720));
+	Control *panel = UZUUI::make_panel(UZUUI::make_button("Go"));
+	screen->add_child(panel);
+	Control *ribbon = UZUUI::make_ribbon("Title");
+	screen->add_child(ribbon);
+	Control *talk = UZUUI::make_talk_window("Elder", "Hello.");
+	screen->add_child(talk);
+	UZUUIWorld *world = memnew(UZUUIWorld);
+	world->set_world("fantasy");
+	screen->add_child(world);
+	UZUUIJuice::clear_event_log();
+
+	const Dictionary stats = world->decorate();
+	CHECK(int(stats["panels"]) >= 3); // The panel, the ribbon, and the talk window's frames.
+	CHECK(int(stats["buttons"]) == 1);
+	CHECK(int(stats["ribbons"]) == 1);
+	CHECK(int(stats["next_marks"]) == 1);
+	CHECK(int(stats["opened"]) >= 3);
+	CHECK(Ref<ShaderMaterial>(panel->get_material()).is_valid());
+	Control *button = Object::cast_to<Control>(panel->get_child(0));
+	CHECK(Ref<ShaderMaterial>(button->get_material()).is_valid());
+	// The text is not drawn with the frame's material.
+	Control *line = Object::cast_to<Control>(talk->get_node(NodePath("Window/Body/Line")));
+	CHECK(line->get_material().is_null());
+	CHECK_FALSE(line->get_use_parent_material());
+	// Opening was logged by UZUUIJuice (self-verifying play can see it).
+	int opens = 0;
+	for (const Variant &e : UZUUIJuice::get_event_log()) {
+		opens += String(Dictionary(e)["event"]).contains("open");
+	}
+	CHECK(opens >= 3);
+	// Hover makes the button swell.
+	UZUUIJuice::clear_event_log();
+	button->emit_signal(SceneStringName(mouse_entered));
+	CHECK(UZUUIJuice::is_animating(button));
+	// Ambient motion: the ribbon sways, the next mark blinks.
+	world->advance(0.5);
+	CHECK(Math::abs(ribbon->get_rotation_degrees()) > 0.01);
+	Control *next = Object::cast_to<Control>(talk->get_node(NodePath("Window/Body/Next")));
+	const float a1 = next->get_self_modulate().a;
+	world->advance(0.3);
+	CHECK(next->get_self_modulate().a != doctest::Approx(a1));
+	CHECK(double(world->get_stats()["time"]) == doctest::Approx(0.8));
+	UZUUIJuice::cancel_all();
+	memdelete(screen);
 }
 
 } // namespace TestUZUUI

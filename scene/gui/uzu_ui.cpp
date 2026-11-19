@@ -30,6 +30,8 @@
 
 #include "uzu_ui.h"
 
+#include "core/config/engine.h"
+#include "core/object/callable_mp.h"
 #include "core/object/class_db.h"
 #include "scene/gui/box_container.h"
 #include "scene/gui/button.h"
@@ -40,11 +42,15 @@
 #include "scene/gui/progress_bar.h"
 #include "scene/gui/tab_container.h"
 #include "scene/gui/texture_rect.h"
+#include "scene/gui/uzu_ui_juice.h"
 #include "scene/resources/font.h"
 #include "scene/resources/image_texture.h"
+#include "scene/resources/material.h"
+#include "scene/resources/shader.h"
 #include "scene/resources/style_box_flat.h"
 #include "scene/resources/style_box_texture.h"
 #include "scene/resources/theme.h"
+#include "scene/scene_string_names.h"
 
 namespace {
 
@@ -754,6 +760,225 @@ Control *UZUUI::make_separator() {
 	return sep;
 }
 
+static const char *WORLD_FRAME_SHADER = R"(
+shader_type canvas_item;
+// The moving decoration of world UI frames (UZUUI, B-1307): a glint that sweeps across,
+// a breathing pulse, a flicker, or scan lines that flow. Only the frame is drawn with
+// this material; the text and the parts inside keep their own.
+uniform int mode = 1;
+uniform vec4 glow_color : source_color = vec4(1.0, 0.9, 0.6, 1.0);
+uniform float speed = 0.3;
+uniform float strength = 0.22;
+uniform float steps = 0.0;
+varying vec2 local;
+
+void vertex() {
+	local = VERTEX;
+}
+
+void fragment() {
+	vec4 c = texture(TEXTURE, UV) * COLOR;
+	float t = TIME * speed;
+	if (steps > 0.0) {
+		t = floor(t * steps) / steps; // Stepped, like frame-by-frame pixel art.
+	}
+	float k = 0.0;
+	if (mode == 1) {
+		float x = mod(local.x + local.y * 0.6 - t * 900.0, 1800.0);
+		k = smoothstep(0.0, 50.0, x) * (1.0 - smoothstep(50.0, 110.0, x));
+	} else if (mode == 2) {
+		k = 0.5 + 0.5 * sin(t * 6.2831853);
+	} else if (mode == 3) {
+		float n = fract(sin(floor(t * 14.0) * 91.7) * 4373.1);
+		k = n > 0.82 ? 1.0 : 0.0;
+	} else if (mode == 4) {
+		k = 0.5 + 0.5 * sin((local.y - t * 80.0) * 0.35);
+	}
+	c.rgb = mix(c.rgb, glow_color.rgb, clamp(k * strength, 0.0, 1.0));
+	COLOR = c;
+}
+)";
+
+Ref<ShaderMaterial> UZUUI::create_world_material(const String &p_world) {
+	struct Decor {
+		const char *world;
+		int mode;
+		const char *color;
+		float speed, strength, steps;
+	};
+	static const Decor DECOR[] = {
+		{ "fantasy", 1, "#fff1b0", 0.25f, 0.28f, 0.0f }, // A gold glint now and then.
+		{ "wafu", 1, "#fff8e6", 0.12f, 0.16f, 0.0f }, // A slow, quiet sheen.
+		{ "sf", 4, "#7ff0ff", 1.0f, 0.12f, 0.0f }, // Scan lines flowing down.
+		{ "horror", 3, "#000000", 1.0f, 0.45f, 0.0f }, // A failing light.
+		{ "persona", 1, "#ffffff", 0.9f, 0.4f, 0.0f }, // A fast white flash.
+		{ "pixel", 2, "#ffffff", 0.5f, 0.14f, 4.0f }, // A stepped blink.
+	};
+	for (const Decor &d : DECOR) {
+		if (p_world != d.world) {
+			continue;
+		}
+		Ref<Shader> shader;
+		shader.instantiate();
+		shader->set_code(WORLD_FRAME_SHADER);
+		Ref<ShaderMaterial> m;
+		m.instantiate();
+		m->set_shader(shader);
+		m->set_shader_parameter("mode", d.mode);
+		m->set_shader_parameter("glow_color", Color::html(d.color));
+		m->set_shader_parameter("speed", d.speed);
+		m->set_shader_parameter("strength", d.strength);
+		m->set_shader_parameter("steps", d.steps);
+		return m;
+	}
+	ERR_FAIL_V_MSG(Ref<ShaderMaterial>(), vformat("UZUUI: unknown world \"%s\" (see get_world_names).", p_world));
+}
+
+void UZUUIWorld::set_world(const String &p_world) {
+	world = p_world;
+}
+String UZUUIWorld::get_world() const {
+	return world;
+}
+void UZUUIWorld::set_open_on_ready(bool p_enable) {
+	open_on_ready = p_enable;
+}
+bool UZUUIWorld::is_open_on_ready() const {
+	return open_on_ready;
+}
+void UZUUIWorld::set_hover(bool p_enable) {
+	hover = p_enable;
+}
+bool UZUUIWorld::is_hover() const {
+	return hover;
+}
+void UZUUIWorld::set_ambient(bool p_enable) {
+	ambient = p_enable;
+}
+bool UZUUIWorld::is_ambient() const {
+	return ambient;
+}
+
+void UZUUIWorld::_on_hover(ObjectID p_control) {
+	Control *c = ObjectDB::get_instance<Control>(p_control);
+	if (c) {
+		const Dictionary motion = UZUUI::get_world_motion(world);
+		UZUUIJuice::hover_pulse(c, CLAMP(double(motion.get("overshoot", 1.2)) * 0.5, 0.3, 1.5));
+	}
+}
+
+Dictionary UZUUIWorld::decorate() {
+	Control *root = Object::cast_to<Control>(get_parent());
+	ERR_FAIL_NULL_V_MSG(root, Dictionary(), "UZUUIWorld: the parent must be a Control (the screen).");
+	const Ref<ShaderMaterial> material = UZUUI::create_world_material(world);
+	ERR_FAIL_COND_V(material.is_null(), Dictionary());
+	int panels = 0;
+	int buttons = 0;
+	int opened = 0;
+	ribbons.clear();
+	next_marks.clear();
+	TypedArray<Node> all = root->find_children("*", "Control", true, false);
+	for (const Variant &v : all) {
+		Control *c = Object::cast_to<Control>(v);
+		if (!c) {
+			continue;
+		}
+		const bool framed = Object::cast_to<PanelContainer>(c) || Object::cast_to<TabContainer>(c) || Object::cast_to<BaseButton>(c);
+		if (framed && c->get_material().is_null()) {
+			c->set_material(material); // The children keep their own materials (use_parent_material is off).
+			panels += Object::cast_to<BaseButton>(c) ? 0 : 1;
+		}
+		if (BaseButton *b = Object::cast_to<BaseButton>(c)) {
+			buttons++;
+			const Callable cb = callable_mp(this, &UZUUIWorld::_on_hover).bind(b->get_instance_id());
+			if (hover && !b->is_connected(SceneStringName(mouse_entered), cb)) {
+				b->connect(SceneStringName(mouse_entered), cb);
+			}
+		}
+		if (c->get_theme_type_variation() == StringName("UZURibbon")) {
+			ribbons.push_back(c->get_instance_id());
+		}
+		if (c->get_name() == StringName("Next") && Object::cast_to<Label>(c)) {
+			next_marks.push_back(c->get_instance_id());
+		}
+		// The top-level panels open with the world's motion.
+		if (open_on_ready && Object::cast_to<PanelContainer>(c) && c->get_parent() == root && c->is_inside_tree()) {
+			opened += UZUUIJuice::apply_world_motion(c, world, true) ? 1 : 0;
+		}
+	}
+	// Talk windows and other made parts are VBoxes holding panels: open those too.
+	for (int i = 0; open_on_ready && i < root->get_child_count(); i++) {
+		Control *c = Object::cast_to<Control>(root->get_child(i));
+		if (c && !Object::cast_to<PanelContainer>(c) && c->is_inside_tree() && c->find_child("Window", false, false)) {
+			opened += UZUUIJuice::apply_world_motion(c, world, true) ? 1 : 0;
+		}
+	}
+	stats["world"] = world;
+	stats["panels"] = panels;
+	stats["buttons"] = buttons;
+	stats["opened"] = opened;
+	stats["ribbons"] = ribbons.size();
+	stats["next_marks"] = next_marks.size();
+	return stats;
+}
+
+void UZUUIWorld::advance(double p_delta) {
+	time += p_delta;
+	const Dictionary motion = UZUUI::get_world_motion(world);
+	const int steps = motion.get("steps", 0);
+	const double t = steps > 0 ? Math::floor(time * steps * 2.0) / (steps * 2.0) : time;
+	for (const ObjectID &id : ribbons) {
+		if (Control *r = ObjectDB::get_instance<Control>(id)) {
+			r->set_pivot_offset(r->get_size() * 0.5);
+			r->set_rotation_degrees(1.2 * Math::sin(t * 1.6)); // A gentle sway.
+		}
+	}
+	for (const ObjectID &id : next_marks) {
+		if (Control *m = ObjectDB::get_instance<Control>(id)) {
+			m->set_self_modulate(Color(1, 1, 1, 0.35 + 0.65 * (0.5 + 0.5 * Math::cos(t * 5.0)))); // The blinking next mark.
+		}
+	}
+	stats["time"] = time;
+}
+
+Dictionary UZUUIWorld::get_stats() const {
+	return stats;
+}
+
+void UZUUIWorld::_notification(int p_what) {
+	switch (p_what) {
+		case NOTIFICATION_READY: {
+			if (Engine::get_singleton()->is_editor_hint()) {
+				return;
+			}
+			// After the parent's children are ready and laid out.
+			callable_mp(this, &UZUUIWorld::decorate).call_deferred();
+			set_process(ambient);
+		} break;
+		case NOTIFICATION_PROCESS: {
+			advance(get_process_delta_time());
+		} break;
+	}
+}
+
+void UZUUIWorld::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_world", "world"), &UZUUIWorld::set_world);
+	ClassDB::bind_method(D_METHOD("get_world"), &UZUUIWorld::get_world);
+	ClassDB::bind_method(D_METHOD("set_open_on_ready", "enable"), &UZUUIWorld::set_open_on_ready);
+	ClassDB::bind_method(D_METHOD("is_open_on_ready"), &UZUUIWorld::is_open_on_ready);
+	ClassDB::bind_method(D_METHOD("set_hover", "enable"), &UZUUIWorld::set_hover);
+	ClassDB::bind_method(D_METHOD("is_hover"), &UZUUIWorld::is_hover);
+	ClassDB::bind_method(D_METHOD("set_ambient", "enable"), &UZUUIWorld::set_ambient);
+	ClassDB::bind_method(D_METHOD("is_ambient"), &UZUUIWorld::is_ambient);
+	ClassDB::bind_method(D_METHOD("decorate"), &UZUUIWorld::decorate);
+	ClassDB::bind_method(D_METHOD("advance", "delta"), &UZUUIWorld::advance);
+	ClassDB::bind_method(D_METHOD("get_stats"), &UZUUIWorld::get_stats);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "world", PROPERTY_HINT_ENUM, "fantasy,wafu,sf,horror,persona,pixel"), "set_world", "get_world");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "open_on_ready"), "set_open_on_ready", "is_open_on_ready");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "hover"), "set_hover", "is_hover");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "ambient"), "set_ambient", "is_ambient");
+}
+
 Control *UZUUI::make_panel(Control *p_content) {
 	PanelContainer *panel = memnew(PanelContainer);
 	panel->set_name("Panel");
@@ -845,6 +1070,7 @@ void UZUUI::_bind_methods() {
 	ClassDB::bind_static_method("UZUUI", D_METHOD("make_item_slot", "label", "count"), &UZUUI::make_item_slot, DEFVAL(String()), DEFVAL(0));
 	ClassDB::bind_static_method("UZUUI", D_METHOD("make_ribbon", "text"), &UZUUI::make_ribbon);
 	ClassDB::bind_static_method("UZUUI", D_METHOD("make_separator"), &UZUUI::make_separator);
+	ClassDB::bind_static_method("UZUUI", D_METHOD("create_world_material", "world"), &UZUUI::create_world_material);
 	ClassDB::bind_static_method("UZUUI", D_METHOD("make_panel", "content"), &UZUUI::make_panel, DEFVAL(Variant()));
 	ClassDB::bind_static_method("UZUUI", D_METHOD("make_button", "text"), &UZUUI::make_button);
 	ClassDB::bind_static_method("UZUUI", D_METHOD("make_bar", "value", "max"), &UZUUI::make_bar, DEFVAL(100.0));
