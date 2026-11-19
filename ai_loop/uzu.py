@@ -31,6 +31,13 @@ or through ai_loop\\windows\\uzu.bat.
                   under physics walks every edge of a B-1509 region graph in both directions; per-edge
                   pass/fail JSON with frames, seconds and stuck points; --block-node fences one node in
                   to prove that exactly its edges fail
+  uzu.py audit-scene <project> --scene res://x.tscn [--spec-set DIR] [--out report.json]
+                  re-read audit of a saved scene (B-1511): recounts triangles, textures (count and
+                  dimensions), placed instances and collision from the artifact itself -- never from
+                  the generator -- and compares them with the generation spec set (B-1509; default:
+                  the spec_set folder next to the scene). Differences come back per check with the
+                  expected and recounted values; families the artifact cannot express are reported
+                  not_countable with the reason
   uzu.py picture  <project> <command> [options]   Picture prototype: doctor, schema, analyze, snap, adopt, validate, shot, map, pbr
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
@@ -980,6 +987,46 @@ def map_walk_graph(project, args):
         with open(out_file, "w", encoding="utf-8") as f:
             json.dump(report, f, ensure_ascii=False, indent=2)
     return {"command": "walk-graph", "scene": scene, "graph": graph_path, **report}
+
+
+def audit_scene_cmd(project, args):
+    """Re-read audit of a saved scene (B-1511): ai_loop/audit_tool.gd re-opens the saved
+    scene through the resource loader and counts what is actually in the artifact --
+    mesh triangles, textures with dimensions, placed instances, collision shapes and
+    bodies, lights, navigation meshes -- and ai_loop/audit_scene.py compares the
+    recount with the generation spec set (B-1509). Nothing is taken from the
+    generator's own report. ok when every comparable check matches; families the
+    artifact cannot express are reported not_countable, with the reason."""
+    scene = opt(args, "scene")
+    if not scene:
+        raise ToolError("audit-scene needs --scene res://...", command="audit-scene")
+    scene_file = os.path.join(project, scene[len("res://"):]) if scene.startswith("res://") else scene
+    if not os.path.isfile(scene_file):
+        raise ToolError(f"the scene is not in the project: {scene} (generate or compose it first)", command="audit-scene")
+    recount, _ = gd_tool(project, "audit_tool.gd", ["--scene", scene], "AUDIT_RESULT ", timeout=900)
+    if not recount.get("ok"):
+        raise ToolError(recount.get("error", "the audit recount failed"), command="audit-scene")
+    spec_dir = opt(args, "spec-set")
+    if spec_dir:
+        spec_dir = os.path.join(project, spec_dir[len("res://"):]) if spec_dir.startswith("res://") else os.path.abspath(spec_dir)
+    else:
+        scene_dir = os.path.dirname(scene_file)
+        for candidate in (os.path.join(scene_dir, "spec_set"),
+                          os.path.join(scene_dir, os.path.splitext(os.path.basename(scene_file))[0] + "_spec_set")):
+            if os.path.isfile(os.path.join(candidate, "asset_registry.json")):
+                spec_dir = candidate
+                break
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import audit_scene
+    stored = audit_scene.parse_tscn_multimeshes(scene_file)
+    report = audit_scene.build_report(scene, recount, stored, audit_scene.load_spec_set(spec_dir))
+    report["spec_set"] = spec_dir if spec_dir and os.path.isdir(spec_dir) else None
+    out_file = opt(args, "out")
+    if out_file:
+        with open(out_file, "w", encoding="utf-8") as f:
+            json.dump(report, f, ensure_ascii=False, indent=2)
+    return {"command": "audit-scene", **report}
 
 
 def map_(project, args):
@@ -2069,6 +2116,7 @@ def selftest_tools():
     commands.append(("tests/test_dialogue.py", []))
     commands.append(("tests/test_spec_set.py", []))
     commands.append(("tests/test_walk_graph.py", []))
+    commands.append(("tests/test_audit_scene.py", []))
     ok = True
     for tool, args in commands:
         rc, out = run([sys.executable, os.path.join(HERE, tool), *args], timeout=900)
@@ -2146,7 +2194,7 @@ def main(argv):
             result = {"ok": False, "error": e.message}
         print(json.dumps(result, ensure_ascii=False))
         return 0 if result.get("ok") else 1
-    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui", "map") or not rest:
+    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui", "map", "audit-scene") or not rest:
         print(__doc__, file=sys.stderr)
         return 2
     project = os.path.abspath(rest[0])
@@ -2154,7 +2202,7 @@ def main(argv):
         print(json.dumps({"ok": False, "error": f"{rest[0]} is not a project (no project.godot)"}))
         return 2
     try:
-        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui, "map": map_}[tool](project, rest[1:])
+        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui, "map": map_, "audit-scene": audit_scene_cmd}[tool](project, rest[1:])
     except ToolError as e:
         result = {"ok": False, "error": e.message, **e.extra}
         print(json.dumps(result, ensure_ascii=False))
