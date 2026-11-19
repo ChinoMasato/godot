@@ -22,6 +22,8 @@ or through ai_loop\\windows\\uzu.bat.
                   [--overview top.png] [--replace] [--camera] [--look golden_hour] [--shot out.png] [--inline]
                   a natural map or a city from a short spec (UZUWorldGen); every key is optional (presets)
   uzu.py map      options [nature|city]           every map key with its default, range and meaning, and the presets
+  uzu.py map      <project> walk --scene res://x.tscn [--from spawn] [--to plaza,gate_east] [--seconds 90]
+                  a walker under physics walks the city's navigation mesh to each place; per-target result
   uzu.py picture  <project> <command> [options]   Picture prototype: doctor, schema, analyze, snap, adopt, validate, shot, map, pbr
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
@@ -775,7 +777,7 @@ WALK_PROBE = 'UZUWalk="*res://addons/uzu_selfplay/walk.gd"\n'
 
 def map_walk(project, args):
     """Walking self-check (B-1507): a walker with a capsule walks a generated map's places in
-    turn with a NavigationAgent3D under physics (the scene runs headless), and reports, per
+    turn along the navigation server's path under physics (the scene runs headless), and reports, per
     target, whether it arrived, how long it took, the distance walked against the straight
     one, and where it got stuck. ok when every target was reached."""
     scene = opt(args, "scene") or _main_scene(project)
@@ -1452,6 +1454,11 @@ def selftest_engine():
                  and os.path.exists(os.path.join(p, "isle_maps", "Nature", "Terrain.res")), r)
         r = _call(map_, p, ["city", "--scene", "res://village.tscn", "--set", "preset=village", "--set", "seed=4"])
         c.expect("map city", r["ok"] and r["counts"]["buildings"] > 0 and "plaza" in r["places"], r)
+        # B-1507: the city's navigation mesh joins every place, and a walker (physics, collisions)
+        # really gets from the spawn to the plaza and every gate.
+        c.expect("map city navigation", r["ok"] and r["navigation"]["places_connected"] and r["counts"]["benches"] > 0, r)
+        r = _call(map_, p, ["walk", "--scene", "res://village.tscn"])
+        c.expect("map walk", r["ok"] and r["targets"] >= 3 and r["reached"] == r["targets"], r)
         r = _call(map_, p, ["city", "--scene", "res://village.tscn", "--set", "preset=village"])
         c.expect("map city twice needs --replace", not r["ok"] and "--replace" in r.get("hint", ""), r)
         r = _call(map_, p, ["nature", "--scene", "res://isle2.tscn", "--set", "tress=2"])

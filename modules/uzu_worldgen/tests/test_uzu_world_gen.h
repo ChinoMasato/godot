@@ -32,10 +32,15 @@
 
 #include "../uzu_world_gen.h"
 
+#include "core/math/geometry_2d.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/multimesh_instance_3d.h"
+#include "scene/3d/navigation/navigation_region_3d.h"
 #include "scene/3d/node_3d.h"
+#include "scene/3d/physics/collision_shape_3d.h"
+#include "scene/resources/3d/convex_polygon_shape_3d.h"
 #include "scene/resources/mesh.h"
+#include "scene/resources/navigation_mesh.h"
 #include "tests/test_macros.h"
 
 namespace TestUZUWorldGen {
@@ -306,6 +311,91 @@ TEST_CASE("[SceneTree][UZUWorldGen] Villages joined by roads: every road connect
 	memdelete(root);
 	memdelete(again);
 	memdelete(none);
+}
+
+TEST_CASE("[SceneTree][UZUWorldGen] City streets: benches placed, a navigation mesh that joins every place and keeps out of buildings") {
+	Dictionary s;
+	s["size"] = 120;
+	s["block"] = 40;
+	s["road_width"] = 8;
+	s["sidewalk"] = 2;
+	s["seed"] = 4;
+	s["benches"] = 20.0;
+	Node3D *root = memnew(Node3D);
+	const Dictionary r = UZUWorldGen::generate_city(root, s);
+	REQUIRE(bool(r["ok"]));
+	const Dictionary counts = r["counts"];
+	CHECK(int(counts["benches"]) > 4); // Along the sidewalks, plus four around the fountain.
+	Node *city = root->get_node(NodePath(String(r["node"])));
+	CHECK(city->get_node_or_null(NodePath("Benches")) != nullptr);
+	// The places travel with the saved scene, for walking checks on it.
+	REQUIRE(city->has_meta("uzu_places"));
+	CHECK(Dictionary(city->get_meta("uzu_places")).has("gate_west"));
+
+	REQUIRE(r.has("navigation"));
+	const Dictionary nav = r["navigation"];
+	CHECK(int(nav["polygons"]) > 0);
+	CHECK(bool(nav["places_connected"]));
+	CHECK(Array(nav["unreached"]).is_empty());
+	NavigationRegion3D *region = Object::cast_to<NavigationRegion3D>(city->get_node_or_null(NodePath("Navigation")));
+	REQUIRE(region);
+	CHECK(region->get_owner() == root);
+	const Ref<NavigationMesh> nm = region->get_navigation_mesh();
+	REQUIRE(nm.is_valid());
+	CHECK(nm->get_polygon_count() == int(nav["polygons"]));
+
+	// No walkable polygon inside a building: test every polygon centre against every
+	// building's collision footprint (shrunk by 5 cm for edge rounding).
+	Node *body = city->get_node_or_null(NodePath("CityBody"));
+	REQUIRE(body);
+	const Vector<Vector3> verts = nm->get_vertices();
+	int buildings = 0;
+	int inside = 0;
+	for (int i = 0; i < body->get_child_count(); i++) {
+		CollisionShape3D *cs = Object::cast_to<CollisionShape3D>(body->get_child(i));
+		if (!cs || !String(cs->get_name()).begins_with("Building")) {
+			continue;
+		}
+		const Ref<ConvexPolygonShape3D> shape = cs->get_shape();
+		REQUIRE(shape.is_valid());
+		Vector<Vector2> foot;
+		Vector2 c;
+		for (const Vector3 &p : shape->get_points()) {
+			if (p.y < 1.0f) {
+				foot.push_back(Vector2(p.x, p.z));
+				c += Vector2(p.x, p.z);
+			}
+		}
+		REQUIRE(foot.size() >= 3);
+		c /= foot.size();
+		for (Vector2 &f : foot) {
+			f = c + (f - c).normalized() * MAX(0.0f, (f - c).length() - 0.05f);
+		}
+		buildings++;
+		for (int k = 0; k < nm->get_polygon_count(); k++) {
+			const Vector<int> poly = nm->get_polygon(k);
+			Vector3 m;
+			for (int idx : poly) {
+				m += verts[idx];
+			}
+			m /= poly.size();
+			if (Geometry2D::is_point_in_polygon(Vector2(m.x, m.z), foot)) {
+				inside++;
+			}
+		}
+	}
+	CHECK(buildings > 0);
+	CHECK(inside == 0);
+
+	// Without navigation, no region and no report.
+	s["navigation"] = false;
+	Node3D *root2 = memnew(Node3D);
+	const Dictionary r2 = UZUWorldGen::generate_city(root2, s);
+	REQUIRE(bool(r2["ok"]));
+	CHECK_FALSE(r2.has("navigation"));
+	CHECK(root2->get_node(NodePath(String(r2["node"])))->get_node_or_null(NodePath("Navigation")) == nullptr);
+	memdelete(root);
+	memdelete(root2);
 }
 
 } // namespace TestUZUWorldGen
