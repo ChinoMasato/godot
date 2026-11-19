@@ -1110,7 +1110,7 @@
   {
    "name": "rich",
    "kind": "command",
-   "description": "Richness report of a scene: static costs (triangles, draw calls, objects, texture memory, props per square meter, lights, the heaviest nodes), what one rendered frame drew (triangles and draw calls, shadows, video memory), a budget check and hints on what to change. Budget keys are max_<metric> or min_<metric>.",
+   "description": "Richness report of a scene: static costs (triangles, draw calls, objects, texture memory, props per square meter, lights, the heaviest nodes), model quality (PBR coverage, chamfered edges, triangle density, cheap plain boxes; budget keys min_pbr_coverage, min_bevel_share, max_cheap_meshes), what one rendered frame drew (triangles and draw calls, shadows, video memory), a budget check and hints on what to change. Budget keys are max_<metric> or min_<metric>.",
    "tags": [
     "cli",
     "look",
@@ -1216,7 +1216,7 @@
   {
    "name": "city",
    "kind": "command",
-   "description": "Generate a city into a scene in one call: streets (grid or organic), sidewalks, blocks with buildings (floors, flat or gable roofs, windows that glow), a plaza with a fountain, street lamps, trees and benches, plus collision and a baked navigation mesh (NavigationRegion3D) that joins every place. Everything is optional: pick a preset (village, town, city) and override any key. The result names places (spawn, plaza, gates, tallest roof) with positions, and counts. Same spec, same city. Call map_options for every key.",
+   "description": "Generate a city into a scene in one call: streets (grid or organic), sidewalks, blocks with buildings made of parts (stone plinth, string courses, pilasters, a door, framed windows that glow, roofs with eaves and chimneys or cornices and parapets) with PBR texture sets (detail simple: plain boxes), a plaza with a fountain, street lamps, trees and benches, plus collision and a baked navigation mesh (NavigationRegion3D) that joins every place. Everything is optional: pick a preset (village, town, city) and override any key. The result names places (spawn, plaza, gates, tallest roof) with positions, and counts. Same spec, same city. Call map_options for every key.",
    "tags": [
     "city",
     "cli",
@@ -1719,7 +1719,7 @@
   {
    "name": "look_rich",
    "kind": "mcp",
-   "description": "Richness report of a scene: static costs (triangles, draw calls, objects, texture memory, props per square meter, lights, the heaviest nodes), what one rendered frame drew (triangles and draw calls, shadows, video memory), a budget check and hints on what to change. Budget keys are max_<metric> or min_<metric>.",
+   "description": "Richness report of a scene: static costs (triangles, draw calls, objects, texture memory, props per square meter, lights, the heaviest nodes), model quality (PBR coverage, chamfered edges, triangle density, cheap plain boxes; budget keys min_pbr_coverage, min_bevel_share, max_cheap_meshes), what one rendered frame drew (triangles and draw calls, shadows, video memory), a budget check and hints on what to change. Budget keys are max_<metric> or min_<metric>.",
    "tags": [
     "look",
     "mcp",
@@ -1804,7 +1804,7 @@
   {
    "name": "map_city",
    "kind": "mcp",
-   "description": "Generate a city into a scene in one call: streets (grid or organic), sidewalks, blocks with buildings (floors, flat or gable roofs, windows that glow), a plaza with a fountain, street lamps, trees and benches, plus collision and a baked navigation mesh (NavigationRegion3D) that joins every place. Everything is optional: pick a preset (village, town, city) and override any key. The result names places (spawn, plaza, gates, tallest roof) with positions, and counts. Same spec, same city. Call map_options for every key.",
+   "description": "Generate a city into a scene in one call: streets (grid or organic), sidewalks, blocks with buildings made of parts (stone plinth, string courses, pilasters, a door, framed windows that glow, roofs with eaves and chimneys or cornices and parapets) with PBR texture sets (detail simple: plain boxes), a plaza with a fountain, street lamps, trees and benches, plus collision and a baked navigation mesh (NavigationRegion3D) that joins every place. Everything is optional: pick a preset (village, town, city) and override any key. The result names places (spawn, plaza, gates, tallest roof) with positions, and counts. Same spec, same city. Call map_options for every key.",
    "tags": [
     "city",
     "map",

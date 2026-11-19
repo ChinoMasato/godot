@@ -30,6 +30,7 @@
 
 #include "uzu_world_gen.h"
 
+#include "core/io/image.h"
 #include "core/math/random_pcg.h"
 #include "core/object/class_db.h"
 #include "core/os/os.h"
@@ -45,6 +46,7 @@
 #include "scene/resources/3d/convex_polygon_shape_3d.h"
 #include "scene/resources/3d/height_map_shape_3d.h"
 #include "scene/resources/3d/navigation_mesh_source_geometry_data_3d.h"
+#include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
 #include "scene/resources/mesh.h"
 #include "scene/resources/multimesh.h"
@@ -117,6 +119,8 @@ Vector<OptionDef> city_defs() {
 	d.push_back({ "street_trees", "float", 12.0, 0, 100, {}, "meters between street trees (0 = none)" });
 	d.push_back({ "benches", "float", 36.0, 0, 200, {}, "meters between benches along the sidewalks (0 = none); the plaza gets benches around its fountain" });
 	d.push_back({ "navigation", "bool", true, 0, 0, {}, "bake a NavigationMesh of the streets, sidewalks and plaza (buildings, trees, lamps and benches cut out) so characters and AI players can find their way" });
+	d.push_back({ "detail", "choice", "high", 0, 0, { "simple", "high" }, "high: buildings made of parts (stone plinth, string courses, corner pilasters, a door with a step, framed windows with sills, roofs with eaves, ridge caps and chimneys, or cornices, parapets and roof equipment); simple: plain boxes with flat windows (fewest triangles)" });
+	d.push_back({ "textures", "bool", true, 0, 0, {}, "with detail high: give the buildings PBR texture sets made with them (plaster, brick, roof tiles, stone, concrete: color, normal and roughness maps)" });
 	d.push_back({ "palette", "choice", "stone", 0, 0, { "warm", "stone", "modern", "pastel" }, "colors of walls, roofs, streets and sidewalks" });
 	d.push_back({ "collision", "bool", true, 0, 0, {}, "add static bodies for the ground, sidewalks and buildings" });
 	d.push_back({ "position", "vec3", Vector3(), 0, 0, {}, "center of the city [x, y, z] (the city is flat at y)" });
@@ -388,6 +392,11 @@ struct MeshBuilder {
 	PackedVector3Array verts;
 	PackedVector3Array normals;
 	PackedColorArray colors;
+	// With uv_scale > 0 (meters per texture tile), every face also gets planar UVs (u along the
+	// face's horizontal, v down the face) and tangents, for tiling textures and normal maps.
+	float uv_scale = 0;
+	PackedVector2Array uvs;
+	PackedFloat32Array tangents;
 
 	void tri(const Vector3 &p_a, const Vector3 &p_b, const Vector3 &p_c, const Color &p_color, const Vector3 &p_facing) {
 		// Godot draws the side where the corners go clockwise.
@@ -408,6 +417,22 @@ struct MeshBuilder {
 			normals.push_back(n);
 			colors.push_back(p_color);
 		}
+		if (uv_scale > 0) {
+			Vector3 u = Vector3(0, 1, 0).cross(n);
+			if (u.length_squared() < 1e-6f) {
+				u = Vector3(1, 0, 0);
+			}
+			u.normalize();
+			const Vector3 v = n.cross(u); // up the face
+			const Vector3 pts[3] = { p_a, b, c };
+			for (int i = 0; i < 3; i++) {
+				uvs.push_back(Vector2(pts[i].dot(u), -pts[i].dot(v)) / uv_scale);
+				tangents.push_back(u.x);
+				tangents.push_back(u.y);
+				tangents.push_back(u.z);
+				tangents.push_back(-1.0f); // the binormal (+v in the texture) runs down the face
+			}
+		}
 	}
 	// p_a..p_d go around the quad (either way).
 	void quad(const Vector3 &p_a, const Vector3 &p_b, const Vector3 &p_c, const Vector3 &p_d, const Color &p_color, const Vector3 &p_facing) {
@@ -424,6 +449,10 @@ struct MeshBuilder {
 		arrays[Mesh::ARRAY_VERTEX] = verts;
 		arrays[Mesh::ARRAY_NORMAL] = normals;
 		arrays[Mesh::ARRAY_COLOR] = colors;
+		if (uv_scale > 0 && uvs.size() == verts.size()) {
+			arrays[Mesh::ARRAY_TEX_UV] = uvs;
+			arrays[Mesh::ARRAY_TANGENT] = tangents;
+		}
 		Ref<ArrayMesh> mesh;
 		mesh.instantiate();
 		mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
@@ -1511,6 +1540,7 @@ namespace {
 struct Palette {
 	Vector<Color> walls, roofs;
 	Color road, sidewalk, ground, flat_roof;
+	Color trim = Color(0.88f, 0.85f, 0.8f); // window frames, cornices and bands (B-1219)
 };
 
 Palette palette_for(const String &p_name) {
@@ -1529,6 +1559,7 @@ Palette palette_for(const String &p_name) {
 		p.sidewalk = Color::html("#b9a88c");
 		p.ground = Color::html("#6f8a4a");
 		p.flat_roof = Color::html("#8c8478");
+		p.trim = Color::html("#efe3cc");
 	} else if (p_name == "modern") {
 		p.walls = cs({ "#cfd3d6", "#9aa3aa", "#e6e6e1", "#6f7a84", "#b5b9bb", "#4f5b66" });
 		p.roofs = cs({ "#5d6266", "#474c50" });
@@ -1536,6 +1567,7 @@ Palette palette_for(const String &p_name) {
 		p.sidewalk = Color::html("#9d9fa0");
 		p.ground = Color::html("#5f7550");
 		p.flat_roof = Color::html("#6a6e72");
+		p.trim = Color::html("#3d4349");
 	} else if (p_name == "pastel") {
 		p.walls = cs({ "#f0d6d0", "#d6e6d0", "#d0dcf0", "#f0ebd0", "#e6d0f0" });
 		p.roofs = cs({ "#c06a5a", "#5a7ac0", "#7a9a5a", "#b0805a" });
@@ -1543,6 +1575,7 @@ Palette palette_for(const String &p_name) {
 		p.sidewalk = Color::html("#d8d0c4");
 		p.ground = Color::html("#7f9a5a");
 		p.flat_roof = Color::html("#9a948c");
+		p.trim = Color::html("#fbf6ee");
 	} else { // stone
 		p.walls = cs({ "#bfb6a6", "#a99f8f", "#d1c9b8", "#8f8a80", "#c4b49a" });
 		p.roofs = cs({ "#4f4a48", "#6b4a3a", "#3f4d5a", "#5a3f36" });
@@ -1550,12 +1583,14 @@ Palette palette_for(const String &p_name) {
 		p.sidewalk = Color::html("#a8a39a");
 		p.ground = Color::html("#6b7f4c");
 		p.flat_roof = Color::html("#7a766f");
+		p.trim = Color::html("#ddd5c6");
 	}
 	return p;
 }
 
-// Moves each edge of a convex quad inward by p_d and returns the new corners.
-bool inset_quad(const Vector2 p_q[4], float p_d, Vector2 r_out[4]) {
+// Moves each edge of a convex quad inward by p_d and returns the new corners. A negative p_d
+// moves them outward (pass p_check = false, the shrink check would refuse it).
+bool inset_quad(const Vector2 p_q[4], float p_d, Vector2 r_out[4], bool p_check = true) {
 	float area = 0;
 	for (int i = 0; i < 4; i++) {
 		area += p_q[i].cross(p_q[(i + 1) % 4]);
@@ -1582,7 +1617,7 @@ bool inset_quad(const Vector2 p_q[4], float p_d, Vector2 r_out[4]) {
 	for (int i = 0; i < 4; i++) {
 		area2 += r_out[i].cross(r_out[(i + 1) % 4]);
 	}
-	return area2 * area > 0 && Math::abs(area2) < Math::abs(area);
+	return !p_check || (area2 * area > 0 && Math::abs(area2) < Math::abs(area));
 }
 
 Vector2 bilinear(const Vector2 p_q[4], float p_u, float p_v) {
@@ -1634,6 +1669,252 @@ void add_convex_shape(Node *p_body, Node *p_owner, const String &p_name, const V
 	cs->set_owner(p_owner);
 }
 
+// ---------------------------------------------------------------- building recipe (B-1219)
+
+// Tiling value noise: the pattern repeats every p_period units, so textures wrap seamlessly.
+float tile_noise(float p_x, float p_y, int p_period, uint32_t p_seed) {
+	const int ix = int(Math::floor(p_x)), iy = int(Math::floor(p_y));
+	const float fx = p_x - ix, fy = p_y - iy;
+	auto W = [&](int p_i) { return ((p_i % p_period) + p_period) % p_period; };
+	const float a = hash01(W(ix), W(iy), p_seed), b = hash01(W(ix + 1), W(iy), p_seed);
+	const float c = hash01(W(ix), W(iy + 1), p_seed), d = hash01(W(ix + 1), W(iy + 1), p_seed);
+	const float u = fade(fx), v = fade(fy);
+	return Math::lerp(Math::lerp(a, b, u), Math::lerp(c, d, u), v);
+}
+
+// p_x, p_y in [0, 1): a sum of octaves, the first with p_period cells across the tile.
+float tile_fbm(float p_x, float p_y, int p_period, uint32_t p_seed, int p_octaves) {
+	float sum = 0, amp = 0.5f, norm = 0;
+	int period = p_period;
+	for (int o = 0; o < p_octaves; o++) {
+		sum += tile_noise(p_x * period, p_y * period, period, p_seed + o * 31) * amp;
+		norm += amp;
+		amp *= 0.5f;
+		period *= 2;
+	}
+	return sum / norm;
+}
+
+// A PBR texture set made from three maps of one tile: brightness (multiplies the vertex
+// color), height (turned into the normal map) and roughness.
+struct TextureSet {
+	Ref<ImageTexture> albedo, normal, roughness;
+	float normal_scale = 1.0f;
+};
+
+TextureSet make_texture_set(int p_n, const Vector<float> &p_albedo, const Vector<float> &p_height, const Vector<float> &p_rough, float p_bump) {
+	Vector<uint8_t> al, nm, ro;
+	al.resize(p_n * p_n * 3);
+	nm.resize(p_n * p_n * 3);
+	ro.resize(p_n * p_n * 3);
+	auto H = [&](int p_x, int p_y) { return p_height[((p_y + p_n) % p_n) * p_n + ((p_x + p_n) % p_n)]; };
+	for (int y = 0; y < p_n; y++) {
+		for (int x = 0; x < p_n; x++) {
+			const int i = y * p_n + x;
+			const uint8_t a = uint8_t(CLAMP(p_albedo[i], 0.0f, 1.0f) * 255);
+			const uint8_t r = uint8_t(CLAMP(p_rough[i], 0.0f, 1.0f) * 255);
+			// Image y runs down the face: a height rising downward tilts the normal up (+green).
+			const float dx = (H(x + 1, y) - H(x - 1, y)) * 0.5f * p_bump, dy = (H(x, y + 1) - H(x, y - 1)) * 0.5f * p_bump;
+			const Vector3 n = Vector3(-dx, dy, 1).normalized();
+			for (int ch = 0; ch < 3; ch++) {
+				al.write[i * 3 + ch] = a;
+				ro.write[i * 3 + ch] = r;
+			}
+			nm.write[i * 3 + 0] = uint8_t((n.x * 0.5f + 0.5f) * 255);
+			nm.write[i * 3 + 1] = uint8_t((n.y * 0.5f + 0.5f) * 255);
+			nm.write[i * 3 + 2] = uint8_t((n.z * 0.5f + 0.5f) * 255);
+		}
+	}
+	auto tex = [&](const Vector<uint8_t> &p_data, bool p_normal) {
+		Ref<Image> img = Image::create_from_data(p_n, p_n, false, Image::FORMAT_RGB8, p_data);
+		img->generate_mipmaps(p_normal);
+		return ImageTexture::create_from_image(img);
+	};
+	TextureSet t;
+	t.albedo = tex(al, false);
+	t.normal = tex(nm, true);
+	t.roughness = tex(ro, false);
+	return t;
+}
+
+// The texture sets of the buildings. Each tile is p_n pixels; the meters per tile are the
+// uv_scale of the MeshBuilder that uses it.
+enum BuildingTexture {
+	TEX_PLASTER, // 2 m: rough render with faint patches
+	TEX_BRICK, // 0.75 m: 3 bricks across, 10 courses, mortar joints
+	TEX_TILE, // 1.2 m: 6 barrel tiles across, 4 overlapping rows
+	TEX_STONE, // 1.2 m: dressed blocks 0.6 x 0.3 m
+	TEX_CONCRETE, // 2 m: flat roofs
+	TEX_MAX
+};
+
+TextureSet building_texture(BuildingTexture p_kind) {
+	const int n = p_kind == TEX_PLASTER || p_kind == TEX_CONCRETE ? 256 : 240;
+	Vector<float> al, ht, ro;
+	al.resize(n * n);
+	ht.resize(n * n);
+	ro.resize(n * n);
+	float bump = 2.0f;
+	for (int y = 0; y < n; y++) {
+		for (int x = 0; x < n; x++) {
+			const float u = float(x) / n, v = float(y) / n;
+			const int i = y * n + x;
+			const float grain = tile_fbm(u, v, 32, 7, 3);
+			switch (p_kind) {
+				case TEX_PLASTER: {
+					const float patch = tile_fbm(u, v, 3, 11, 3);
+					ht.write[i] = grain * 0.8f + patch * 0.3f;
+					al.write[i] = 0.9f + 0.07f * patch + 0.03f * (grain - 0.5f);
+					ro.write[i] = 0.88f + 0.08f * grain;
+					bump = 1.2f;
+				} break;
+				case TEX_CONCRETE: {
+					const float stain = tile_fbm(u, v, 4, 13, 3);
+					ht.write[i] = grain * 0.8f;
+					al.write[i] = 0.78f + 0.16f * stain + 0.05f * (grain - 0.5f);
+					ro.write[i] = 0.9f;
+					bump = 2.0f;
+				} break;
+				case TEX_BRICK: {
+					const int cw = n / 3, rh = n / 10, mortar = 3;
+					const int row = y / rh, off = (row % 2) * cw / 2;
+					const int bx = (x + off) % cw, by = y % rh, col = ((x + off) / cw) % 3;
+					const bool joint = bx < mortar || by < mortar;
+					const float edge = MIN(MIN(bx - mortar, cw - bx), MIN(by - mortar, rh - by)) / 3.0f;
+					const float brick = hash01(col, row, 21);
+					ht.write[i] = joint ? 0.0f : MIN(1.0f, 0.55f + 0.45f * MIN(edge, 1.0f)) + 0.15f * grain;
+					al.write[i] = joint ? 0.95f : 0.62f + 0.3f * brick + 0.06f * (grain - 0.5f);
+					ro.write[i] = joint ? 0.95f : 0.8f + 0.1f * grain;
+					bump = 6.0f;
+				} break;
+				case TEX_TILE: {
+					const int tw = n / 6, rh = n / 4;
+					const int row = y / rh, off = (row % 2) * tw / 2;
+					const int tx = (x + off) % tw, ty = y % rh, col = ((x + off) / tw) % 6;
+					const float across = Math::sin(Math::PI * float(tx) / tw); // barrel
+					const float down = float(ty) / rh; // thicker toward the lower lip
+					const bool gap = tx < 2;
+					const float tile = hash01(col, row, 33);
+					ht.write[i] = gap ? 0.0f : 0.25f + 0.45f * across + 0.3f * down + 0.08f * grain;
+					al.write[i] = (gap ? 0.45f : 0.72f + 0.22f * tile) * (0.82f + 0.18f * (1.0f - down * down)) + 0.04f * (grain - 0.5f);
+					ro.write[i] = 0.62f + 0.12f * grain;
+					bump = 7.0f;
+				} break;
+				case TEX_STONE: {
+					const int bw = n / 2, rh = n / 4, mortar = 3;
+					const int row = y / rh, off = (row % 2) * bw / 2;
+					const int bx = (x + off) % bw, by = y % rh, col = ((x + off) / bw) % 2;
+					const bool joint = bx < mortar || by < mortar;
+					const float edge = MIN(MIN(bx - mortar, bw - bx), MIN(by - mortar, rh - by)) / 6.0f;
+					const float block = hash01(col, row, 41);
+					const float chisel = tile_fbm(u, v, 8, 43, 4);
+					ht.write[i] = joint ? 0.0f : MIN(1.0f, 0.4f + 0.6f * MIN(edge, 1.0f)) + 0.35f * chisel;
+					al.write[i] = joint ? 0.7f : 0.72f + 0.22f * block + 0.1f * (chisel - 0.5f);
+					ro.write[i] = 0.85f + 0.1f * chisel;
+					bump = 5.0f;
+				} break;
+				default:
+					break;
+			}
+		}
+	}
+	return make_texture_set(n, al, ht, ro, bump);
+}
+
+Ref<StandardMaterial3D> textured_material(const TextureSet &p_set) {
+	Ref<StandardMaterial3D> m = vertex_color_material(1.0f);
+	m->set_texture(BaseMaterial3D::TEXTURE_ALBEDO, p_set.albedo);
+	m->set_feature(BaseMaterial3D::FEATURE_NORMAL_MAPPING, true);
+	m->set_texture(BaseMaterial3D::TEXTURE_NORMAL, p_set.normal);
+	m->set_texture(BaseMaterial3D::TEXTURE_ROUGHNESS, p_set.roughness);
+	m->set_roughness_texture_channel(BaseMaterial3D::TEXTURE_CHANNEL_RED);
+	m->set_texture_filter(BaseMaterial3D::TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC);
+	return m;
+}
+
+// A box with its edges cut at 45 degrees by p_chamfer (0 = sharp): 6 faces, 12 edge strips and
+// 8 corner triangles, so the edges catch the light. p_axes holds the unit directions of the
+// box's x, y and z as columns.
+void add_cbox(MeshBuilder &p_mb, const Basis &p_axes, const Vector3 &p_center, const Vector3 &p_half, float p_chamfer, const Color &p_color) {
+	const Vector3 X = p_axes.get_column(0), Y = p_axes.get_column(1), Z = p_axes.get_column(2);
+	const float ch = MIN(p_chamfer, MIN(p_half.x, MIN(p_half.y, p_half.z)) * 0.9f);
+	auto L = [&](float p_x, float p_y, float p_z) { return p_center + X * p_x + Y * p_y + Z * p_z; };
+	const float hx = p_half.x, hy = p_half.y, hz = p_half.z;
+	// The corner points of corner (sx, sy, sz) on its x, y and z faces.
+	auto PX = [&](int sx, int sy, int sz) { return L(sx * hx, sy * (hy - ch), sz * (hz - ch)); };
+	auto PY = [&](int sx, int sy, int sz) { return L(sx * (hx - ch), sy * hy, sz * (hz - ch)); };
+	auto PZ = [&](int sx, int sy, int sz) { return L(sx * (hx - ch), sy * (hy - ch), sz * hz); };
+	for (int s = -1; s <= 1; s += 2) {
+		p_mb.quad(PX(s, -1, -1), PX(s, 1, -1), PX(s, 1, 1), PX(s, -1, 1), p_color, X * s);
+		p_mb.quad(PY(-1, s, -1), PY(1, s, -1), PY(1, s, 1), PY(-1, s, 1), p_color, Y * s);
+		p_mb.quad(PZ(-1, -1, s), PZ(1, -1, s), PZ(1, 1, s), PZ(-1, 1, s), p_color, Z * s);
+	}
+	if (ch <= 0.0005f) {
+		return;
+	}
+	for (int a = -1; a <= 1; a += 2) {
+		for (int b = -1; b <= 1; b += 2) {
+			p_mb.quad(PX(a, b, -1), PY(a, b, -1), PY(a, b, 1), PX(a, b, 1), p_color, X * a + Y * b); // along z
+			p_mb.quad(PY(-1, a, b), PZ(-1, a, b), PZ(1, a, b), PY(1, a, b), p_color, Y * a + Z * b); // along x
+			p_mb.quad(PX(a, -1, b), PZ(a, -1, b), PZ(a, 1, b), PX(a, 1, b), p_color, X * a + Z * b); // along y
+		}
+	}
+	for (int sx = -1; sx <= 1; sx += 2) {
+		for (int sy = -1; sy <= 1; sy += 2) {
+			for (int sz = -1; sz <= 1; sz += 2) {
+				p_mb.tri(PX(sx, sy, sz), PY(sx, sy, sz), PZ(sx, sy, sz), p_color, X * sx + Y * sy + Z * sz);
+			}
+		}
+	}
+}
+
+// A band around a footprint (plinth, string course, cornice): from p_y0 to p_y1, standing
+// out of the walls by p_out, its upper outer edge cut by p_chamfer.
+void add_ring(MeshBuilder &p_mb, const Vector2 p_fp[4], float p_y0, float p_y1, float p_out, float p_chamfer, const Color &p_color, bool p_bottom) {
+	Vector2 o[4], o2[4];
+	if (!inset_quad(p_fp, -p_out, o, false) || !inset_quad(p_fp, -(p_out - p_chamfer), o2, false)) {
+		return;
+	}
+	const Vector2 c = (p_fp[0] + p_fp[1] + p_fp[2] + p_fp[3]) / 4;
+	const float ym = p_y1 - p_chamfer;
+	for (int i = 0; i < 4; i++) {
+		const int j = (i + 1) % 4;
+		const Vector2 mid = (o[i] + o[j]) / 2 - c;
+		const Vector3 out(mid.x, 0, mid.y);
+		auto V = [](const Vector2 &p_p, float p_y) { return Vector3(p_p.x, p_y, p_p.y); };
+		p_mb.quad(V(o[i], p_y0), V(o[j], p_y0), V(o[j], ym), V(o[i], ym), p_color, out);
+		if (p_chamfer > 0) {
+			p_mb.quad(V(o[i], ym), V(o[j], ym), V(o2[j], p_y1), V(o2[i], p_y1), p_color, out.normalized() + Vector3(0, 1, 0));
+		}
+		p_mb.quad(V(p_fp[i], p_y1), V(p_fp[j], p_y1), V(o2[j], p_y1), V(o2[i], p_y1), p_color, Vector3(0, 1, 0));
+		if (p_bottom) {
+			p_mb.quad(V(p_fp[i], p_y0), V(p_fp[j], p_y0), V(o[j], p_y0), V(o[i], p_y0), p_color.darkened(0.1f), Vector3(0, -1, 0));
+		}
+	}
+}
+
+// One window's surround, drawn once and repeated by a MultiMesh: jambs, a head with a
+// cornice, a sill that stands out, a mullion and a transom, and shutters for villages.
+// Local x runs along the wall, y up, z out of the wall; the origin is the glass center.
+Ref<ArrayMesh> window_frame_mesh(float p_ww, float p_wh, const Color &p_trim, bool p_shutters, const Color &p_shutter, const Ref<Material> &p_material, float p_uv_scale) {
+	MeshBuilder mb;
+	mb.uv_scale = p_uv_scale;
+	const Basis I;
+	const float t = 0.07f, d = 0.06f;
+	add_cbox(mb, I, Vector3(-p_ww - t * 0.5f, 0, d * 0.5f), Vector3(t * 0.5f, p_wh + t, d * 0.5f), 0.0f, p_trim);
+	add_cbox(mb, I, Vector3(p_ww + t * 0.5f, 0, d * 0.5f), Vector3(t * 0.5f, p_wh + t, d * 0.5f), 0.0f, p_trim);
+	add_cbox(mb, I, Vector3(0, p_wh + t + 0.07f, 0.045f), Vector3(p_ww + t + 0.07f, 0.08f, 0.045f), 0.02f, p_trim);
+	add_cbox(mb, I, Vector3(0, -p_wh - t * 0.5f, 0.08f), Vector3(p_ww + t + 0.09f, 0.045f, 0.08f), 0.02f, p_trim);
+	add_cbox(mb, I, Vector3(0, -0.05f * p_wh, 0.02f), Vector3(0.02f, p_wh, 0.02f), 0.0f, p_trim);
+	add_cbox(mb, I, Vector3(0, p_wh * 0.4f, 0.02f), Vector3(p_ww, 0.02f, 0.02f), 0.0f, p_trim);
+	if (p_shutters) {
+		for (int s = -1; s <= 1; s += 2) {
+			add_cbox(mb, I, Vector3(s * (p_ww * 1.5f + t), 0, 0.03f), Vector3(p_ww * 0.5f, p_wh + t * 0.5f, 0.025f), 0.01f, p_shutter);
+		}
+	}
+	return mb.commit(p_material);
+}
+
 } // namespace
 
 Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
@@ -1654,6 +1935,7 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	const Palette pal = palette_for(o["palette"]);
 	const float curb = 0.15f;
 	RandomPCG rng(uint64_t(seed) * 2654435761u + 17);
+	RandomPCG drng(uint64_t(seed) * 2246822519u + 101); // building details and lit windows (B-1219): the layout stays the same at every detail level
 	Array hints;
 
 	Node *owner = nullptr;
@@ -1691,6 +1973,30 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	}
 
 	MeshBuilder ground_mb, road_mb, block_mb, building_mb, window_mb, lit_mb, post_mb, landmark_mb;
+	// B-1219: buildings made of parts, one builder per material (and texture set).
+	const bool detailed = String(o["detail"]) == "high";
+	const bool textured = detailed && bool(o["textures"]);
+	MeshBuilder kit_wall, kit_brick, kit_stone, kit_trim, kit_roof, kit_flat;
+	if (textured) {
+		kit_wall.uv_scale = 2.0f;
+		kit_brick.uv_scale = 0.75f;
+		kit_stone.uv_scale = 1.2f;
+		kit_trim.uv_scale = 1.0f;
+		kit_roof.uv_scale = 1.2f;
+		kit_flat.uv_scale = 2.0f;
+	}
+	TextureSet tex[TEX_MAX];
+	if (textured) {
+		for (int k = 0; k < TEX_MAX; k++) {
+			tex[k] = building_texture(BuildingTexture(k));
+		}
+	}
+	auto kit_material = [&](BuildingTexture p_kind, float p_roughness) -> Ref<Material> {
+		return textured ? Ref<Material>(textured_material(tex[p_kind])) : Ref<Material>(vertex_color_material(p_roughness));
+	};
+	Ref<Material> trim_material = kit_material(TEX_PLASTER, 0.8f);
+	Ref<ArrayMesh> frame_mesh;
+	int parts_plinths = 0, parts_bands = 0, parts_pilasters = 0, parts_doors = 0, parts_chimneys = 0, parts_roof_props = 0, frames_total = 0;
 	const Vector3 up(0, 1, 0);
 	const float margin = 20;
 	ground_mb.quad(Vector3(-half - margin, 0, -half - margin), Vector3(half + margin, 0, -half - margin), Vector3(half + margin, 0, half + margin), Vector3(-half - margin, 0, half + margin), pal.ground, up);
@@ -1790,6 +2096,7 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 			if (!inset_quad(slab, walk, lot)) {
 				continue;
 			}
+			Vector<Transform3D> block_frames; // window frames of this block (one MultiMesh, so far ones can drop out)
 			// Lots: strips along the longer side, two rows when deep.
 			const float len_u = (lot[0].distance_to(lot[1]) + lot[3].distance_to(lot[2])) / 2;
 			const float len_v = (lot[0].distance_to(lot[3]) + lot[1].distance_to(lot[2])) / 2;
@@ -1837,53 +2144,254 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 						f1[c] = Vector3(fp[c].x, curb + h, fp[c].y);
 					}
 					const Vector3 c3(fc.x, curb, fc.y);
-					for (int c = 0; c < 4; c++) {
-						const Vector3 out = (f0[c] + f0[(c + 1) % 4]) / 2 - c3;
-						building_mb.quad(f0[c], f0[(c + 1) % 4], f1[(c + 1) % 4], f1[c], wall, out);
-						// Windows on every floor.
-						if (bool(o["windows"]) && windows_count < window_cap) {
+					const bool gable_roof = roof == "gable" || (roof == "mixed" && floors <= 3);
+					if (detailed) {
+						// fb-1219 recipe: walls (plaster or brick), a stone plinth, string courses and
+						// corner pilasters, a door with a step, framed windows (the frames are one
+						// repeated part), and a roof with eaves, thickness, a ridge cap and a chimney,
+						// or a cornice, a parapet and roof equipment.
+						const bool brick = drng.randf() < 0.35f;
+						MeshBuilder &wall_mb = brick ? kit_brick : kit_wall;
+						const Color wall_c = brick ? wall.lerp(Color(0.6f, 0.34f, 0.25f), 0.55f) : wall;
+						const Color trim_c = pal.trim.lerp(wall, 0.15f);
+						const Color stone_c = wall.darkened(0.3f).lerp(Color(0.56f, 0.54f, 0.5f), 0.5f);
+						const float yt = curb + h;
+						const float plinth_h = fmax <= 2 ? 0.45f : 0.75f;
+						Vector3 along_c[4], n_c[4];
+						float len_c[4];
+						int front = 0;
+						float front_score = -1e9f;
+						for (int c = 0; c < 4; c++) {
 							const Vector3 a = f0[c], b = f0[(c + 1) % 4];
-							const float wl = a.distance_to(b);
-							const int cols = int((wl - 1.0f) / 3.0f);
-							const Vector3 along = (b - a) / MAX(wl, 0.001f);
-							const Vector3 n = Vector3(out.x, 0, out.z).normalized();
+							len_c[c] = a.distance_to(b);
+							along_c[c] = (b - a) / MAX(len_c[c], 0.001f);
+							Vector3 n = Vector3(along_c[c].z, 0, -along_c[c].x);
+							const Vector3 out = (a + b) / 2 - c3;
+							if (n.dot(out) < 0) {
+								n = -n;
+							}
+							n_c[c] = n;
+							wall_mb.quad(f0[c], f0[(c + 1) % 4], f1[(c + 1) % 4], f1[c], wall_c, n);
+							// The front faces away from the block's middle, toward the street.
+							const Vector2 mid2 = (fp[c] + fp[(c + 1) % 4]) / 2;
+							const float score = Vector2(n.x, n.z).dot((mid2 - center2).normalized()) + len_c[c] * 0.01f;
+							if (score > front_score) {
+								front_score = score;
+								front = c;
+							}
+						}
+						add_ring(kit_stone, fp, curb, curb + plinth_h, 0.06f, 0.025f, stone_c, false);
+						parts_plinths++;
+						if (floors >= 2 && drng.randf() < (fmax <= 2 ? 0.3f : 0.75f)) {
+							for (int fl = 1; fl < floors; fl++) {
+								const float y = curb + fl * floor_h - 0.12f;
+								add_ring(kit_trim, fp, y - 0.07f, y + 0.07f, 0.05f, 0.02f, trim_c, true);
+							}
+							parts_bands++;
+						}
+						const bool gable = gable_roof;
+						const float cornice_h = gable ? 0.0f : 0.32f;
+						if (drng.randf() < 0.5f) {
+							for (int c = 0; c < 4; c++) {
+								const int prev = (c + 3) % 4;
+								const float y0 = curb + plinth_h, y1 = yt - cornice_h;
+								const Vector3 corner = f0[c] - (n_c[c] + n_c[prev]) * 0.18f;
+								add_cbox(brick ? kit_stone : kit_trim, Basis(along_c[c], up, n_c[c]), Vector3(corner.x, (y0 + y1) * 0.5f, corner.z), Vector3(0.24f, (y1 - y0) * 0.5f, 0.24f), 0.04f, brick ? stone_c : trim_c);
+							}
+							parts_pilasters++;
+						}
+						// The door: in the middle of the front, on the ground floor.
+						const float door_h = fmax <= 2 ? 2.1f : 2.4f, door_w = 0.55f;
+						const float door_at = len_c[front] * 0.5f;
+						{
+							const Basis fb(along_c[front], up, n_c[front]);
+							const Vector3 base = f0[front] + along_c[front] * door_at;
+							MeshBuilder &door_mb = kit_trim;
+							const Color wood = Color(0.33f, 0.22f, 0.15f).lerp(roof_c, 0.25f);
+							const Vector3 n = n_c[front], al = along_c[front];
+							door_mb.quad(base - al * door_w + n * 0.075f, base + al * door_w + n * 0.075f, base + al * door_w + n * 0.075f + up * door_h, base - al * door_w + n * 0.075f + up * door_h, wood, n);
+							for (int sg = -1; sg <= 1; sg += 2) {
+								add_cbox(door_mb, fb, base + al * (sg * (door_w + 0.07f)) + up * (door_h * 0.5f) + n * 0.07f, Vector3(0.07f, door_h * 0.5f, 0.07f), 0.015f, trim_c);
+								// Two raised panels on the leaf.
+								add_cbox(door_mb, fb, base + al * (sg * door_w * 0.48f) + up * (door_h * 0.62f) + n * 0.085f, Vector3(door_w * 0.36f, door_h * 0.26f, 0.012f), 0.008f, wood.lightened(0.08f));
+							}
+							add_cbox(door_mb, fb, base + up * (door_h + 0.1f) + n * 0.08f, Vector3(door_w + 0.2f, 0.1f, 0.08f), 0.02f, trim_c);
+							add_cbox(kit_stone, fb, base + n * 0.36f + up * 0.075f, Vector3(door_w + 0.25f, 0.075f, 0.3f), 0.02f, stone_c);
+							if (fmax > 6 || drng.randf() < 0.4f) {
+								add_cbox(door_mb, fb, base + up * (door_h + 0.42f) + n * 0.55f, Vector3(door_w + 0.4f, 0.05f, 0.55f), 0.02f, roof_c);
+							}
+							parts_doors++;
+						}
+						// Windows: dark or lit glass just off the wall, inside a repeated frame.
+						if (bool(o["windows"]) && windows_count < window_cap) {
 							const float ww = fmax <= 2 ? 0.5f : 0.6f, wh = fmax <= 2 ? 0.55f : 0.7f;
-							for (int fl = 0; fl < floors; fl++) {
-								for (int col = 0; col < cols; col++) {
-									const Vector3 p = a + along * (wl * (col + 0.5f) / cols) + n * 0.05f + Vector3(0, curb + fl * floor_h + floor_h * 0.5f, 0) - Vector3(0, curb, 0);
-									const bool lit = rng.randf() < float(double(o["lit_windows"]));
-									MeshBuilder &mb = lit ? lit_mb : window_mb;
-									mb.quad(p - along * ww - Vector3(0, wh, 0), p + along * ww - Vector3(0, wh, 0), p + along * ww + Vector3(0, wh, 0), p - along * ww + Vector3(0, wh, 0), lit ? Color(1, 0.82f, 0.5f) : Color(0.16f, 0.2f, 0.25f), n);
-									windows_count++;
-									lit_count += lit ? 1 : 0;
+							for (int c = 0; c < 4; c++) {
+								const int cols = int((len_c[c] - 1.0f) / 3.0f);
+								const Vector3 a = f0[c], al = along_c[c], n = n_c[c];
+								const Basis fb(al, up, n);
+								for (int fl = 0; fl < floors; fl++) {
+									for (int col = 0; col < cols; col++) {
+										const float at = len_c[c] * (col + 0.5f) / cols;
+										if (fl == 0 && c == front && Math::abs(at - door_at) < door_w + ww + 0.35f) {
+											continue; // the door is there
+										}
+										const Vector3 p = a + al * at + n * 0.012f + Vector3(0, fl * floor_h + floor_h * 0.5f, 0);
+										const bool lit = drng.randf() < float(double(o["lit_windows"]));
+										MeshBuilder &mb = lit ? lit_mb : window_mb;
+										mb.quad(p - al * ww - Vector3(0, wh, 0), p + al * ww - Vector3(0, wh, 0), p + al * ww + Vector3(0, wh, 0), p - al * ww + Vector3(0, wh, 0), lit ? Color(1, 0.82f, 0.5f) : Color(0.16f, 0.2f, 0.25f), n);
+										block_frames.push_back(Transform3D(fb, p - n * 0.012f));
+										windows_count++;
+										lit_count += lit ? 1 : 0;
+									}
 								}
 							}
 						}
-					}
-					const bool gable = roof == "gable" || (roof == "mixed" && floors <= 3);
-					if (gable) {
-						// Ridge along the longer side of the footprint.
-						const bool long01 = f1[0].distance_to(f1[1]) >= f1[0].distance_to(f1[3]);
-						const float short_side = long01 ? f1[0].distance_to(f1[3]) : f1[0].distance_to(f1[1]);
-						const Vector3 rise(0, short_side * 0.38f, 0);
-						Vector3 r0, r1;
-						if (long01) {
-							r0 = (f1[0] + f1[3]) / 2 + rise;
-							r1 = (f1[1] + f1[2]) / 2 + rise;
-							building_mb.quad(f1[0], f1[1], r1, r0, roof_c, ((f1[0] + f1[1]) / 2 - (f1[2] + f1[3]) / 2) + Vector3(0, 1, 0));
-							building_mb.quad(f1[3], f1[2], r1, r0, roof_c.darkened(0.12f), ((f1[2] + f1[3]) / 2 - (f1[0] + f1[1]) / 2) + Vector3(0, 1, 0));
-							building_mb.tri(f1[0], r0, f1[3], wall, (f1[0] + f1[3]) / 2 - (f1[1] + f1[2]) / 2);
-							building_mb.tri(f1[1], r1, f1[2], wall, (f1[1] + f1[2]) / 2 - (f1[0] + f1[3]) / 2);
+						if (gable) {
+							// Ridge along the longer side; eaves stand out 0.45 m down the slope and
+							// 0.3 m past the gable walls; the roof is 0.12 m thick.
+							const bool long01 = f1[0].distance_to(f1[1]) >= f1[0].distance_to(f1[3]);
+							const float short_side = long01 ? f1[0].distance_to(f1[3]) : f1[0].distance_to(f1[1]);
+							const Vector3 rise(0, short_side * 0.38f, 0);
+							// Sides as (eave start, eave end) with the ridge ends above them.
+							Vector3 e[2][2], r0, r1;
+							if (long01) {
+								r0 = (f1[0] + f1[3]) / 2 + rise;
+								r1 = (f1[1] + f1[2]) / 2 + rise;
+								e[0][0] = f1[0];
+								e[0][1] = f1[1];
+								e[1][0] = f1[3];
+								e[1][1] = f1[2];
+								wall_mb.tri(f1[0], r0, f1[3], wall_c, (f1[0] + f1[3]) / 2 - (f1[1] + f1[2]) / 2);
+								wall_mb.tri(f1[1], r1, f1[2], wall_c, (f1[1] + f1[2]) / 2 - (f1[0] + f1[3]) / 2);
+							} else {
+								r0 = (f1[0] + f1[1]) / 2 + rise;
+								r1 = (f1[3] + f1[2]) / 2 + rise;
+								e[0][0] = f1[0];
+								e[0][1] = f1[3];
+								e[1][0] = f1[1];
+								e[1][1] = f1[2];
+								wall_mb.tri(f1[0], r0, f1[1], wall_c, (f1[0] + f1[1]) / 2 - (f1[2] + f1[3]) / 2);
+								wall_mb.tri(f1[3], r1, f1[2], wall_c, (f1[3] + f1[2]) / 2 - (f1[0] + f1[1]) / 2);
+							}
+							const Vector3 axis = (r1 - r0).normalized();
+							const float overhang = 0.45f, gable_out = 0.3f, thick = 0.12f;
+							for (int sd = 0; sd < 2; sd++) {
+								const Vector3 slope = (e[sd][0] - r0).normalized();
+								const Vector3 p0 = e[sd][0] + slope * overhang - axis * gable_out, p1 = e[sd][1] + slope * overhang + axis * gable_out;
+								const Vector3 q0 = r0 - axis * gable_out, q1 = r1 + axis * gable_out;
+								Vector3 nn = (p1 - p0).cross(q0 - p0).normalized();
+								if (nn.y < 0) {
+									nn = -nn;
+								}
+								const Vector3 tk = nn * thick;
+								const Color rc = sd == 0 ? roof_c : roof_c.darkened(0.06f);
+								kit_roof.quad(p0 + tk, p1 + tk, q1 + tk, q0 + tk, rc, nn);
+								kit_trim.quad(p0, p1, q1, q0, trim_c.darkened(0.25f), -nn);
+								kit_trim.quad(p0, p1, p1 + tk, p0 + tk, trim_c, slope);
+								kit_trim.quad(p0, q0, q0 + tk, p0 + tk, trim_c, -axis);
+								kit_trim.quad(p1, q1, q1 + tk, p1 + tk, trim_c, axis);
+							}
+							const Vector3 side = up.cross(axis).normalized();
+							add_cbox(kit_roof, Basis(axis, up, side), (r0 + r1) / 2 + Vector3(0, thick + 0.06f, 0), Vector3(r0.distance_to(r1) * 0.5f + gable_out + 0.04f, 0.07f, 0.13f), 0.03f, roof_c.darkened(0.18f));
+							if (drng.randf() < 0.45f) {
+								const Vector3 at = r0.lerp(r1, 0.2f + 0.6f * drng.randf()) + (e[0][0] - r0).normalized() * (short_side * 0.18f);
+								const float top = r0.y + 0.9f;
+								const Basis fb(axis, up, side);
+								const Color brick_c = wall.lerp(Color(0.55f, 0.3f, 0.22f), 0.6f);
+								add_cbox(kit_brick, fb, Vector3(at.x, (yt + top) * 0.5f, at.z), Vector3(0.34f, (top - yt) * 0.5f, 0.28f), 0.02f, brick_c);
+								add_cbox(kit_stone, fb, Vector3(at.x, top + 0.05f, at.z), Vector3(0.42f, 0.06f, 0.36f), 0.02f, stone_c);
+								parts_chimneys++;
+							}
 						} else {
-							r0 = (f1[0] + f1[1]) / 2 + rise;
-							r1 = (f1[3] + f1[2]) / 2 + rise;
-							building_mb.quad(f1[0], f1[3], r1, r0, roof_c, ((f1[0] + f1[3]) / 2 - (f1[1] + f1[2]) / 2) + Vector3(0, 1, 0));
-							building_mb.quad(f1[1], f1[2], r1, r0, roof_c.darkened(0.12f), ((f1[1] + f1[2]) / 2 - (f1[0] + f1[3]) / 2) + Vector3(0, 1, 0));
-							building_mb.tri(f1[0], r0, f1[1], wall, (f1[0] + f1[1]) / 2 - (f1[2] + f1[3]) / 2);
-							building_mb.tri(f1[3], r1, f1[2], wall, (f1[3] + f1[2]) / 2 - (f1[0] + f1[1]) / 2);
+							add_ring(kit_trim, fp, yt - cornice_h, yt, 0.2f, 0.06f, trim_c, true);
+							Vector2 po[4], pi[4];
+							if (inset_quad(fp, -0.05f, po, false) && inset_quad(fp, 0.22f, pi)) {
+								const float ytp = yt + 0.75f;
+								auto V = [](const Vector2 &p_p, float p_y) { return Vector3(p_p.x, p_y, p_p.y); };
+								for (int c = 0; c < 4; c++) {
+									const int j = (c + 1) % 4;
+									const Vector3 n = n_c[c];
+									wall_mb.quad(V(po[c], yt), V(po[j], yt), V(po[j], ytp), V(po[c], ytp), wall_c, n);
+									wall_mb.quad(V(pi[c], yt + 0.02f), V(pi[j], yt + 0.02f), V(pi[j], ytp), V(pi[c], ytp), wall_c.darkened(0.08f), -n);
+									kit_stone.quad(V(po[c], ytp), V(po[j], ytp), V(pi[j], ytp), V(pi[c], ytp), stone_c.lightened(0.1f), up);
+								}
+								kit_flat.quad(V(pi[0], yt + 0.02f), V(pi[1], yt + 0.02f), V(pi[2], yt + 0.02f), V(pi[3], yt + 0.02f), pal.flat_roof, up);
+								// Roof equipment: units, a stair house on tall buildings, a water tank in cities.
+								const Basis fb(along_c[0], up, n_c[0]);
+								const int units = 1 + drng.rand(3);
+								for (int k = 0; k < units; k++) {
+									const Vector2 rq = bilinear(pi, 0.2f + 0.6f * drng.randf(), 0.2f + 0.6f * drng.randf());
+									add_cbox(kit_trim, fb, Vector3(rq.x, yt + 0.42f, rq.y), Vector3(0.6f, 0.4f, 0.45f), 0.04f, Color(0.62f, 0.63f, 0.62f));
+									parts_roof_props++;
+								}
+								if (floors >= 4 && drng.randf() < 0.6f) {
+									const Vector2 rq = bilinear(pi, 0.3f + 0.4f * drng.randf(), 0.3f + 0.4f * drng.randf());
+									add_cbox(wall_mb, fb, Vector3(rq.x, yt + 1.27f, rq.y), Vector3(1.3f, 1.25f, 1.4f), 0.03f, wall_c);
+									add_cbox(kit_stone, fb, Vector3(rq.x, yt + 2.57f, rq.y), Vector3(1.45f, 0.06f, 1.55f), 0.02f, stone_c);
+									parts_roof_props++;
+								}
+								if (fmax > 6 && drng.randf() < 0.4f) {
+									const Vector2 rq = bilinear(pi, 0.25f + 0.5f * drng.randf(), 0.25f + 0.5f * drng.randf());
+									const Color wood = Color(0.42f, 0.32f, 0.24f);
+									for (int lg = 0; lg < 4; lg++) {
+										const float ang = Math::TAU * (lg + 0.5f) / 4;
+										add_cbox(kit_trim, fb, Vector3(rq.x + Math::cos(ang) * 0.75f, yt + 0.6f, rq.y + Math::sin(ang) * 0.75f), Vector3(0.06f, 0.6f, 0.06f), 0.0f, wood.darkened(0.3f));
+									}
+									add_prism(kit_trim, Vector3(rq.x, yt + 1.2f, rq.y), 1.05f, 1.05f, 1.9f, 14, wood);
+									add_prism(kit_trim, Vector3(rq.x, yt + 3.1f, rq.y), 1.12f, 0.0f, 0.55f, 14, wood.darkened(0.2f), false);
+									parts_roof_props++;
+								}
+							}
 						}
 					} else {
-						building_mb.quad(f1[0], f1[1], f1[2], f1[3], pal.flat_roof.lerp(roof_c, 0.2f), up);
+						for (int c = 0; c < 4; c++) {
+							const Vector3 out = (f0[c] + f0[(c + 1) % 4]) / 2 - c3;
+							building_mb.quad(f0[c], f0[(c + 1) % 4], f1[(c + 1) % 4], f1[c], wall, out);
+							// Windows on every floor.
+							if (bool(o["windows"]) && windows_count < window_cap) {
+								const Vector3 a = f0[c], b = f0[(c + 1) % 4];
+								const float wl = a.distance_to(b);
+								const int cols = int((wl - 1.0f) / 3.0f);
+								const Vector3 along = (b - a) / MAX(wl, 0.001f);
+								const Vector3 n = Vector3(out.x, 0, out.z).normalized();
+								const float ww = fmax <= 2 ? 0.5f : 0.6f, wh = fmax <= 2 ? 0.55f : 0.7f;
+								for (int fl = 0; fl < floors; fl++) {
+									for (int col = 0; col < cols; col++) {
+										const Vector3 p = a + along * (wl * (col + 0.5f) / cols) + n * 0.05f + Vector3(0, curb + fl * floor_h + floor_h * 0.5f, 0) - Vector3(0, curb, 0);
+										const bool lit = drng.randf() < float(double(o["lit_windows"]));
+										MeshBuilder &mb = lit ? lit_mb : window_mb;
+										mb.quad(p - along * ww - Vector3(0, wh, 0), p + along * ww - Vector3(0, wh, 0), p + along * ww + Vector3(0, wh, 0), p - along * ww + Vector3(0, wh, 0), lit ? Color(1, 0.82f, 0.5f) : Color(0.16f, 0.2f, 0.25f), n);
+										windows_count++;
+										lit_count += lit ? 1 : 0;
+									}
+								}
+							}
+						}
+						const bool gable = gable_roof;
+						if (gable) {
+							// Ridge along the longer side of the footprint.
+							const bool long01 = f1[0].distance_to(f1[1]) >= f1[0].distance_to(f1[3]);
+							const float short_side = long01 ? f1[0].distance_to(f1[3]) : f1[0].distance_to(f1[1]);
+							const Vector3 rise(0, short_side * 0.38f, 0);
+							Vector3 r0, r1;
+							if (long01) {
+								r0 = (f1[0] + f1[3]) / 2 + rise;
+								r1 = (f1[1] + f1[2]) / 2 + rise;
+								building_mb.quad(f1[0], f1[1], r1, r0, roof_c, ((f1[0] + f1[1]) / 2 - (f1[2] + f1[3]) / 2) + Vector3(0, 1, 0));
+								building_mb.quad(f1[3], f1[2], r1, r0, roof_c.darkened(0.12f), ((f1[2] + f1[3]) / 2 - (f1[0] + f1[1]) / 2) + Vector3(0, 1, 0));
+								building_mb.tri(f1[0], r0, f1[3], wall, (f1[0] + f1[3]) / 2 - (f1[1] + f1[2]) / 2);
+								building_mb.tri(f1[1], r1, f1[2], wall, (f1[1] + f1[2]) / 2 - (f1[0] + f1[3]) / 2);
+							} else {
+								r0 = (f1[0] + f1[1]) / 2 + rise;
+								r1 = (f1[3] + f1[2]) / 2 + rise;
+								building_mb.quad(f1[0], f1[3], r1, r0, roof_c, ((f1[0] + f1[3]) / 2 - (f1[1] + f1[2]) / 2) + Vector3(0, 1, 0));
+								building_mb.quad(f1[1], f1[2], r1, r0, roof_c.darkened(0.12f), ((f1[1] + f1[2]) / 2 - (f1[0] + f1[3]) / 2) + Vector3(0, 1, 0));
+								building_mb.tri(f1[0], r0, f1[1], wall, (f1[0] + f1[1]) / 2 - (f1[2] + f1[3]) / 2);
+								building_mb.tri(f1[3], r1, f1[2], wall, (f1[3] + f1[2]) / 2 - (f1[0] + f1[1]) / 2);
+							}
+						} else {
+							building_mb.quad(f1[0], f1[1], f1[2], f1[3], pal.flat_roof.lerp(roof_c, 0.2f), up);
+						}
 					}
 					if (body) {
 						Vector<Vector3> pts;
@@ -1903,9 +2411,21 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 					}
 					footprints.push_back(fpv);
 					footprint_h.push_back(h);
-					footprint_c.push_back(gable ? roof_c : pal.flat_roof);
+					footprint_c.push_back(gable_roof ? roof_c : pal.flat_roof);
 					buildings++;
 				}
+			}
+			if (!block_frames.is_empty()) {
+				if (frame_mesh.is_null()) {
+					const float ww = fmax <= 2 ? 0.5f : 0.6f, wh = fmax <= 2 ? 0.55f : 0.7f;
+					frame_mesh = window_frame_mesh(ww, wh, pal.trim, fmax <= 2, pal.roofs[0].darkened(0.1f), trim_material, textured ? 1.0f : 0.0f);
+				}
+				MultiMeshInstance3D *mmi = add_multimesh(holder, owner, vformat("WindowFrames_%d_%d", bi, bj), frame_mesh, block_frames, true);
+				// Frames are fine detail: a block's frames fade out past 160 m.
+				mmi->set_visibility_range_end(160.0f);
+				mmi->set_visibility_range_end_margin(20.0f);
+				mmi->set_visibility_range_fade_mode(GeometryInstance3D::VISIBILITY_RANGE_FADE_SELF);
+				frames_total += block_frames.size();
 			}
 		}
 	}
@@ -2026,7 +2546,16 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	add_mesh(holder, owner, "Ground", ground_mb.commit(vertex_color_material(0.95f)), false);
 	add_mesh(holder, owner, "Roads", road_mb.commit(vertex_color_material(0.8f)), false);
 	add_mesh(holder, owner, "Blocks", block_mb.commit(vertex_color_material(0.85f)));
-	add_mesh(holder, owner, "Buildings", building_mb.commit(vertex_color_material(0.88f)));
+	if (detailed) {
+		add_mesh(holder, owner, "Buildings", kit_wall.commit(kit_material(TEX_PLASTER, 0.88f)));
+		add_mesh(holder, owner, "BuildingsBrick", kit_brick.commit(kit_material(TEX_BRICK, 0.85f)));
+		add_mesh(holder, owner, "BuildingsStone", kit_stone.commit(kit_material(TEX_STONE, 0.9f)));
+		add_mesh(holder, owner, "BuildingsTrim", kit_trim.commit(trim_material));
+		add_mesh(holder, owner, "Roofs", kit_roof.commit(kit_material(TEX_TILE, 0.7f)));
+		add_mesh(holder, owner, "RoofsFlat", kit_flat.commit(kit_material(TEX_CONCRETE, 0.9f)));
+	} else {
+		add_mesh(holder, owner, "Buildings", building_mb.commit(vertex_color_material(0.88f)));
+	}
 	add_mesh(holder, owner, "Windows", window_mb.commit(vertex_color_material(0.15f)), false);
 	add_mesh(holder, owner, "WindowsLit", lit_mb.commit(glow_material(Color(1, 0.82f, 0.5f), 1.6f)), false);
 	add_mesh(holder, owner, "LampPosts", post_mb.commit(vertex_color_material(0.5f)));
@@ -2251,6 +2780,17 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	}
 	holder->set_meta("uzu_places", places); // For self-verifying play on the saved scene (map walk).
 	counts["benches"] = bench_pos.size();
+	if (detailed) {
+		Dictionary parts;
+		parts["plinths"] = parts_plinths;
+		parts["string_courses"] = parts_bands;
+		parts["pilasters"] = parts_pilasters;
+		parts["doors"] = parts_doors;
+		parts["chimneys"] = parts_chimneys;
+		parts["roof_props"] = parts_roof_props;
+		parts["window_frames"] = frames_total;
+		counts["parts"] = parts;
+	}
 	counts["windows"] = windows_count;
 	counts["windows_lit"] = lit_count;
 	counts["lamps"] = lamp_positions.size();
@@ -2265,8 +2805,13 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	r["size"] = size;
 	r["streets_m"] = Math::snapped(double(road_length), 0.1);
 	r["tallest_m"] = Math::snapped(double(tallest), 0.1);
-	r["triangles"] = ground_mb.triangles() + road_mb.triangles() + block_mb.triangles() + building_mb.triangles() + window_mb.triangles() + lit_mb.triangles() + post_mb.triangles() + bulb_mb.triangles() + landmark_mb.triangles() + bench_triangles;
+	r["triangles"] = ground_mb.triangles() + road_mb.triangles() + block_mb.triangles() + building_mb.triangles() + window_mb.triangles() + lit_mb.triangles() + post_mb.triangles() + bulb_mb.triangles() + landmark_mb.triangles() + bench_triangles + kit_wall.triangles() + kit_brick.triangles() + kit_stone.triangles() + kit_trim.triangles() + kit_roof.triangles() + kit_flat.triangles() + (frame_mesh.is_valid() ? frames_total * frame_mesh->get_faces().size() / 3 : 0);
 	r["counts"] = counts;
+	Dictionary bd;
+	bd["detail"] = o["detail"];
+	bd["textures"] = textured ? Variant(String("plaster,brick,roof_tiles,stone,concrete").split(",")) : Variant(Array());
+	bd["about"] = detailed ? "buildings made of parts; window frames are one repeated part per block (MultiMesh, out past 160 m)" : "plain boxes with flat windows";
+	r["buildings_detail"] = bd;
 	r["places"] = places;
 	if (!navigation.is_empty()) {
 		r["navigation"] = navigation;

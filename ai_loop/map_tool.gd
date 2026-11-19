@@ -165,6 +165,31 @@ func _save_external(holder: Node, folder: String) -> Dictionary:
 	var dir := ProjectSettings.globalize_path(folder)
 	DirAccess.make_dir_recursive_absolute(dir)
 	var count := 0
+	# Textures and meshes used by several nodes (B-1219: the buildings' texture sets, the
+	# window frame shared by every block) go out once, so each node's file points at them.
+	var shared := {}
+	for node in holder.find_children("*", "", true, false):
+		var mesh: Mesh = node.mesh if node is MeshInstance3D else (node.multimesh.mesh if node is MultiMeshInstance3D and node.multimesh else null)
+		if mesh == null:
+			continue
+		if node is MultiMeshInstance3D:
+			shared[mesh] = "mesh_" + String(node.name).get_slice("_", 0)
+		for si in mesh.get_surface_count():
+			var mat := mesh.surface_get_material(si) as BaseMaterial3D
+			if mat == null:
+				continue
+			for slot in [BaseMaterial3D.TEXTURE_ALBEDO, BaseMaterial3D.TEXTURE_NORMAL, BaseMaterial3D.TEXTURE_ROUGHNESS]:
+				var tex := mat.get_texture(slot)
+				if tex != null and tex.resource_path.is_empty() and not shared.has(tex):
+					shared[tex] = "tex_%d" % shared.size()
+	var order: Array = shared.keys().filter(func(r): return not r is Mesh) + shared.keys().filter(func(r): return r is Mesh)
+	for res in order:  # Textures first, so the meshes that use them point at their files.
+		var path := "%s/%s.res" % [folder, shared[res]]
+		var err := ResourceSaver.save(res, path, ResourceSaver.FLAG_COMPRESS)
+		if err != OK:
+			return {"error": "could not save %s (error %d)" % [path, err]}
+		res.take_over_path(path)
+		count += 1
 	for node in holder.find_children("*", "", true, false):
 		var res: Resource = null
 		if node is MeshInstance3D:
