@@ -8,7 +8,12 @@ extends Node3D
 ## by the quest state.
 
 const InputSetup := preload("res://input_setup.gd")
+const TouchControls := preload("res://touch_controls.gd")
 const FONT := preload("res://art/game_font.ttf")
+## The UI's world (B-1307): wafu — parchment frames, dark-brown edges and a
+## vermilion accent, for a village of wooden houses, a shrine and paper
+## lanterns; its motion is a quiet quart ease-out (no overshoot).
+const WORLD := "wafu"
 
 const WORLD_X := 15.5
 const WORLD_Z := 11.5
@@ -34,14 +39,21 @@ var obstacles: Array = [] # {pos: Vector2, r: float}
 var interactables: Array = [] # {pos: Vector3, kind: String, id: String, label: String, node: Node3D}
 var nearest_interactable: Dictionary = {}
 
+var ui_root: Control
+var hud_panel: PanelContainer
 var hud_shards: Label
+var hud_gauge: ProgressBar
 var hud_objective: Label
+var help_label: Label
+var prompt_panel: PanelContainer
 var prompt_label: Label
-var dialogue_panel: PanelContainer
+var dialogue_panel: Control # A UZUUI talk window (B-1302): name tag + window.
 var dialogue_name: Label
 var dialogue_text: Label
+var dialogue_open := false
 var clear_panel: PanelContainer
 var clear_text: Label
+var touch_controls: TouchControls # Only on touch devices (B-1004).
 
 # Time-of-day stages, indexed by shards collected (0..3).
 var stages: Array = [
@@ -269,7 +281,7 @@ func _find_sun_and_env() -> void:
 			env = we.environment
 
 func _update_player(delta: float) -> void:
-	if not dialogue_lines.is_empty():
+	if dialogue_open:
 		return
 	var input_vec := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if input_vec.length() > 0.0:
@@ -325,31 +337,49 @@ func _update_interactable() -> void:
 		if d < best:
 			best = d
 			nearest_interactable = it
-	if dialogue_lines.is_empty():
-		prompt_label.text = nearest_interactable.get("label", "") if not nearest_interactable.is_empty() else ""
+	var label := ""
+	if not dialogue_open and not nearest_interactable.is_empty():
+		label = nearest_interactable.get("label", "")
+	prompt_label.text = label
+	prompt_panel.visible = not label.is_empty()
+	if prompt_panel.visible:
+		_fit(prompt_panel)
+		prompt_panel.position = Vector2(-prompt_panel.size.x / 2.0, -128)
+	if touch_controls:
+		# The touch button mirrors the prompt, without the keyboard key.
+		touch_controls.set_interact_text(label.trim_prefix("E： "))
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("interact"):
-		return
-	if not dialogue_lines.is_empty():
+	if event.is_action_pressed("interact"):
+		_do_interact()
+
+## One interact press, from the keyboard, a tap on the title, or the touch
+## button (B-1004): advance an open dialogue, else use what is in reach.
+func _do_interact() -> void:
+	if dialogue_open:
 		_advance_dialogue()
 		return
 	if nearest_interactable.is_empty():
 		return
 	match nearest_interactable["kind"]:
 		"npc":
-			dialogue_lines = (nearest_interactable["lines"] as Array).duplicate()
-			dialogue_name.text = nearest_interactable["npc_name"]
-			dialogue_panel.visible = true
-			_advance_dialogue()
+			_open_dialogue(nearest_interactable["npc_name"], nearest_interactable["lines"])
 		"shard":
 			_collect_shard(nearest_interactable)
 		"lantern":
 			_touch_lantern()
 
+func _open_dialogue(speaker: String, lines: Array) -> void:
+	dialogue_lines = lines.duplicate()
+	dialogue_name.text = speaker
+	dialogue_open = true
+	UZUUIJuice.apply_world_motion(dialogue_panel, WORLD, true)
+	_advance_dialogue()
+
 func _advance_dialogue() -> void:
 	if dialogue_lines.is_empty():
-		dialogue_panel.visible = false
+		dialogue_open = false
+		UZUUIJuice.apply_world_motion(dialogue_panel, WORLD, false)
 		return
 	dialogue_text.text = dialogue_lines.pop_front()
 
@@ -366,7 +396,9 @@ func _collect_shard(it: Dictionary) -> void:
 	if it.get("sparkles"):
 		(it["sparkles"] as Node).queue_free()
 	stage_target = stages[mini(shards, 3)].duplicate()
-	hud_shards.text = "灯りの欠片 %d / 3" % shards
+	hud_shards.text = "%d / 3" % shards
+	UZUUIJuice.count_up(hud_gauge, shards - 1, shards, 0.6, "ease_in")
+	UZUUIJuice.hover_pulse(hud_panel, 0.6, 0.25)
 	if shards >= 3:
 		_set_objective("祠のランタンに欠片を戻そう")
 	else:
@@ -376,10 +408,7 @@ func _touch_lantern() -> void:
 	if cleared:
 		return
 	if shards < 3:
-		dialogue_name.text = "ランタン"
-		dialogue_lines = ["まだ暗い。欠片が %d つ足りない。" % (3 - shards)]
-		dialogue_panel.visible = true
-		_advance_dialogue()
+		_open_dialogue("ランタン", ["まだ暗い。欠片が %d つ足りない。" % (3 - shards)])
 		return
 	cleared = true
 	lantern_glow = 1.0
@@ -395,60 +424,137 @@ func _touch_lantern() -> void:
 	_set_objective("村に灯りが戻った！")
 	await get_tree().create_timer(1.4).timeout
 	clear_text.text = "村に灯りが戻った！\nクリア時間 %d 分 %d 秒\n\n遊んでくれてありがとう。" % [int(play_seconds) / 60, int(play_seconds) % 60]
-	clear_panel.visible = true
+	_fit(clear_panel)
+	clear_panel.position = -clear_panel.size / 2.0
+	UZUUIJuice.apply_world_motion(clear_panel, WORLD, true)
 
 func _set_objective(text: String) -> void:
 	hud_objective.text = text
+	_fit(hud_panel)
 
 # ---------------------------------------------------------------- UI
+#
+# The UI is built with the UZUUI kit (B-1302) in the wafu world theme
+# (B-1307): parchment frames with a vermilion accent, the segmented gauge
+# for the shards, and the talk window with its name tag and blinking next
+# mark. UZUUIWorld (open_on_ready off — the dialogue and clear panels start
+# hidden and are opened by hand) gives the frames their moving sheen, and
+# UZUUIJuice (B-1304) runs the opens, closes and the gauge count-up.
 
 func _label(text: String, size: int) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_override("font", FONT)
 	l.add_theme_font_size_override("font_size", size)
 	return l
 
+## A floating panel outside a container keeps the size it is given; fit it
+## to its content.
+func _fit(panel: PanelContainer) -> void:
+	if panel:
+		panel.size = panel.get_combined_minimum_size()
+
+## Touch UI (B-1004) shows on touch devices; --uzu-touch-ui (a user arg) or
+## the UZU_TOUCH_UI environment variable forces it, so the touch layout can
+## be checked on a desktop and in captures.
+func _touch_ui_enabled() -> bool:
+	if OS.get_cmdline_user_args().has("--uzu-touch-ui"):
+		return true
+	if OS.get_environment("UZU_TOUCH_UI") == "1":
+		return true
+	return DisplayServer.is_touchscreen_available()
+
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
+	layer.name = "UI"
 	add_child(layer)
-	hud_shards = _label("灯りの欠片 0 / 3", 24)
-	hud_shards.position = Vector2(18, 12)
-	layer.add_child(hud_shards)
-	hud_objective = _label("", 18)
-	hud_objective.position = Vector2(18, 46)
-	layer.add_child(hud_objective)
-	var help := _label("矢印 / WASD： 移動　E： 話す・拾う・灯す", 15)
-	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	help.position = Vector2(18, -34)
-	layer.add_child(help)
-	prompt_label = _label("", 22)
-	prompt_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	prompt_label.position = Vector2(-150, -110)
-	prompt_label.size = Vector2(300, 32)
-	prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	layer.add_child(prompt_label)
+	ui_root = Control.new()
+	ui_root.name = "UIRoot"
+	ui_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ui_root.mouse_filter = Control.MOUSE_FILTER_IGNORE # Clicks fall through to the game.
+	ui_root.theme = UZUUI.create_world_theme(WORLD, {"font": FONT, "font_size": 19})
+	layer.add_child(ui_root)
 
-	dialogue_panel = PanelContainer.new()
+	# HUD: shard gauge and the objective, in one parchment frame.
+	hud_panel = PanelContainer.new()
+	hud_panel.name = "HUD"
+	hud_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	hud_panel.position = Vector2(16, 12)
+	ui_root.add_child(hud_panel)
+	var hud_box := VBoxContainer.new()
+	hud_box.add_theme_constant_override("separation", 4)
+	hud_panel.add_child(hud_box)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	hud_box.add_child(row)
+	row.add_child(_label("灯りの欠片", 20))
+	hud_gauge = UZUUI.make_gauge(0, 3, 3) as ProgressBar
+	hud_gauge.name = "ShardGauge"
+	hud_gauge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(hud_gauge)
+	hud_shards = _label("0 / 3", 20)
+	row.add_child(hud_shards)
+	hud_objective = _label("", 17)
+	hud_box.add_child(hud_objective)
+
+	help_label = _label("矢印 / WASD： 移動　E： 話す・拾う・灯す", 15)
+	help_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	help_label.position = Vector2(18, -32)
+	help_label.size = Vector2(480, 22)
+	help_label.add_theme_color_override("font_color", Color(0.98, 0.94, 0.85))
+	help_label.add_theme_color_override("font_shadow_color", Color(0.05, 0.04, 0.03, 0.9))
+	help_label.add_theme_constant_override("shadow_offset_x", 1)
+	help_label.add_theme_constant_override("shadow_offset_y", 1)
+	ui_root.add_child(help_label)
+
+	# The prompt: a small frame chip over the village, centred at the bottom.
+	prompt_panel = PanelContainer.new()
+	prompt_panel.name = "Prompt"
+	prompt_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	prompt_panel.visible = false
+	ui_root.add_child(prompt_panel)
+	prompt_label = _label("", 20)
+	prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	prompt_panel.add_child(prompt_label)
+
+	# Dialogue: the kit's talk window (name tag, framed window, next mark).
+	dialogue_panel = UZUUI.make_talk_window("", "")
+	dialogue_panel.name = "Dialogue"
 	dialogue_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	dialogue_panel.position = Vector2(60, -120)
-	dialogue_panel.size = Vector2(-120, 100)
+	dialogue_panel.offset_left = 60
+	dialogue_panel.offset_right = -60
+	dialogue_panel.offset_top = -152
+	dialogue_panel.offset_bottom = -24
 	dialogue_panel.visible = false
-	layer.add_child(dialogue_panel)
-	var vbox := VBoxContainer.new()
-	dialogue_panel.add_child(vbox)
-	dialogue_name = _label("", 17)
-	vbox.add_child(dialogue_name)
-	dialogue_text = _label("", 21)
-	dialogue_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox.add_child(dialogue_text)
+	ui_root.add_child(dialogue_panel)
+	dialogue_name = dialogue_panel.get_node("TagMargin/NameTag/Speaker") as Label
+	dialogue_text = dialogue_panel.get_node("Window/Body/Line") as Label
+	dialogue_text.add_theme_font_size_override("font_size", 21)
 
 	clear_panel = PanelContainer.new()
+	clear_panel.name = "Clear"
 	clear_panel.set_anchors_preset(Control.PRESET_CENTER)
-	clear_panel.position = Vector2(-190, -90)
-	clear_panel.size = Vector2(380, 180)
 	clear_panel.visible = false
-	layer.add_child(clear_panel)
+	ui_root.add_child(clear_panel)
 	clear_text = _label("", 24)
 	clear_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	clear_panel.add_child(clear_text)
+
+	if _touch_ui_enabled():
+		touch_controls = TouchControls.new()
+		ui_root.add_child(touch_controls)
+		touch_controls.interact_pressed.connect(_do_interact)
+		help_label.text = "左スティック： 移動　ボタン： 話す・拾う・灯す"
+
+	# The world's motion, without the ready-opening (the HUD opens itself
+	# below; dialogue and clear open from the game events).
+	var motion := UZUUIWorld.new()
+	motion.name = "WorldMotion"
+	motion.world = WORLD
+	motion.open_on_ready = false
+	ui_root.add_child(motion)
+	_open_hud()
+
+func _open_hud() -> void:
+	await get_tree().process_frame
+	if hud_panel:
+		UZUUIJuice.apply_world_motion(hud_panel, WORLD, true)
