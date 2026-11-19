@@ -204,3 +204,7 @@
 - 2026-11-19: B-110 の独立検証記録（Codex）を ai-native へ統合（agent/b-110-codex、記録ファイルのみ）。Debian 13 x86-64 で Actions 実行 44326635731（7ad07707a）の artifact（78,858,399 bytes、SHA-256 一致）をダウンロードし、再ビルドせず起動確認（--headless --version → 4.8.beta.custom_build.7ad07707a、終了コード 0、sample_game の headless 起動も終了コード 0）。全単体テスト 1515 pass／0 fail／3 skip。B-110 の判定（配布バイナリの起動確認）を別環境からの独立検証として補強する。記録: iterations/2026-11-18-B-110-codex.md。
 
 - 2026-11-19: B-727 の GPU 比較手順（Codex、agent/b-727-codex）を ai-native へ統合。water_gpu.py はローカルの GPU 確認版（3レンダラー対応、32481012858）を採用し、Codex 版は置き換え済みのため取り込まず。water_gpu.md は現行 CLI（GODOT 環境変数、--renderers／--cases）に合わせて更新。検証記録: iterations/2026-11-18-B-727-codex.md（ソフトウェア Vulkan で3条件成功、配布バイナリで全1515件 pass）。
+
+- 2026-11-19: B-403 機能カタログを ai-native へ統合（agent/b-403-lead）。道具の定義そのものから生成するカタログ193件（cli 12／command 69／mcp 70／preset 6／script 22／class 14）、`uzu.py catalog` と MCP catalog_search で検索可能。突合テスト含む Python テスト15件 pass、C++ 変更なし（全テストは CI で担保）。あわせてオーナー指摘「モデルのクオリティがゲームの見た目のクオリティになってしまう」を受け B-1219（モデル品質の底上げ）を Phase 12 に登録し、判定の数値化を COORDINATION 運用ルール7に追加。
+
+- 2026-11-19: lantern_ui 見本（Codex、agent/b-1307-codex）を ai-native へ統合し、B-1309 として登録。当初 B-1307 と名乗っていた番号衝突をリードが付け直し。生成画像は Codex 生成（オーナー確認済み）。オーナー指示によりプルリクエストは使わない運用を COORDINATION ルール8に明記（PR #10 はこの統合で解消）。

@@ -27,6 +27,9 @@ or through ai_loop\\windows\\uzu.bat.
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
                   [--packet DIR] [--expect-clear]   on failure, a diagnosis packet in DIR (B-308)
   uzu.py replay-compare --expected PATH --actual PATH [--snapshots]   compare JSON/JSONL logs (B-314)
+  uzu.py catalog  <word> [<word> ...] [--limit N]   search the feature catalog (B-403): every command, MCP tool,
+                  preset, tool script and UZU class, generated from their definitions by ai_loop/make_catalog.py
+                  into ai_loop/catalog.json; use it to discover what exists before reading the docs
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
@@ -1814,6 +1817,10 @@ def main(argv):
         import replay_compare
 
         return replay_compare.main(rest)
+    if tool == "catalog":
+        import catalog
+
+        return catalog.main(rest)
     if tool == "selftest":
         return selftest(rest[0] if rest else "all")
     if tool == "picture":
