@@ -12,6 +12,14 @@ from pathlib import Path
 
 DRIVER = Path(__file__).resolve().with_name("blender") / "export_asset.py"
 
+# Agent capability declaration (BACKLOG B-404), read by ai_loop/make_catalog.py:
+# this bridge shells out to a Blender executable, which the engine cannot
+# provide itself.
+CAPABILITIES = {
+    "required_capabilities": ["blender"],
+    "fallback": "Without Blender, use a ready-made GLB/PNG, or build the model inside the engine instead (uzu.py build from a JSON spec, or engine add/set on a scene).",
+}
+
 
 def ensure_outputs(folder):
     glb = folder / "model.glb"
