@@ -3,12 +3,12 @@
  "generated_by": "ai_loop/make_catalog.py",
  "counts": {
   "cli": 15,
-  "command": 69,
-  "mcp": 72,
+  "command": 70,
+  "mcp": 73,
   "preset": 6,
-  "script": 25,
+  "script": 26,
   "class": 14,
-  "total": 201
+  "total": 204
  },
  "entries": [
   {
@@ -821,6 +821,22 @@
    "fallback": null,
    "tool": "engine",
    "usage": "uzu.py engine <project> sfx-presets"
+  },
+  {
+   "name": "sfx-sprite",
+   "kind": "command",
+   "description": "an audio sprite (B-1108): several presets packed into ONE wav, with a JSON manifest of the segments (name -> start/length in samples and seconds); play one segment in code with UZUSfx.play_sprite",
+   "tags": [
+    "cli",
+    "engine",
+    "sfx",
+    "sprite"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "required_capabilities": [],
+   "fallback": null,
+   "tool": "engine",
+   "usage": "uzu.py engine <project> sfx-sprite"
   },
   {
    "name": "shot",
@@ -2478,6 +2494,24 @@
    }
   },
   {
+   "name": "sfx_sprite",
+   "kind": "mcp",
+   "description": "Pack several preset sound effects into ONE audio sprite WAV plus a JSON manifest of segments (name -> start/length in samples and seconds), so a game ships and loads one audio file instead of many. Play one segment in code with UZUSfx.play_sprite(parent, sprite, manifest, name). Returns the manifest, the totals and a description of the packed sound.",
+   "tags": [
+    "engine",
+    "mcp",
+    "sfx",
+    "sprite"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "maps_to": {
+    "tool": "engine",
+    "command": "sfx-sprite"
+   }
+  },
+  {
    "name": "signal_connect",
    "kind": "mcp",
    "description": "Connect a signal to a method persistently and save.",
@@ -2907,6 +2941,18 @@
     "script"
    ],
    "source": "ai_loop/uzu.py",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "verify_changed",
+   "kind": "script",
+   "description": "Run only the unit tests affected by the current changes (B-111 wrapper over B-105).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/verify_changed.py",
    "required_capabilities": [],
    "fallback": null
   },
