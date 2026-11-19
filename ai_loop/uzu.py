@@ -760,11 +760,41 @@ def rich(project, args):
             "note": static.get("note", "")}
 
 
+WALK_PROBE = 'UZUWalk="*res://addons/uzu_selfplay/walk.gd"\n'
+
+
+def map_walk(project, args):
+    """Walking self-check (B-1507): a walker with a capsule walks a generated map's places in
+    turn with a NavigationAgent3D under physics (the scene runs headless), and reports, per
+    target, whether it arrived, how long it took, the distance walked against the straight
+    one, and where it got stuck. ok when every target was reached."""
+    scene = opt(args, "scene") or _main_scene(project)
+    if not scene:
+        raise ToolError("map walk needs --scene res://... with a generated map")
+    with tempfile.TemporaryDirectory() as tmp:
+        game = os.path.join(tmp, "game")
+        shutil.copytree(project, game)
+        install_addons(game, ["selfplay/walk.gd"], WALK_PROBE)
+        run([find_godot(), "--headless", "--path", game, "--import"], timeout=1800)
+        out = os.path.join(tmp, "walk.json")
+        limit = opt(args, "seconds", "90")
+        rc, log = run([find_godot(), "--headless", "--path", game, scene, "--fixed-fps", "60", "--quit-after", str(int(float(limit) * 60 * 8 + 600)),
+                       "--", "--uzu-walk", out, opt(args, "from", "spawn"), opt(args, "to", ""), limit], timeout=1800, cwd=game)
+        if not os.path.exists(out):
+            sys.stderr.write(log)
+            raise ToolError("the walk did not finish (see stderr)", command="walk")
+        with open(out, encoding="utf-8") as f:
+            report = json.load(f)
+    return {"command": "walk", "scene": scene, **report}
+
+
 def map_(project, args):
     """Map generation (UZUWorldGen, ai_loop/map_tool.gd): a natural map or a city from a short
     spec. --spec is inline JSON ({...}) or a file; --set key=value overrides one key. --look
     applies the U.ZU look (an atmosphere) to the scene afterwards, --shot saves a screenshot."""
     command = args[0] if args and not args[0].startswith("--") else "options"
+    if command == "walk":
+        return map_walk(project, args[1:])
     tool_args = [command]
     rest = args[1:] if args and not args[0].startswith("--") else list(args)
     i = 0
