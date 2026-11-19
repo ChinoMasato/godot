@@ -32,6 +32,7 @@ NODE = _str('Node path relative to the scene root ("." is the root)')
 
 # name: (script, command, description, properties, required)
 TOOLS = {
+    "catalog_search": ("catalog", "", "Search the feature catalog (BACKLOG B-403): every uzu.py command, MCP tool, preset, tool script and UZU class with its description, tags and place of implementation, generated from their definitions. Use it to discover what the agent tools can do before reading the docs.", {"query": _str("Keyword(s); every word must match an entry's name, description or tags")}, ["query"]),
     "replay_compare": ("replay-compare", "", "Compare replay JSON or JSONL and report the first differing field. Snapshots matches expected fields at each frame or time.", {"expected": _str("Expected log or snapshot file path"), "actual": _str("Actual log file path"), "snapshots": {"type": "boolean"}}, ["expected", "actual"]),
     "scene_new": ("engine", "new", "Create a new scene file with a root node.", {"scene": SCENE, "type": _str("Root node class, e.g. Node3D"), "name": _str("Root node name")}, ["scene"]),
     "scene_tree": ("engine", "tree", "List the nodes of a scene with their types and scripts.", {"scene": SCENE, "depth": _str("Maximum depth (optional)")}, ["scene"]),
@@ -106,7 +107,7 @@ TOOLS = {
 
 def call_tool(project, name, arguments):
     script, command, _, _, _ = TOOLS[name]
-    if script == "replay-compare":
+    if script in ("replay-compare", "catalog"):
         argv = [sys.executable, os.path.join(HERE, "uzu.py"), script]
     elif script == "bench":
         argv = [sys.executable, os.path.join(HERE, "bench.py"), command, "--project", project]
@@ -179,6 +180,8 @@ def self_test():
             {"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": {"name": "script_check", "arguments": {"path": "res://bad.gdshader"}}},
             {"jsonrpc": "2.0", "id": 10, "method": "tools/call", "params": {"name": "frame_benchmark", "arguments": {"frames": "40", "repeat": "1"}}},
             {"jsonrpc": "2.0", "id": 11, "method": "tools/call", "params": {"name": "frame_benchmark", "arguments": {"frames": "0"}}},
+            {"jsonrpc": "2.0", "id": 12, "method": "tools/call", "params": {"name": "catalog_search", "arguments": {"query": "sfx"}}},
+            {"jsonrpc": "2.0", "id": 13, "method": "tools/call", "params": {"name": "catalog_search", "arguments": {"query": "no-such-feature-zzz"}}},
         ]
         proc = subprocess.run([sys.executable, os.path.abspath(__file__), "--project", project], input="\n".join(json.dumps(r) for r in requests) + "\n", capture_output=True, text=True, timeout=600)
         responses = {r["id"]: r for r in map(json.loads, proc.stdout.splitlines())}
@@ -197,7 +200,11 @@ def self_test():
         assert not responses[10]["result"]["isError"], timing
         assert timing["marks"]["[Frame] work worst"] >= timing["marks"]["[Frame] work average"] > 0, timing
         assert responses[11]["result"]["isError"], responses[11]
-        assert len(responses) == 11, "notifications must not get a response"
+        found = json.loads(responses[12]["result"]["content"][0]["text"])
+        assert not responses[12]["result"]["isError"] and any(m["name"] == "sfx_make" for m in found["matches"]), found
+        missed = json.loads(responses[13]["result"]["content"][0]["text"])
+        assert not responses[13]["result"]["isError"] and missed["count"] == 0, missed
+        assert len(responses) == 13, "notifications must not get a response"
     print("mcp selftest: ok")
     return 0
 

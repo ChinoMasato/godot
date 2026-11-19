@@ -1,0 +1,2583 @@
+{
+ "version": 1,
+ "generated_by": "ai_loop/make_catalog.py",
+ "counts": {
+  "cli": 12,
+  "command": 69,
+  "mcp": 70,
+  "preset": 6,
+  "script": 22,
+  "class": 14,
+  "total": 193
+ },
+ "entries": [
+  {
+   "name": "build",
+   "kind": "cli",
+   "description": "a whole scene from one JSON spec (B-1207, see ai_loop/build_tool.gd), with its richness report",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py build <project> --spec spec.json [--shot out.png] [--budget JSON] [--no-render] [--no-report]"
+  },
+  {
+   "name": "catalog",
+   "kind": "cli",
+   "description": "search the feature catalog (B-403): every command, MCP tool, preset, tool script and UZU class, generated from their definitions by ai_loop/make_catalog.py into ai_loop/catalog.json; use it to discover what exists before reading the docs",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py catalog <word> [<word> ...] [--limit N]"
+  },
+  {
+   "name": "engine",
+   "kind": "cli",
+   "description": "scene, class and project operations (B-401, B-201..B-203, B-304)",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py engine <project> <command> [options]"
+  },
+  {
+   "name": "enrich",
+   "kind": "cli",
+   "description": "a richness preset in one call (B-1208), with the report before and after and the difference (presets: ai_loop/presets/rich/)",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py enrich <project> --preset village_rich|meadow|ruins [--scene res://x.tscn] [--surface Ground] [--seed N] [--density-scale 1] [--shot out.png] [--no-render]"
+  },
+  {
+   "name": "look",
+   "kind": "cli",
+   "description": "the U.ZU look (B-7xx), shot / check / panorama",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py look <project> <command> [options]"
+  },
+  {
+   "name": "map",
+   "kind": "cli",
+   "description": "a natural map or a city from a short spec (UZUWorldGen); every key is optional (presets) every map key with its default, range and meaning, and the presets",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py map <project> nature|city --scene res://main.tscn [--spec JSON-or-file] [--set key=value ...] [--overview top.png] [--replace] [--camera] [--look golden_hour] [--shot out.png] [--inline] options [nature|city]"
+  },
+  {
+   "name": "picture",
+   "kind": "cli",
+   "description": "Picture prototype: doctor, schema, analyze, snap, adopt, validate, shot, map, pbr",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py picture <project> <command> [options]"
+  },
+  {
+   "name": "publish",
+   "kind": "cli",
+   "description": "through the bridge API (B-505)",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py publish <build | project> [options]"
+  },
+  {
+   "name": "replay-compare",
+   "kind": "cli",
+   "description": "compare JSON/JSONL logs (B-314)",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py replay-compare --expected PATH --actual PATH [--snapshots]"
+  },
+  {
+   "name": "selfplay",
+   "kind": "cli",
+   "description": "state hashes for determinism checks (B-307) on failure, a diagnosis packet in DIR (B-308)",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl] [--hash-every 30 [--compare earlier.json]] [--packet DIR] [--expect-clear]"
+  },
+  {
+   "name": "selftest",
+   "kind": "cli",
+   "description": "(all = engine, selfplay, tools; bake runs the editor)",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py selftest [engine | selfplay | tools | all | bake]"
+  },
+  {
+   "name": "ui",
+   "kind": "cli",
+   "description": "a UI screen (Control tree with layout and theme) from one JSON spec (B-1301, see ai_loop/ui_tool.gd); genre themes (ai_loop/presets/ui/) and a bundled Japanese font subset for web builds (B-1303, ai_loop/ui_font.py; needs fonttools and brotli)",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "usage": "uzu.py ui <project> --spec ui.json [--shot out.png [--over res://game.tscn]] [--theme wafu|sf|fantasy] [--world fantasy|wafu|sf|horror|persona|pixel] [--font-subset]"
+  },
+  {
+   "name": "action-add",
+   "kind": "command",
+   "description": "Add an input action or add events to it (key, mouse button, joypad button).",
+   "tags": [
+    "action",
+    "add",
+    "cli",
+    "engine"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> action-add"
+  },
+  {
+   "name": "action-remove",
+   "kind": "command",
+   "description": "Remove an input action.",
+   "tags": [
+    "action",
+    "cli",
+    "engine",
+    "remove"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> action-remove"
+  },
+  {
+   "name": "actions",
+   "kind": "command",
+   "description": "the project's input actions and their events (B-304)",
+   "tags": [
+    "actions",
+    "cli",
+    "engine"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> actions"
+  },
+  {
+   "name": "add",
+   "kind": "command",
+   "description": "saves",
+   "tags": [
+    "add",
+    "cli",
+    "engine"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> add"
+  },
+  {
+   "name": "call",
+   "kind": "command",
+   "description": "returns the result",
+   "tags": [
+    "call",
+    "cli",
+    "engine"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> call"
+  },
+  {
+   "name": "check",
+   "kind": "command",
+   "description": "Check a GDScript, .gdshader or .gdshaderinc file without a renderer; returns errors and warnings with file, line, column, code and message.",
+   "tags": [
+    "check",
+    "cli",
+    "engine"
+   ],
+   "source": "ai_loop/uzu.py",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> check"
+  },
+  {
+   "name": "classes",
+   "kind": "command",
+   "description": "List engine classes, optionally only those inheriting a class.",
+   "tags": [
+    "classes",
+    "cli",
+    "engine"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> classes"
+  },
+  {
+   "name": "connect",
+   "kind": "command",
+   "description": "persistent connection, saves",
+   "tags": [
+    "cli",
+    "connect",
+    "engine"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> connect"
+  },
+  {
+   "name": "describe",
+   "kind": "command",
+   "description": "properties, methods, signals, constants",
+   "tags": [
+    "cli",
+    "describe",
+    "engine"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> describe"
+  },
+  {
+   "name": "export",
+   "kind": "command",
+   "description": "Export the project with a preset; lists the files written.",
+   "tags": [
+    "cli",
+    "engine",
+    "export"
+   ],
+   "source": "ai_loop/uzu.py",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> export"
+  },
+  {
+   "name": "export-preset",
+   "kind": "command",
+   "description": "Create or update an export preset (export_presets.cfg).",
+   "tags": [
+    "cli",
+    "engine",
+    "export",
+    "preset"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> export-preset"
+  },
+  {
+   "name": "get",
+   "kind": "command",
+   "description": "Read a node property (supports indexed paths like position:y).",
+   "tags": [
+    "cli",
+    "engine",
+    "get"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> get"
+  },
+  {
+   "name": "import",
+   "kind": "command",
+   "description": "Import (or reimport) the project's assets: textures, sounds, models.",
+   "tags": [
+    "cli",
+    "engine",
+    "import"
+   ],
+   "source": "ai_loop/uzu.py",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> import"
+  },
+  {
+   "name": "import-get",
+   "kind": "command",
+   "description": "the file's import settings (.import)",
+   "tags": [
+    "cli",
+    "engine",
+    "get",
+    "import"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> import-get"
+  },
+  {
+   "name": "import-set",
+   "kind": "command",
+   "description": "(uzu.py then reimports)",
+   "tags": [
+    "cli",
+    "engine",
+    "import",
+    "set"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> import-set"
+  },
+  {
+   "name": "instance",
+   "kind": "command",
+   "description": "saves",
+   "tags": [
+    "cli",
+    "engine",
+    "instance"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> instance"
+  },
+  {
+   "name": "lod",
+   "kind": "command",
+   "description": "distance LOD levels for the scene's meshes (B-1205): each mesh of a MeshInstance3D or a MultiMesh with at least that many triangles gets simplified levels (meshoptimizer), which the renderer picks by on-screen size; shared meshes are done once. --imports also turns on LOD generation in the project's 3D model imports (.glb, .gltf, ...). saves",
+   "tags": [
+    "cli",
+    "engine",
+    "lod"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> lod"
+  },
+  {
+   "name": "map",
+   "kind": "command",
+   "description": "static index of the project (B-204): files by kind, dependencies both ways, scenes (root, nodes, scripts, instances, signal connections), autoloads, global classes, main scene",
+   "tags": [
+    "cli",
+    "engine",
+    "map"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> map"
+  },
+  {
+   "name": "map-estimate",
+   "kind": "command",
+   "description": "Run the outside model configured in estimators.json for a picture, then map_import its output. No model ships with the engine.",
+   "tags": [
+    "cli",
+    "engine",
+    "estimate",
+    "map"
+   ],
+   "source": "ai_loop/uzu.py",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> map-estimate"
+  },
+  {
+   "name": "map-import",
+   "kind": "command",
+   "description": "bring in an outside normal/depth map (B-903)",
+   "tags": [
+    "cli",
+    "engine",
+    "import",
+    "map"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> map-import"
+  },
+  {
+   "name": "new",
+   "kind": "command",
+   "description": "creates the scene file",
+   "tags": [
+    "cli",
+    "engine",
+    "new"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> new"
+  },
+  {
+   "name": "pbr-assign",
+   "kind": "command",
+   "description": "gives matching nodes a triplanar PBR material of the preset, tinted by their current color; saves",
+   "tags": [
+    "assign",
+    "cli",
+    "engine",
+    "pbr"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> pbr-assign"
+  },
+  {
+   "name": "pbr-preset",
+   "kind": "command",
+   "description": "a procedural, seamless base texture for bare models (B-1209), turned into albedo/normal/ORM PNGs with UZUPBRFromImage (import the project before pbr-assign)",
+   "tags": [
+    "cli",
+    "engine",
+    "pbr",
+    "preset"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> pbr-preset"
+  },
+  {
+   "name": "presets",
+   "kind": "command",
+   "description": "the project's export presets",
+   "tags": [
+    "cli",
+    "engine",
+    "presets"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> presets"
+  },
+  {
+   "name": "props",
+   "kind": "command",
+   "description": "the properties shown in the inspector, with values",
+   "tags": [
+    "cli",
+    "engine",
+    "props"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> props"
+  },
+  {
+   "name": "remove",
+   "kind": "command",
+   "description": "saves",
+   "tags": [
+    "cli",
+    "engine",
+    "remove"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> remove"
+  },
+  {
+   "name": "reparent",
+   "kind": "command",
+   "description": "saves",
+   "tags": [
+    "cli",
+    "engine",
+    "reparent"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> reparent"
+  },
+  {
+   "name": "res-get",
+   "kind": "command",
+   "description": "Read a property of a resource file.",
+   "tags": [
+    "cli",
+    "engine",
+    "get",
+    "res"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> res-get"
+  },
+  {
+   "name": "res-new",
+   "kind": "command",
+   "description": "Create a resource file (.tres) of a class, with optional initial values.",
+   "tags": [
+    "cli",
+    "engine",
+    "new",
+    "res"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> res-new"
+  },
+  {
+   "name": "res-props",
+   "kind": "command",
+   "description": "inspector properties with values",
+   "tags": [
+    "cli",
+    "engine",
+    "props",
+    "res"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> res-props"
+  },
+  {
+   "name": "res-set",
+   "kind": "command",
+   "description": "saves",
+   "tags": [
+    "cli",
+    "engine",
+    "res",
+    "set"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> res-set"
+  },
+  {
+   "name": "rich",
+   "kind": "command",
+   "description": "static richness of the scene (B-1204): triangles, draw calls (one per surface), objects, texture memory, props (MultiMesh instances and small meshes) per square meter of the whole scene and of the area the props cover (props_per_m2_local), lights; the heaviest nodes. ai_loop/uzu.py look rich adds a rendered frame and a budget",
+   "tags": [
+    "cli",
+    "engine",
+    "rich"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> rich"
+  },
+  {
+   "name": "run",
+   "kind": "command",
+   "description": "Run the project headless for some frames; returns errors and the log tail.",
+   "tags": [
+    "cli",
+    "engine",
+    "run"
+   ],
+   "source": "ai_loop/uzu.py",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> run"
+  },
+  {
+   "name": "scatter",
+   "kind": "command",
+   "description": "props spread over a surface as one MultiMesh (B-1203); saves",
+   "tags": [
+    "cli",
+    "engine",
+    "scatter"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> scatter"
+  },
+  {
+   "name": "script",
+   "kind": "command",
+   "description": "attaches a script, saves",
+   "tags": [
+    "cli",
+    "engine",
+    "script"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> script"
+  },
+  {
+   "name": "set",
+   "kind": "command",
+   "description": "saves",
+   "tags": [
+    "cli",
+    "engine",
+    "set"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> set"
+  },
+  {
+   "name": "setting-get",
+   "kind": "command",
+   "description": "Read a project setting.",
+   "tags": [
+    "cli",
+    "engine",
+    "get",
+    "setting"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> setting-get"
+  },
+  {
+   "name": "setting-set",
+   "kind": "command",
+   "description": "saves project.godot",
+   "tags": [
+    "cli",
+    "engine",
+    "set",
+    "setting"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> setting-set"
+  },
+  {
+   "name": "sfx",
+   "kind": "command",
+   "description": "a synthesized sound effect (B-1105): a preset, varied by --seed, with parameters changed by --set (or all of them without --preset); reports its length, peak, loudness and pitch so an agent can judge it",
+   "tags": [
+    "cli",
+    "engine",
+    "sfx"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> sfx"
+  },
+  {
+   "name": "sfx-presets",
+   "kind": "command",
+   "description": "the presets and the parameters with their defaults",
+   "tags": [
+    "cli",
+    "engine",
+    "presets",
+    "sfx"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> sfx-presets"
+  },
+  {
+   "name": "shot",
+   "kind": "command",
+   "description": "Render the main scene without a GPU and save a PNG.",
+   "tags": [
+    "cli",
+    "engine",
+    "shot"
+   ],
+   "source": "ai_loop/uzu.py",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> shot"
+  },
+  {
+   "name": "templates",
+   "kind": "command",
+   "description": "Where export templates are looked for, which are installed, and the presets' custom templates.",
+   "tags": [
+    "cli",
+    "engine",
+    "templates"
+   ],
+   "source": "ai_loop/uzu.py",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> templates"
+  },
+  {
+   "name": "tree",
+   "kind": "command",
+   "description": "nodes with type, script and child count",
+   "tags": [
+    "cli",
+    "engine",
+    "tree"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> tree"
+  },
+  {
+   "name": "uids",
+   "kind": "command",
+   "description": "Check UIDs against the files: duplicates, missing or orphan .uid files, references whose UID is stale or whose path moved; each with a proposed fix. 'fix' applies them.",
+   "tags": [
+    "cli",
+    "engine",
+    "uids"
+   ],
+   "source": "ai_loop/uzu.py",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> uids"
+  },
+  {
+   "name": "validate",
+   "kind": "command",
+   "description": "loads every scene, resource and script; lists problems (B-203)",
+   "tags": [
+    "cli",
+    "engine",
+    "validate"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "tool": "engine",
+   "usage": "uzu.py engine <project> validate"
+  },
+  {
+   "name": "apply",
+   "kind": "command",
+   "description": "Apply the U.ZU look (sky, light, aerial perspective, color grade) and configure the sun.",
+   "tags": [
+    "apply",
+    "cli",
+    "look"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> apply"
+  },
+  {
+   "name": "bake",
+   "kind": "command",
+   "description": "Bake the scene's LightmapGI (runs the editor with a renderer; can take minutes). 'prepare' turns on UV2 for primitive meshes.",
+   "tags": [
+    "bake",
+    "cli",
+    "look"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> bake"
+  },
+  {
+   "name": "camera",
+   "kind": "command",
+   "description": "Set a camera's lens, eye height and vertical shift.",
+   "tags": [
+    "camera",
+    "cli",
+    "look"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> camera"
+  },
+  {
+   "name": "check",
+   "kind": "command",
+   "description": "Check a screenshot: color balance, muddiness, detail by height and composition.",
+   "tags": [
+    "check",
+    "cli",
+    "look"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> check"
+  },
+  {
+   "name": "godrays",
+   "kind": "command",
+   "description": "fake god rays along the sun's light (B-719)",
+   "tags": [
+    "cli",
+    "godrays",
+    "look"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> godrays"
+  },
+  {
+   "name": "hd2d",
+   "kind": "command",
+   "description": "the HD-2D preset in one command (B-722): look + tilt-shift + lit outlined sprites with blob shadows + one texel size + telephoto camera rig",
+   "tags": [
+    "cli",
+    "hd2d",
+    "look"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> hd2d"
+  },
+  {
+   "name": "info",
+   "kind": "command",
+   "description": "lists the options",
+   "tags": [
+    "cli",
+    "info",
+    "look"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> info"
+  },
+  {
+   "name": "lamp",
+   "kind": "command",
+   "description": "Add a warm lamp with a glowing bulb.",
+   "tags": [
+    "cli",
+    "lamp",
+    "look"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> lamp"
+  },
+  {
+   "name": "material",
+   "kind": "command",
+   "description": "(foliage_wind sways, B-720)",
+   "tags": [
+    "cli",
+    "look",
+    "material"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> material"
+  },
+  {
+   "name": "palette",
+   "kind": "command",
+   "description": "palette quantization with ordered dithering (B-721)",
+   "tags": [
+    "cli",
+    "look",
+    "palette"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> palette"
+  },
+  {
+   "name": "panorama",
+   "kind": "command",
+   "description": "Capture a 360-degree equirectangular panorama around the main camera and save a PNG.",
+   "tags": [
+    "cli",
+    "look",
+    "panorama"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> panorama"
+  },
+  {
+   "name": "particles",
+   "kind": "command",
+   "description": "sparkle particles (B-718)",
+   "tags": [
+    "cli",
+    "look",
+    "particles"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> particles"
+  },
+  {
+   "name": "pbr",
+   "kind": "command",
+   "description": "Give bare models procedural PBR materials (wood, stone, brick, dirt, grass, plaster, tile: seamless textures made here, then albedo/normal/ORM), triplanar and tinted by each model's own color; untextured models look cheap.",
+   "tags": [
+    "cli",
+    "look",
+    "pbr"
+   ],
+   "source": "ai_loop/uzu.py",
+   "tool": "look",
+   "usage": "uzu.py look <project> pbr"
+  },
+  {
+   "name": "pixel",
+   "kind": "command",
+   "description": "pixel discipline preset (B-717): one texel size for all sprites, nearest filtering (also the project default), --snap puts sprites on the texel grid",
+   "tags": [
+    "cli",
+    "look",
+    "pixel"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> pixel"
+  },
+  {
+   "name": "rich",
+   "kind": "command",
+   "description": "Richness report of a scene: static costs (triangles, draw calls, objects, texture memory, props per square meter, lights, the heaviest nodes), what one rendered frame drew (triangles and draw calls, shadows, video memory), a budget check and hints on what to change. Budget keys are max_<metric> or min_<metric>.",
+   "tags": [
+    "cli",
+    "look",
+    "rich"
+   ],
+   "source": "ai_loop/uzu.py",
+   "tool": "look",
+   "usage": "uzu.py look <project> rich"
+  },
+  {
+   "name": "rig",
+   "kind": "command",
+   "description": "adds fill and rim lights",
+   "tags": [
+    "cli",
+    "look",
+    "rig"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> rig"
+  },
+  {
+   "name": "shot",
+   "kind": "command",
+   "description": "Render the main scene without a GPU and save a PNG.",
+   "tags": [
+    "cli",
+    "look",
+    "shot"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> shot"
+  },
+  {
+   "name": "sprite",
+   "kind": "command",
+   "description": "makes Sprite3D nodes lit pixel-art sprites (all of them without --node), with an optional blob shadow (B-716)",
+   "tags": [
+    "cli",
+    "look",
+    "sprite"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> sprite"
+  },
+  {
+   "name": "texels",
+   "kind": "command",
+   "description": "texel density check of the sprites (B-717): warns on sprites whose world texel size differs from the others' (median) and on blurry (non-nearest) filtering",
+   "tags": [
+    "cli",
+    "look",
+    "texels"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> texels"
+  },
+  {
+   "name": "ui-report",
+   "kind": "command",
+   "description": "UI richness report of a UI scene (headless): how many controls, panels, buttons and texts, the smallest font, the depth, screen coverage and edge inset, and the problems with a fix for each (small text, text overflow, buttons too small for touch, no margin at the screen edge, overlapping panels, off screen, unstyled default look). ok is false when there are problems.",
+   "tags": [
+    "cli",
+    "look",
+    "report",
+    "ui"
+   ],
+   "source": "ai_loop/uzu.py",
+   "tool": "look",
+   "usage": "uzu.py look <project> ui-report"
+  },
+  {
+   "name": "water",
+   "kind": "command",
+   "description": "a water surface (B-727): color and see-through by depth, waves, refraction, shore foam, reflections",
+   "tags": [
+    "cli",
+    "look",
+    "water"
+   ],
+   "source": "ai_loop/look_tool.gd",
+   "tool": "look",
+   "usage": "uzu.py look <project> water"
+  },
+  {
+   "name": "city",
+   "kind": "command",
+   "description": "Generate a city into a scene in one call: streets (grid or organic), sidewalks, blocks with buildings (floors, flat or gable roofs, windows that glow), a plaza with a fountain, street lamps and trees, plus collision. Everything is optional: pick a preset (village, town, city) and override any key. The result names places (spawn, plaza, gates, tallest roof) with positions, and counts. Same spec, same city. Call map_options for every key.",
+   "tags": [
+    "city",
+    "cli",
+    "map"
+   ],
+   "source": "ai_loop/map_tool.gd",
+   "tool": "map",
+   "usage": "uzu.py map <project> city"
+  },
+  {
+   "name": "nature",
+   "kind": "command",
+   "description": "Generate a natural map into a scene in one call: terrain with water (lakes, sea, river), meadows, rock, snow, forests with clearings, rocks and grass, plus collision. Everything is optional: pick a preset (plains, hills, mountains, island, valley, lakes) and override any key. The result names places to use next (spawn, peak, lake, clearings) with positions, and counts. Same spec, same map. A wrong key comes back with the closest valid one; call map_options for every key.",
+   "tags": [
+    "cli",
+    "map",
+    "nature"
+   ],
+   "source": "ai_loop/map_tool.gd",
+   "tool": "map",
+   "usage": "uzu.py map <project> nature"
+  },
+  {
+   "name": "options",
+   "kind": "command",
+   "description": "List every key of map_nature and map_city with its default, what it accepts and what it does, and the presets.",
+   "tags": [
+    "cli",
+    "map",
+    "options"
+   ],
+   "source": "ai_loop/map_tool.gd",
+   "tool": "map",
+   "usage": "uzu.py map <project> options"
+  },
+  {
+   "name": "action_add",
+   "kind": "mcp",
+   "description": "Add an input action or add events to it (key, mouse button, joypad button).",
+   "tags": [
+    "action",
+    "add",
+    "engine",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "action-add"
+   }
+  },
+  {
+   "name": "action_remove",
+   "kind": "mcp",
+   "description": "Remove an input action.",
+   "tags": [
+    "action",
+    "engine",
+    "mcp",
+    "remove"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "action-remove"
+   }
+  },
+  {
+   "name": "assets_import",
+   "kind": "mcp",
+   "description": "Import (or reimport) the project's assets: textures, sounds, models.",
+   "tags": [
+    "assets",
+    "engine",
+    "import",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "import"
+   }
+  },
+  {
+   "name": "catalog_search",
+   "kind": "mcp",
+   "description": "Search the feature catalog (BACKLOG B-403): every uzu.py command, MCP tool, preset, tool script and UZU class with its description, tags and place of implementation, generated from their definitions. Use it to discover what the agent tools can do before reading the docs.",
+   "tags": [
+    "catalog",
+    "mcp",
+    "search"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "catalog",
+    "command": ""
+   }
+  },
+  {
+   "name": "class_describe",
+   "kind": "mcp",
+   "description": "Describe a class: properties, methods, signals and constants.",
+   "tags": [
+    "class",
+    "describe",
+    "engine",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "describe"
+   }
+  },
+  {
+   "name": "class_list",
+   "kind": "mcp",
+   "description": "List engine classes, optionally only those inheriting a class.",
+   "tags": [
+    "class",
+    "engine",
+    "list",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "classes"
+   }
+  },
+  {
+   "name": "export_preset",
+   "kind": "mcp",
+   "description": "Create or update an export preset (export_presets.cfg).",
+   "tags": [
+    "engine",
+    "export",
+    "mcp",
+    "preset"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "export-preset"
+   }
+  },
+  {
+   "name": "export_presets",
+   "kind": "mcp",
+   "description": "List the project's export presets.",
+   "tags": [
+    "engine",
+    "export",
+    "mcp",
+    "presets"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "presets"
+   }
+  },
+  {
+   "name": "export_templates",
+   "kind": "mcp",
+   "description": "Where export templates are looked for, which are installed, and the presets' custom templates.",
+   "tags": [
+    "engine",
+    "export",
+    "mcp",
+    "templates"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "templates"
+   }
+  },
+  {
+   "name": "frame_benchmark",
+   "kind": "mcp",
+   "description": "Measure runtime frame work average/p95/worst and startup times in a project copy. Marks are in seconds. Headless measures CPU work; render also measures wall time.",
+   "tags": [
+    "bench",
+    "benchmark",
+    "frame",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "bench",
+    "command": "run"
+   }
+  },
+  {
+   "name": "image_check",
+   "kind": "mcp",
+   "description": "Check a screenshot: color balance, muddiness, detail by height and composition.",
+   "tags": [
+    "check",
+    "image",
+    "look",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "check"
+   }
+  },
+  {
+   "name": "import_get",
+   "kind": "mcp",
+   "description": "Read an asset's import settings.",
+   "tags": [
+    "engine",
+    "get",
+    "import",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "import-get"
+   }
+  },
+  {
+   "name": "import_set",
+   "kind": "mcp",
+   "description": "Change one import setting of an asset and reimport it.",
+   "tags": [
+    "engine",
+    "import",
+    "mcp",
+    "set"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "import-set"
+   }
+  },
+  {
+   "name": "input_actions",
+   "kind": "mcp",
+   "description": "List the project's input actions (InputMap) and their key/button events.",
+   "tags": [
+    "actions",
+    "engine",
+    "input",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "actions"
+   }
+  },
+  {
+   "name": "lightmap_bake",
+   "kind": "mcp",
+   "description": "Bake the scene's LightmapGI (runs the editor with a renderer; can take minutes). 'prepare' turns on UV2 for primitive meshes.",
+   "tags": [
+    "bake",
+    "lightmap",
+    "look",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "bake"
+   }
+  },
+  {
+   "name": "lod",
+   "kind": "mcp",
+   "description": "Add distance LOD levels to a scene's heavy meshes (MeshInstance3D and MultiMesh, simplified by meshoptimizer; the renderer picks a level by on-screen size) and save. Returns triangles per level; --imports also turns on LOD generation for imported 3D models.",
+   "tags": [
+    "engine",
+    "lod",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "lod"
+   }
+  },
+  {
+   "name": "look_apply",
+   "kind": "mcp",
+   "description": "Apply the U.ZU look (sky, light, aerial perspective, color grade) and configure the sun.",
+   "tags": [
+    "apply",
+    "look",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "apply"
+   }
+  },
+  {
+   "name": "look_camera",
+   "kind": "mcp",
+   "description": "Set a camera's lens, eye height and vertical shift.",
+   "tags": [
+    "camera",
+    "look",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "camera"
+   }
+  },
+  {
+   "name": "look_godrays",
+   "kind": "mcp",
+   "description": "Add fake god rays: an additive shaft of light along the sun's direction through a position.",
+   "tags": [
+    "godrays",
+    "look",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "godrays"
+   }
+  },
+  {
+   "name": "look_hd2d",
+   "kind": "mcp",
+   "description": "Apply the HD-2D preset in one go: the look, tilt-shift blur, lit outlined pixel-art sprites with blob shadows, one texel size, and a telephoto camera looking down.",
+   "tags": [
+    "hd2d",
+    "look",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "hd2d"
+   }
+  },
+  {
+   "name": "look_lamp",
+   "kind": "mcp",
+   "description": "Add a warm lamp with a glowing bulb.",
+   "tags": [
+    "lamp",
+    "look",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "lamp"
+   }
+  },
+  {
+   "name": "look_material",
+   "kind": "mcp",
+   "description": "Create a preset material (save to 'out', or assign to 'node' in 'scene').",
+   "tags": [
+    "look",
+    "material",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "material"
+   }
+  },
+  {
+   "name": "look_palette",
+   "kind": "mcp",
+   "description": "Add palette quantization with ordered dithering (a modern retro finish) after the look's post effects.",
+   "tags": [
+    "look",
+    "mcp",
+    "palette"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "palette"
+   }
+  },
+  {
+   "name": "look_particles",
+   "kind": "mcp",
+   "description": "Add sparkle particles: light dust, fireflies, snow or embers.",
+   "tags": [
+    "look",
+    "mcp",
+    "particles"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "particles"
+   }
+  },
+  {
+   "name": "look_pixel",
+   "kind": "mcp",
+   "description": "Pixel discipline preset: one texel size for all sprites, nearest filtering, optional snapping to the texel grid.",
+   "tags": [
+    "look",
+    "mcp",
+    "pixel"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "pixel"
+   }
+  },
+  {
+   "name": "look_rich",
+   "kind": "mcp",
+   "description": "Richness report of a scene: static costs (triangles, draw calls, objects, texture memory, props per square meter, lights, the heaviest nodes), what one rendered frame drew (triangles and draw calls, shadows, video memory), a budget check and hints on what to change. Budget keys are max_<metric> or min_<metric>.",
+   "tags": [
+    "look",
+    "mcp",
+    "rich"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "rich"
+   }
+  },
+  {
+   "name": "look_rig",
+   "kind": "mcp",
+   "description": "Add fill and rim lights (three-point lighting with the sun as key).",
+   "tags": [
+    "look",
+    "mcp",
+    "rig"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "rig"
+   }
+  },
+  {
+   "name": "look_sprite",
+   "kind": "mcp",
+   "description": "Make Sprite3D nodes lit pixel-art sprites (light, shadows, fog; crisp texels), with optional normal map, outline and blob shadow.",
+   "tags": [
+    "look",
+    "mcp",
+    "sprite"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "sprite"
+   }
+  },
+  {
+   "name": "look_texels",
+   "kind": "mcp",
+   "description": "Check the texel density of the scene's sprites: warns on sprites whose pixels are bigger or smaller than the others', and on blurry filtering.",
+   "tags": [
+    "look",
+    "mcp",
+    "texels"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "texels"
+   }
+  },
+  {
+   "name": "look_water",
+   "kind": "mcp",
+   "description": "Add a water surface: color and see-through by depth, moving waves, refraction of the bottom, foam at shores, and reflections at grazing angles. Works on every renderer (Web too).",
+   "tags": [
+    "look",
+    "mcp",
+    "water"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "water"
+   }
+  },
+  {
+   "name": "map_city",
+   "kind": "mcp",
+   "description": "Generate a city into a scene in one call: streets (grid or organic), sidewalks, blocks with buildings (floors, flat or gable roofs, windows that glow), a plaza with a fountain, street lamps and trees, plus collision. Everything is optional: pick a preset (village, town, city) and override any key. The result names places (spawn, plaza, gates, tallest roof) with positions, and counts. Same spec, same city. Call map_options for every key.",
+   "tags": [
+    "city",
+    "map",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "map",
+    "command": "city"
+   }
+  },
+  {
+   "name": "map_estimate",
+   "kind": "mcp",
+   "description": "Run the outside model configured in estimators.json for a picture, then map_import its output. No model ships with the engine.",
+   "tags": [
+    "engine",
+    "estimate",
+    "map",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "map-estimate"
+   }
+  },
+  {
+   "name": "map_import",
+   "kind": "mcp",
+   "description": "Bring in a normal or depth map made by an outside model: fixes size, offset, DirectX vs OpenGL, vector length, white = near or far and range against the picture, and reports what it changed.",
+   "tags": [
+    "engine",
+    "import",
+    "map",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "map-import"
+   }
+  },
+  {
+   "name": "map_nature",
+   "kind": "mcp",
+   "description": "Generate a natural map into a scene in one call: terrain with water (lakes, sea, river), meadows, rock, snow, forests with clearings, rocks and grass, plus collision. Everything is optional: pick a preset (plains, hills, mountains, island, valley, lakes) and override any key. The result names places to use next (spawn, peak, lake, clearings) with positions, and counts. Same spec, same map. A wrong key comes back with the closest valid one; call map_options for every key.",
+   "tags": [
+    "map",
+    "mcp",
+    "nature"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "map",
+    "command": "nature"
+   }
+  },
+  {
+   "name": "map_options",
+   "kind": "mcp",
+   "description": "List every key of map_nature and map_city with its default, what it accepts and what it does, and the presets.",
+   "tags": [
+    "map",
+    "mcp",
+    "options"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "map",
+    "command": "options"
+   }
+  },
+  {
+   "name": "node_add",
+   "kind": "mcp",
+   "description": "Add a node of a class under a parent and save; 'set' is a JSON object of initial property values.",
+   "tags": [
+    "add",
+    "engine",
+    "mcp",
+    "node"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "add"
+   }
+  },
+  {
+   "name": "node_call",
+   "kind": "mcp",
+   "description": "Call a method on a node and return the result; 'args' is an array in Godot text format.",
+   "tags": [
+    "call",
+    "engine",
+    "mcp",
+    "node"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "call"
+   }
+  },
+  {
+   "name": "node_get",
+   "kind": "mcp",
+   "description": "Read a node property (supports indexed paths like position:y).",
+   "tags": [
+    "engine",
+    "get",
+    "mcp",
+    "node"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "get"
+   }
+  },
+  {
+   "name": "node_instance",
+   "kind": "mcp",
+   "description": "Instance another scene under a parent and save.",
+   "tags": [
+    "engine",
+    "instance",
+    "mcp",
+    "node"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "instance"
+   }
+  },
+  {
+   "name": "node_props",
+   "kind": "mcp",
+   "description": "List a node's inspector properties and their values.",
+   "tags": [
+    "engine",
+    "mcp",
+    "node",
+    "props"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "props"
+   }
+  },
+  {
+   "name": "node_remove",
+   "kind": "mcp",
+   "description": "Remove a node (not the root) and save.",
+   "tags": [
+    "engine",
+    "mcp",
+    "node",
+    "remove"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "remove"
+   }
+  },
+  {
+   "name": "node_reparent",
+   "kind": "mcp",
+   "description": "Move a node under another parent and save.",
+   "tags": [
+    "engine",
+    "mcp",
+    "node",
+    "reparent"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "reparent"
+   }
+  },
+  {
+   "name": "node_set",
+   "kind": "mcp",
+   "description": "Set a node property and save. Values use Godot text format: 1.5, \"text\", Vector3(1, 2, 3); res:// paths load resources; resource class names (BoxMesh) create one.",
+   "tags": [
+    "engine",
+    "mcp",
+    "node",
+    "set"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "set"
+   }
+  },
+  {
+   "name": "panorama",
+   "kind": "mcp",
+   "description": "Capture a 360-degree equirectangular panorama around the main camera and save a PNG.",
+   "tags": [
+    "look",
+    "mcp",
+    "panorama"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "panorama"
+   }
+  },
+  {
+   "name": "pbr_presets_apply",
+   "kind": "mcp",
+   "description": "Give bare models procedural PBR materials (wood, stone, brick, dirt, grass, plaster, tile: seamless textures made here, then albedo/normal/ORM), triplanar and tinted by each model's own color; untextured models look cheap.",
+   "tags": [
+    "apply",
+    "look",
+    "mcp",
+    "pbr",
+    "presets"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "pbr"
+   }
+  },
+  {
+   "name": "project_export",
+   "kind": "mcp",
+   "description": "Export the project with a preset; lists the files written.",
+   "tags": [
+    "engine",
+    "export",
+    "mcp",
+    "project"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "export"
+   }
+  },
+  {
+   "name": "project_map",
+   "kind": "mcp",
+   "description": "A static map of the project for understanding it: files by kind, dependencies both ways (incl. preload/extends), scenes with nodes, scripts, instanced scenes and signal connections, autoloads, global classes.",
+   "tags": [
+    "engine",
+    "map",
+    "mcp",
+    "project"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "map"
+   }
+  },
+  {
+   "name": "project_run",
+   "kind": "mcp",
+   "description": "Run the project headless for some frames; returns errors and the log tail.",
+   "tags": [
+    "engine",
+    "mcp",
+    "project",
+    "run"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "run"
+   }
+  },
+  {
+   "name": "project_uids",
+   "kind": "mcp",
+   "description": "Check UIDs against the files: duplicates, missing or orphan .uid files, references whose UID is stale or whose path moved; each with a proposed fix. 'fix' applies them.",
+   "tags": [
+    "engine",
+    "mcp",
+    "project",
+    "uids"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "uids"
+   }
+  },
+  {
+   "name": "project_validate",
+   "kind": "mcp",
+   "description": "Load every scene, resource and script of the project; list problems (missing files, broken scripts with errors, missing main scene or autoloads).",
+   "tags": [
+    "engine",
+    "mcp",
+    "project",
+    "validate"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "validate"
+   }
+  },
+  {
+   "name": "replay_compare",
+   "kind": "mcp",
+   "description": "Compare replay JSON or JSONL and report the first differing field. Snapshots matches expected fields at each frame or time.",
+   "tags": [
+    "compare",
+    "mcp",
+    "replay",
+    "replay-compare"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "replay-compare",
+    "command": ""
+   }
+  },
+  {
+   "name": "resource_get",
+   "kind": "mcp",
+   "description": "Read a property of a resource file.",
+   "tags": [
+    "engine",
+    "get",
+    "mcp",
+    "resource"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "res-get"
+   }
+  },
+  {
+   "name": "resource_new",
+   "kind": "mcp",
+   "description": "Create a resource file (.tres) of a class, with optional initial values.",
+   "tags": [
+    "engine",
+    "mcp",
+    "new",
+    "resource"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "res-new"
+   }
+  },
+  {
+   "name": "resource_props",
+   "kind": "mcp",
+   "description": "List a resource file's inspector properties and values.",
+   "tags": [
+    "engine",
+    "mcp",
+    "props",
+    "resource"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "res-props"
+   }
+  },
+  {
+   "name": "resource_set",
+   "kind": "mcp",
+   "description": "Set a property of a resource file and save.",
+   "tags": [
+    "engine",
+    "mcp",
+    "resource",
+    "set"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "res-set"
+   }
+  },
+  {
+   "name": "scatter",
+   "kind": "mcp",
+   "description": "Spread props (stones, tufts, flowers) over a surface node as one MultiMesh and save: even by area, the same layout for the same seed, filtered by slope, exclusion zones and spacing. Returns how many, where (bounds) and why some were rejected.",
+   "tags": [
+    "engine",
+    "mcp",
+    "scatter"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "scatter"
+   }
+  },
+  {
+   "name": "scene_build",
+   "kind": "mcp",
+   "description": "Build a whole scene from one JSON spec (ground, models, scattered props, look, camera, lamps, particles, water, god rays) and get its richness report back; see ai_loop/look_samples/specs/village.json for an example and ai_loop/build_tool.gd for every key. Mistakes in the spec come back as a list of problems that name where they are.",
+   "tags": [
+    "build",
+    "mcp",
+    "scene"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "build",
+    "command": null
+   }
+  },
+  {
+   "name": "scene_enrich",
+   "kind": "mcp",
+   "description": "Make an existing scene richer in one call with a preset (village_rich, meadow, ruins: grass, flowers, stones, dust and a matching look; props keep off existing objects and stay near the camera on huge grounds). Returns the richness report before and after and the difference; applying again replaces the earlier props.",
+   "tags": [
+    "enrich",
+    "mcp",
+    "scene"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "enrich",
+    "command": null
+   }
+  },
+  {
+   "name": "scene_new",
+   "kind": "mcp",
+   "description": "Create a new scene file with a root node.",
+   "tags": [
+    "engine",
+    "mcp",
+    "new",
+    "scene"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "new"
+   }
+  },
+  {
+   "name": "scene_tree",
+   "kind": "mcp",
+   "description": "List the nodes of a scene with their types and scripts.",
+   "tags": [
+    "engine",
+    "mcp",
+    "scene",
+    "tree"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "tree"
+   }
+  },
+  {
+   "name": "screenshot",
+   "kind": "mcp",
+   "description": "Render the main scene without a GPU and save a PNG.",
+   "tags": [
+    "look",
+    "mcp",
+    "screenshot"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "shot"
+   }
+  },
+  {
+   "name": "script_attach",
+   "kind": "mcp",
+   "description": "Attach a script to a node and save.",
+   "tags": [
+    "attach",
+    "engine",
+    "mcp",
+    "script"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "script"
+   }
+  },
+  {
+   "name": "script_check",
+   "kind": "mcp",
+   "description": "Check a GDScript, .gdshader or .gdshaderinc file without a renderer; returns errors and warnings with file, line, column, code and message.",
+   "tags": [
+    "check",
+    "engine",
+    "mcp",
+    "script"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "check"
+   }
+  },
+  {
+   "name": "setting_get",
+   "kind": "mcp",
+   "description": "Read a project setting.",
+   "tags": [
+    "engine",
+    "get",
+    "mcp",
+    "setting"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "setting-get"
+   }
+  },
+  {
+   "name": "setting_set",
+   "kind": "mcp",
+   "description": "Change a project setting and save project.godot.",
+   "tags": [
+    "engine",
+    "mcp",
+    "set",
+    "setting"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "setting-set"
+   }
+  },
+  {
+   "name": "sfx_make",
+   "kind": "mcp",
+   "description": "Synthesize a sound effect (no sound files needed) and save it as a WAV: a preset (hit, jump, pickup, coin, explosion, laser, powerup, blip, land), varied by seed, with parameters changed by set. Returns its length, peak, loudness and pitch at the start and end, so you can judge it without listening.",
+   "tags": [
+    "engine",
+    "make",
+    "mcp",
+    "sfx"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "sfx"
+   }
+  },
+  {
+   "name": "sfx_presets",
+   "kind": "mcp",
+   "description": "List the sound effect presets with their parameters, and every parameter with its default.",
+   "tags": [
+    "engine",
+    "mcp",
+    "presets",
+    "sfx"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "sfx-presets"
+   }
+  },
+  {
+   "name": "signal_connect",
+   "kind": "mcp",
+   "description": "Connect a signal to a method persistently and save.",
+   "tags": [
+    "connect",
+    "engine",
+    "mcp",
+    "signal"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "engine",
+    "command": "connect"
+   }
+  },
+  {
+   "name": "ui_build",
+   "kind": "mcp",
+   "description": "Build a UI screen (HUD, dialogs, menus) from one JSON spec: a Control tree with anchors, containers and a theme (rounded panels, borders, shadows, buttons, bars), and optionally render it over a game scene. See ai_loop/look_samples/specs/hud.json for an example and ai_loop/ui_tool.gd for every key; mistakes come back as a list that names where they are.",
+   "tags": [
+    "build",
+    "mcp",
+    "ui"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "ui",
+    "command": null
+   }
+  },
+  {
+   "name": "ui_report",
+   "kind": "mcp",
+   "description": "UI richness report of a UI scene (headless): how many controls, panels, buttons and texts, the smallest font, the depth, screen coverage and edge inset, and the problems with a fix for each (small text, text overflow, buttons too small for touch, no margin at the screen edge, overlapping panels, off screen, unstyled default look). ok is false when there are problems.",
+   "tags": [
+    "look",
+    "mcp",
+    "report",
+    "ui"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "maps_to": {
+    "tool": "look",
+    "command": "ui-report"
+   }
+  },
+  {
+   "name": "fantasy",
+   "kind": "preset",
+   "description": "Fantasy: brown leather panels, gold borders, round corners.",
+   "tags": [
+    "preset",
+    "ui"
+   ],
+   "source": "ai_loop/presets/ui/fantasy.json",
+   "group": "ui"
+  },
+  {
+   "name": "meadow",
+   "kind": "preset",
+   "description": "Open meadow in clear light: dense grass and many flowers, no stones.",
+   "tags": [
+    "preset",
+    "rich"
+   ],
+   "source": "ai_loop/presets/rich/meadow.json",
+   "group": "rich"
+  },
+  {
+   "name": "ruins",
+   "kind": "preset",
+   "description": "Old stones in humid air: many stones and rubble, sparse grass, dust.",
+   "tags": [
+    "preset",
+    "rich"
+   ],
+   "source": "ai_loop/presets/rich/ruins.json",
+   "group": "rich"
+  },
+  {
+   "name": "sf",
+   "kind": "preset",
+   "description": "Science fiction: dark glass panels, cyan neon edges, sharp corners.",
+   "tags": [
+    "preset",
+    "ui"
+   ],
+   "source": "ai_loop/presets/ui/sf.json",
+   "group": "ui"
+  },
+  {
+   "name": "village_rich",
+   "kind": "preset",
+   "description": "Evening village: grass, two kinds of flowers, stones, light dust; golden hour with clouds and the fill/rim rig.",
+   "tags": [
+    "preset",
+    "rich"
+   ],
+   "source": "ai_loop/presets/rich/village_rich.json",
+   "group": "rich"
+  },
+  {
+   "name": "wafu",
+   "kind": "preset",
+   "description": "Japanese style: deep indigo panels, vermilion buttons, gold edges, small corners.",
+   "tags": [
+    "preset",
+    "ui"
+   ],
+   "source": "ai_loop/presets/ui/wafu.json",
+   "group": "ui"
+  },
+  {
+   "name": "aiplayer",
+   "kind": "script",
+   "description": "Lockstep client for an outside AI player (BACKLOG B-306).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/aiplayer.py"
+  },
+  {
+   "name": "bench",
+   "kind": "script",
+   "description": "Benchmark pass/fail against a baseline (BACKLOG B-104).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/bench.py"
+  },
+  {
+   "name": "blender_bridge",
+   "kind": "script",
+   "description": "Produce a Godot-ready GLB and PNG from a trusted Blender Python script.",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/blender_bridge.py"
+  },
+  {
+   "name": "build_tool",
+   "kind": "script",
+   "description": "Declarative scene building (BACKLOG B-1207): a whole scene from one JSON spec, so an agent describes what it wants instead of stacking node operations. Run through `ai_loop/uzu.py build <project> --spec spec.json`, which also returns the ri",
+   "tags": [
+    "gdscript",
+    "script"
+   ],
+   "source": "ai_loop/build_tool.gd"
+  },
+  {
+   "name": "catalog",
+   "kind": "script",
+   "description": "Search the U.ZU feature catalog (BACKLOG B-403).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/catalog.py"
+  },
+  {
+   "name": "engine_tool",
+   "kind": "script",
+   "description": "Agent-facing operations on a project's scenes and on the engine's class database (BACKLOG B-401). Run through ai_loop/engine.sh, which also adds run, check and shot. Values use Godot's text format (var_to_str/str_to_var): 1.5, \"text\", Vecto",
+   "tags": [
+    "gdscript",
+    "script"
+   ],
+   "source": "ai_loop/engine_tool.gd"
+  },
+  {
+   "name": "image_diff",
+   "kind": "script",
+   "description": "Compare two PNG screenshots (from ai_loop/screenshot.sh) with a tolerance.",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/image_diff.py"
+  },
+  {
+   "name": "look_tool",
+   "kind": "script",
+   "description": "Agent-facing command line for the U.ZU look (UZULook). Run through ai_loop/look.sh.",
+   "tags": [
+    "gdscript",
+    "script"
+   ],
+   "source": "ai_loop/look_tool.gd"
+  },
+  {
+   "name": "make_catalog",
+   "kind": "script",
+   "description": "Generate the U.ZU feature catalog, ai_loop/catalog.json (BACKLOG B-403).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/make_catalog.py"
+  },
+  {
+   "name": "map_tool",
+   "kind": "script",
+   "description": "Map generation for agents (UZUWorldGen): a natural map or a city from a short spec, saved into a scene. Run through `ai_loop/uzu.py map <project> nature|city|options ...`.",
+   "tags": [
+    "gdscript",
+    "script"
+   ],
+   "source": "ai_loop/map_tool.gd"
+  },
+  {
+   "name": "mcp_server",
+   "kind": "script",
+   "description": "MCP server for U.ZU Engine (BACKLOG B-402): engine and look operations as tools.",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/mcp_server.py"
+  },
+  {
+   "name": "palette_check",
+   "kind": "script",
+   "description": "Color and composition check for a screenshot (from ai_loop/screenshot.sh), as JSON.",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/palette_check.py"
+  },
+  {
+   "name": "panorama",
+   "kind": "script",
+   "description": "Joins six cube faces (from ai_loop/panorama_capture.gd) into an",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/panorama.py"
+  },
+  {
+   "name": "panorama_capture",
+   "kind": "script",
+   "description": "Captures the six cube faces around the main scene's camera (BACKLOG B-713). Run with a real renderer (ai_loop/look.sh panorama does this with software Vulkan and a virtual display). Writes face_<i>.png and faces.json (camera bases) to the d",
+   "tags": [
+    "gdscript",
+    "script"
+   ],
+   "source": "ai_loop/panorama_capture.gd"
+  },
+  {
+   "name": "prepublish",
+   "kind": "script",
+   "description": "Pre-publish check for an exported game build (BACKLOG B-502).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/prepublish.py"
+  },
+  {
+   "name": "replay_compare",
+   "kind": "script",
+   "description": "Compare replay JSON logs or verify selected snapshots against a log.",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/replay_compare.py"
+  },
+  {
+   "name": "rich_probe",
+   "kind": "script",
+   "description": "Rendered-frame probe for the richness report (BACKLOG B-1204). Installed as an autoload by `ai_loop/uzu.py look rich` in a copy of the project. After the given number of frames it reads what the renderer drew in the last frame and writes it",
+   "tags": [
+    "gdscript",
+    "script"
+   ],
+   "source": "ai_loop/rich_probe.gd"
+  },
+  {
+   "name": "test_cases_diff",
+   "kind": "script",
+   "description": "Compare the unit test case lists of two builds (e.g. Windows and the cloud's Linux).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/test_cases_diff.py"
+  },
+  {
+   "name": "ui_font",
+   "kind": "script",
+   "description": "Japanese font subsets for UI (BACKLOG B-1303).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/ui_font.py"
+  },
+  {
+   "name": "ui_report_probe",
+   "kind": "script",
+   "description": "UI richness probe (BACKLOG B-1305). Installed as an autoload by `ai_loop/uzu.py look ui-report` in a copy of the project; the UI scene runs headless (layout and text shaping need no GPU). After a few frames it measures every visible Control",
+   "tags": [
+    "gdscript",
+    "script"
+   ],
+   "source": "ai_loop/ui_report_probe.gd"
+  },
+  {
+   "name": "ui_tool",
+   "kind": "script",
+   "description": "Declarative UI building (BACKLOG B-1301): a Control tree (layout, anchors, theme) from one JSON spec, so an agent describes the screen instead of stacking node operations. Run through `ai_loop/uzu.py ui <project> --spec ui.json [--shot out.",
+   "tags": [
+    "gdscript",
+    "script"
+   ],
+   "source": "ai_loop/ui_tool.gd"
+  },
+  {
+   "name": "uzu",
+   "kind": "script",
+   "description": "U.ZU Engine agent tools: one cross-platform entry (BACKLOG B-801).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/uzu.py"
+  },
+  {
+   "name": "UZUJuice",
+   "kind": "class",
+   "description": "Game feel effects (hitstop, slow motion, and more) behind single static calls.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUJuice.xml"
+  },
+  {
+   "name": "UZULook",
+   "kind": "class",
+   "description": "Ready-made 3D look presets (sky, light, atmosphere, color grade, materials, camera lenses) for scripts and agents.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZULook.xml"
+  },
+  {
+   "name": "UZUMapImport",
+   "kind": "class",
+   "description": "Brings normal and depth maps made outside the engine into line with a picture.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUMapImport.xml"
+  },
+  {
+   "name": "UZUPBRFromImage",
+   "kind": "class",
+   "description": "Estimates PBR maps from a single texture image.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUPBRFromImage.xml"
+  },
+  {
+   "name": "UZUPaletteDither",
+   "kind": "class",
+   "description": "Palette quantization with ordered dithering for the U.ZU look, as a compositor effect.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUPaletteDither.xml"
+  },
+  {
+   "name": "UZUPicture",
+   "kind": "class",
+   "description": "Turns one picture and its depth map into a living 3D scene from a spec.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUPicture.xml"
+  },
+  {
+   "name": "UZUPostEffect",
+   "kind": "class",
+   "description": "Edge contrast and vignette for the U.ZU look, as a compositor effect.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUPostEffect.xml"
+  },
+  {
+   "name": "UZUScatter",
+   "kind": "class",
+   "description": "Spreads small props over a surface as one MultiMesh.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUScatter.xml"
+  },
+  {
+   "name": "UZUSfx",
+   "kind": "class",
+   "description": "Synthesizes game sound effects from a few parameters, without sound files.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUSfx.xml"
+  },
+  {
+   "name": "UZUTiltShift",
+   "kind": "class",
+   "description": "Tilt-shift band blur for the U.ZU look, as a compositor effect.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUTiltShift.xml"
+  },
+  {
+   "name": "UZUUI",
+   "kind": "class",
+   "description": "A UI kit: procedural panels, a matching theme, and constructors for common parts.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUUI.xml"
+  },
+  {
+   "name": "UZUUIJuice",
+   "kind": "class",
+   "description": "UI motion: named movement curves and one-call animations for panels, dialogs, hover and numbers.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUUIJuice.xml"
+  },
+  {
+   "name": "UZUUIWorld",
+   "kind": "class",
+   "description": "Makes a world UI move: moving frames, opening, hover and ambient sway.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUUIWorld.xml"
+  },
+  {
+   "name": "UZUWorldGen",
+   "kind": "class",
+   "description": "Generates a natural map or a city from one short spec, made for an AI to ask for.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "modules/uzu_worldgen/doc_classes/UZUWorldGen.xml"
+  }
+ ]
+}
