@@ -2,15 +2,28 @@
  "version": 1,
  "generated_by": "ai_loop/make_catalog.py",
  "counts": {
-  "cli": 16,
+  "cli": 17,
   "command": 72,
-  "mcp": 76,
+  "mcp": 77,
   "preset": 6,
-  "script": 28,
+  "script": 30,
   "class": 15,
-  "total": 213
+  "total": 217
  },
  "entries": [
+  {
+   "name": "audit-scene",
+   "kind": "cli",
+   "description": "re-read audit of a saved scene (B-1511): recounts triangles, textures (count and dimensions), placed instances and collision from the artifact itself -- never from the generator -- and compares them with the generation spec set (B-1509; default: the spec_set folder next to the scene). Differences come back per check with the expected and recounted values; families the artifact cannot express are reported not_countable with the reason",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "usage": "uzu.py audit-scene <project> --scene res://x.tscn [--spec-set DIR] [--out report.json]"
+  },
   {
    "name": "build",
    "kind": "cli",
@@ -2363,6 +2376,24 @@
    }
   },
   {
+   "name": "scene_audit",
+   "kind": "mcp",
+   "description": "Re-read audit of a saved scene (BACKLOG B-1511): re-opens the saved .tscn through the resource loader and recounts what is actually in the artifact -- mesh triangles, textures (count and dimensions), placed instances, collision shapes and bodies, lights, navigation meshes -- then compares the recount with the generation spec set (B-1509: asset_registry / scene_spec), never with the generator's own claims. Per check: match, difference (expected and recounted values) or not_countable with the reason. Also reports MultiMesh instances that are stored in the file but dropped on load. spec-set defaults to the spec_set folder next to the scene.",
+   "tags": [
+    "audit",
+    "audit-scene",
+    "mcp",
+    "scene"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "maps_to": {
+    "tool": "audit-scene",
+    "command": null
+   }
+  },
+  {
    "name": "scene_build",
    "kind": "mcp",
    "description": "Build a whole scene from one JSON spec (ground, models, scattered props, look, camera, lamps, particles, water, god rays) and get its richness report back; see ai_loop/look_samples/specs/village.json for an example and ai_loop/build_tool.gd for every key. Mistakes in the spec come back as a list of problems that name where they are.",
@@ -2763,6 +2794,30 @@
     "script"
    ],
    "source": "ai_loop/aiplayer.py",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "audit_scene",
+   "kind": "script",
+   "description": "Re-read audit of a saved scene (BACKLOG B-1511): the comparison half.",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/audit_scene.py",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "audit_tool",
+   "kind": "script",
+   "description": "Re-read audit, engine side (BACKLOG B-1511): loads a SAVED scene (.tscn / .scn) back through the resource loader, instantiates it WITHOUT adding it to the tree (no _ready runs, nothing is played), and counts what is actually in the artifact",
+   "tags": [
+    "gdscript",
+    "script"
+   ],
+   "source": "ai_loop/audit_tool.gd",
    "required_capabilities": [],
    "fallback": null
   },

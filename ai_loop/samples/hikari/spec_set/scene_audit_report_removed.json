@@ -1,0 +1,925 @@
+{
+  "command": "audit-scene",
+  "format": "uzu-scene-audit/1",
+  "scene": "res://village.tscn",
+  "spec_set_scene": "res://village.tscn",
+  "ok": false,
+  "summary": {
+    "match": 22,
+    "difference": 7,
+    "not_countable": 5
+  },
+  "checks": [
+    {
+      "id": "Land/grass",
+      "kind": "registry",
+      "status": "match",
+      "expected": 3273,
+      "actual": 3273,
+      "note": "MultiMesh instances as stored in the artifact"
+    },
+    {
+      "id": "Land/roads",
+      "kind": "registry",
+      "status": "match",
+      "expected": 0,
+      "actual": 0,
+      "note": "no structure of this family exists in the artifact; the absence is the recount"
+    },
+    {
+      "id": "Land/rocks",
+      "kind": "registry",
+      "status": "match",
+      "expected": 78,
+      "actual": 78,
+      "note": "MultiMesh instances as stored in the artifact"
+    },
+    {
+      "id": "Land/trees",
+      "kind": "registry",
+      "status": "match",
+      "expected": 970,
+      "actual": 970,
+      "note": "MultiMesh instances as stored in the artifact"
+    },
+    {
+      "id": "Land/trees_broadleaf",
+      "kind": "registry",
+      "status": "match",
+      "expected": 537,
+      "actual": 537,
+      "note": "MultiMesh instances as stored in the artifact"
+    },
+    {
+      "id": "Land/trees_conifer",
+      "kind": "registry",
+      "status": "match",
+      "expected": 433,
+      "actual": 433,
+      "note": "MultiMesh instances as stored in the artifact"
+    },
+    {
+      "id": "Land/villages",
+      "kind": "registry",
+      "status": "match",
+      "expected": 0,
+      "actual": 0,
+      "note": "no structure of this family exists in the artifact; the absence is the recount"
+    },
+    {
+      "id": "Land/terrain_mesh",
+      "kind": "registry",
+      "status": "match",
+      "expected": 8192,
+      "actual": 8192,
+      "note": "the 'Terrain' mesh node of the part"
+    },
+    {
+      "id": "Pond/grass",
+      "kind": "registry",
+      "status": "match",
+      "expected": 0,
+      "actual": 0,
+      "note": "no structure of this family exists in the artifact; the absence is the recount"
+    },
+    {
+      "id": "Pond/roads",
+      "kind": "registry",
+      "status": "match",
+      "expected": 0,
+      "actual": 0,
+      "note": "no structure of this family exists in the artifact; the absence is the recount"
+    },
+    {
+      "id": "Pond/rocks",
+      "kind": "registry",
+      "status": "match",
+      "expected": 0,
+      "actual": 0,
+      "note": "no structure of this family exists in the artifact; the absence is the recount"
+    },
+    {
+      "id": "Pond/trees",
+      "kind": "registry",
+      "status": "match",
+      "expected": 0,
+      "actual": 0,
+      "note": "no structure of this family exists in the artifact; the absence is the recount"
+    },
+    {
+      "id": "Pond/trees_broadleaf",
+      "kind": "registry",
+      "status": "match",
+      "expected": 0,
+      "actual": 0,
+      "note": "no structure of this family exists in the artifact; the absence is the recount"
+    },
+    {
+      "id": "Pond/trees_conifer",
+      "kind": "registry",
+      "status": "match",
+      "expected": 0,
+      "actual": 0,
+      "note": "no structure of this family exists in the artifact; the absence is the recount"
+    },
+    {
+      "id": "Pond/villages",
+      "kind": "registry",
+      "status": "match",
+      "expected": 0,
+      "actual": 0,
+      "note": "no structure of this family exists in the artifact; the absence is the recount"
+    },
+    {
+      "id": "Pond/terrain_mesh",
+      "kind": "registry",
+      "status": "difference",
+      "expected": 2048,
+      "actual": 1024,
+      "note": "the 'Terrain' mesh node of the part"
+    },
+    {
+      "id": "Village/benches",
+      "kind": "registry",
+      "status": "match",
+      "expected": 4,
+      "actual": 4,
+      "note": "CollisionShape3D nodes named for the family"
+    },
+    {
+      "id": "Village/blocks",
+      "kind": "registry",
+      "status": "match",
+      "expected": 9,
+      "actual": 9,
+      "note": "CollisionShape3D nodes named for the family"
+    },
+    {
+      "id": "Village/buildings",
+      "kind": "registry",
+      "status": "match",
+      "expected": 6,
+      "actual": 6,
+      "note": "CollisionShape3D nodes named for the family"
+    },
+    {
+      "id": "Village/empty_lots",
+      "kind": "registry",
+      "status": "not_countable",
+      "expected": 2,
+      "actual": null,
+      "note": "an empty lot is the absence of a building on a block; not a structure in the artifact"
+    },
+    {
+      "id": "Village/lamps",
+      "kind": "registry",
+      "status": "not_countable",
+      "expected": 2,
+      "actual": null,
+      "note": "the lamp posts are merged into one mesh; no per-post structure survives in the artifact"
+    },
+    {
+      "id": "Village/lights",
+      "kind": "registry",
+      "status": "match",
+      "expected": 2,
+      "actual": 2,
+      "note": "Light3D nodes in the part"
+    },
+    {
+      "id": "Village/parts",
+      "kind": "registry",
+      "status": "not_countable",
+      "expected": {
+        "chimneys": 3,
+        "doors": 6,
+        "pilasters": 4,
+        "plinths": 6,
+        "roof_props": 0,
+        "string_courses": 0,
+        "window_frames": 37
+      },
+      "actual": null,
+      "note": "a per-part breakdown whose parts are merged into shared meshes in the artifact; its window_frames entry is recounted by the 'windows' family"
+    },
+    {
+      "id": "Village/street_trees",
+      "kind": "registry",
+      "status": "match",
+      "expected": 26,
+      "actual": 26,
+      "note": "MultiMesh instances as stored in the artifact"
+    },
+    {
+      "id": "Village/windows",
+      "kind": "registry",
+      "status": "difference",
+      "expected": 37,
+      "actual": 25,
+      "note": "MultiMesh instances as stored in the artifact"
+    },
+    {
+      "id": "Village/windows_lit",
+      "kind": "registry",
+      "status": "not_countable",
+      "expected": 13,
+      "actual": null,
+      "note": "lit windows are merged into one mesh; the artifact holds no per-window structure"
+    },
+    {
+      "id": "Village/meshes",
+      "kind": "registry",
+      "status": "difference",
+      "expected": 6746,
+      "actual": 9584,
+      "note": "mesh nodes plus MultiMesh triangles, scatter MultiMeshes excluded (they are counted as instances)"
+    },
+    {
+      "id": "Village/buildings_detail",
+      "kind": "registry",
+      "status": "not_countable",
+      "expected": 3,
+      "actual": null,
+      "note": "the registry entry counts the keys of the generator's detail dictionary, not a scene quantity"
+    },
+    {
+      "id": "Village/navigation.polygons",
+      "kind": "observed",
+      "status": "match",
+      "expected": 652,
+      "actual": 652,
+      "note": "NavigationRegion3D resources in the part"
+    },
+    {
+      "id": "Village/navigation.vertices",
+      "kind": "observed",
+      "status": "match",
+      "expected": 603,
+      "actual": 603,
+      "note": "NavigationRegion3D resources in the part"
+    },
+    {
+      "id": "Land/load_fidelity/TreesBroadleaf",
+      "kind": "load_fidelity",
+      "status": "difference",
+      "expected": 537,
+      "actual": 0,
+      "note": "the file stores 537 instances but the engine loads 0; the .tscn carries the MultiMesh buffer but no instance_count property, and the loader drops a buffer set while the count is still 0",
+      "node": "Land/TreesBroadleaf"
+    },
+    {
+      "id": "Land/load_fidelity/TreesConifer",
+      "kind": "load_fidelity",
+      "status": "difference",
+      "expected": 433,
+      "actual": 0,
+      "note": "the file stores 433 instances but the engine loads 0; the .tscn carries the MultiMesh buffer but no instance_count property, and the loader drops a buffer set while the count is still 0",
+      "node": "Land/TreesConifer"
+    },
+    {
+      "id": "Land/load_fidelity/Rocks",
+      "kind": "load_fidelity",
+      "status": "difference",
+      "expected": 78,
+      "actual": 0,
+      "note": "the file stores 78 instances but the engine loads 0; the .tscn carries the MultiMesh buffer but no instance_count property, and the loader drops a buffer set while the count is still 0",
+      "node": "Land/Rocks"
+    },
+    {
+      "id": "Land/load_fidelity/Grass",
+      "kind": "load_fidelity",
+      "status": "difference",
+      "expected": 3273,
+      "actual": 0,
+      "note": "the file stores 3273 instances but the engine loads 0; the .tscn carries the MultiMesh buffer but no instance_count property, and the loader drops a buffer set while the count is still 0",
+      "node": "Land/Grass"
+    }
+  ],
+  "measured": {
+    "totals": {
+      "collision_bodies": 4,
+      "collision_shape_names": [
+        "Shape",
+        "Shape",
+        "Block_0_0",
+        "Building0",
+        "Block_1_0",
+        "Building1",
+        "Block_2_0",
+        "Building2",
+        "Block_0_1",
+        "Building3",
+        "Block_1_1",
+        "Block_2_1",
+        "Block_0_2",
+        "Block_1_2",
+        "Building4",
+        "Block_2_2",
+        "Building5",
+        "Bench0",
+        "Bench1",
+        "Bench2",
+        "Bench3",
+        "@CollisionShape3D@2"
+      ],
+      "collision_shapes": 22,
+      "collision_shapes_disabled": 0,
+      "lights": 2,
+      "mesh_instances": 17,
+      "mesh_nodes": [
+        {
+          "name": "Terrain",
+          "path": "Land/Terrain",
+          "triangles": 8192
+        },
+        {
+          "name": "Terrain",
+          "path": "Pond/Terrain",
+          "triangles": 1024
+        },
+        {
+          "name": "Water",
+          "path": "Pond/Water",
+          "triangles": 8450
+        },
+        {
+          "name": "Benches",
+          "path": "Village/Benches",
+          "triangles": 192
+        },
+        {
+          "name": "Roads",
+          "path": "Village/Roads",
+          "triangles": 176
+        },
+        {
+          "name": "Blocks",
+          "path": "Village/Blocks",
+          "triangles": 90
+        },
+        {
+          "name": "Buildings",
+          "path": "Village/Buildings",
+          "triangles": 60
+        },
+        {
+          "name": "BuildingsBrick",
+          "path": "Village/BuildingsBrick",
+          "triangles": 132
+        },
+        {
+          "name": "BuildingsStone",
+          "path": "Village/BuildingsStone",
+          "triangles": 540
+        },
+        {
+          "name": "BuildingsTrim",
+          "path": "Village/BuildingsTrim",
+          "triangles": 2176
+        },
+        {
+          "name": "Roofs",
+          "path": "Village/Roofs",
+          "triangles": 288
+        },
+        {
+          "name": "Windows",
+          "path": "Village/Windows",
+          "triangles": 48
+        },
+        {
+          "name": "WindowsLit",
+          "path": "Village/WindowsLit",
+          "triangles": 26
+        },
+        {
+          "name": "LampPosts",
+          "path": "Village/LampPosts",
+          "triangles": 48
+        },
+        {
+          "name": "LampBulbs",
+          "path": "Village/LampBulbs",
+          "triangles": 48
+        },
+        {
+          "name": "Landmark",
+          "path": "Village/Landmark",
+          "triangles": 160
+        },
+        {
+          "name": "CityFoundation",
+          "path": "CityFoundation",
+          "triangles": 12
+        }
+      ],
+      "mesh_triangles": 21662,
+      "multimesh_instances": 10,
+      "multimesh_nodes": [
+        {
+          "instances": 0,
+          "name": "TreesBroadleaf",
+          "path": "Land/TreesBroadleaf",
+          "per_instance_triangles": 280
+        },
+        {
+          "instances": 0,
+          "name": "TreesConifer",
+          "path": "Land/TreesConifer",
+          "per_instance_triangles": 48
+        },
+        {
+          "instances": 0,
+          "name": "Rocks",
+          "path": "Land/Rocks",
+          "per_instance_triangles": 128
+        },
+        {
+          "instances": 0,
+          "name": "Grass",
+          "path": "Land/Grass",
+          "per_instance_triangles": 5
+        },
+        {
+          "instances": 6,
+          "name": "WindowFrames_0_0",
+          "path": "Village/WindowFrames_0_0",
+          "per_instance_triangles": 224
+        },
+        {
+          "instances": 6,
+          "name": "WindowFrames_1_0",
+          "path": "Village/WindowFrames_1_0",
+          "per_instance_triangles": 224
+        },
+        {
+          "instances": 3,
+          "name": "WindowFrames_2_0",
+          "path": "Village/WindowFrames_2_0",
+          "per_instance_triangles": 224
+        },
+        {
+          "instances": 6,
+          "name": "WindowFrames_1_2",
+          "path": "Village/WindowFrames_1_2",
+          "per_instance_triangles": 224
+        },
+        {
+          "instances": 4,
+          "name": "WindowFrames_2_2",
+          "path": "Village/WindowFrames_2_2",
+          "per_instance_triangles": 224
+        },
+        {
+          "instances": 26,
+          "name": "StreetTrees",
+          "path": "Village/StreetTrees",
+          "per_instance_triangles": 280
+        }
+      ],
+      "multimesh_placements": 51,
+      "multimesh_triangles": 12880,
+      "navigation": [
+        {
+          "path": "Village/Navigation",
+          "polygons": 652,
+          "vertices": 603
+        }
+      ],
+      "navigation_regions": 1,
+      "nodes": 61,
+      "scene_instance_paths": [],
+      "scene_instances": 0,
+      "triangles": 34542
+    },
+    "parts": {
+      "CityFoundation": {
+        "collision_bodies": 0,
+        "collision_shape_names": [],
+        "collision_shapes": 0,
+        "collision_shapes_disabled": 0,
+        "lights": 0,
+        "mesh_instances": 1,
+        "mesh_nodes": [
+          {
+            "name": "CityFoundation",
+            "path": "CityFoundation",
+            "triangles": 12
+          }
+        ],
+        "mesh_triangles": 12,
+        "multimesh_instances": 0,
+        "multimesh_nodes": [],
+        "multimesh_placements": 0,
+        "multimesh_triangles": 0,
+        "navigation": [],
+        "navigation_regions": 0,
+        "nodes": 1,
+        "scene_instance_paths": [],
+        "scene_instances": 0,
+        "triangles": 12
+      },
+      "CityFoundationBody": {
+        "collision_bodies": 1,
+        "collision_shape_names": [
+          "@CollisionShape3D@2"
+        ],
+        "collision_shapes": 1,
+        "collision_shapes_disabled": 0,
+        "lights": 0,
+        "mesh_instances": 0,
+        "mesh_nodes": [],
+        "mesh_triangles": 0,
+        "multimesh_instances": 0,
+        "multimesh_nodes": [],
+        "multimesh_placements": 0,
+        "multimesh_triangles": 0,
+        "navigation": [],
+        "navigation_regions": 0,
+        "nodes": 2,
+        "scene_instance_paths": [],
+        "scene_instances": 0,
+        "triangles": 0
+      },
+      "Land": {
+        "collision_bodies": 1,
+        "collision_shape_names": [
+          "Shape"
+        ],
+        "collision_shapes": 1,
+        "collision_shapes_disabled": 0,
+        "lights": 0,
+        "mesh_instances": 1,
+        "mesh_nodes": [
+          {
+            "name": "Terrain",
+            "path": "Land/Terrain",
+            "triangles": 8192
+          }
+        ],
+        "mesh_triangles": 8192,
+        "multimesh_instances": 4,
+        "multimesh_nodes": [
+          {
+            "instances": 0,
+            "name": "TreesBroadleaf",
+            "path": "Land/TreesBroadleaf",
+            "per_instance_triangles": 280,
+            "stored_instances": 537,
+            "stored": 537
+          },
+          {
+            "instances": 0,
+            "name": "TreesConifer",
+            "path": "Land/TreesConifer",
+            "per_instance_triangles": 48,
+            "stored_instances": 433,
+            "stored": 433
+          },
+          {
+            "instances": 0,
+            "name": "Rocks",
+            "path": "Land/Rocks",
+            "per_instance_triangles": 128,
+            "stored_instances": 78,
+            "stored": 78
+          },
+          {
+            "instances": 0,
+            "name": "Grass",
+            "path": "Land/Grass",
+            "per_instance_triangles": 5,
+            "stored_instances": 3273,
+            "stored": 3273
+          }
+        ],
+        "multimesh_placements": 0,
+        "multimesh_triangles": 0,
+        "navigation": [],
+        "navigation_regions": 0,
+        "nodes": 8,
+        "scene_instance_paths": [],
+        "scene_instances": 0,
+        "triangles": 8192
+      },
+      "Pond": {
+        "collision_bodies": 1,
+        "collision_shape_names": [
+          "Shape"
+        ],
+        "collision_shapes": 1,
+        "collision_shapes_disabled": 0,
+        "lights": 0,
+        "mesh_instances": 2,
+        "mesh_nodes": [
+          {
+            "name": "Terrain",
+            "path": "Pond/Terrain",
+            "triangles": 1024
+          },
+          {
+            "name": "Water",
+            "path": "Pond/Water",
+            "triangles": 8450
+          }
+        ],
+        "mesh_triangles": 9474,
+        "multimesh_instances": 0,
+        "multimesh_nodes": [],
+        "multimesh_placements": 0,
+        "multimesh_triangles": 0,
+        "navigation": [],
+        "navigation_regions": 0,
+        "nodes": 5,
+        "scene_instance_paths": [],
+        "scene_instances": 0,
+        "triangles": 9474
+      },
+      "Village": {
+        "collision_bodies": 1,
+        "collision_shape_names": [
+          "Block_0_0",
+          "Building0",
+          "Block_1_0",
+          "Building1",
+          "Block_2_0",
+          "Building2",
+          "Block_0_1",
+          "Building3",
+          "Block_1_1",
+          "Block_2_1",
+          "Block_0_2",
+          "Block_1_2",
+          "Building4",
+          "Block_2_2",
+          "Building5",
+          "Bench0",
+          "Bench1",
+          "Bench2",
+          "Bench3"
+        ],
+        "collision_shapes": 19,
+        "collision_shapes_disabled": 0,
+        "lights": 2,
+        "mesh_instances": 13,
+        "mesh_nodes": [
+          {
+            "name": "Benches",
+            "path": "Village/Benches",
+            "triangles": 192
+          },
+          {
+            "name": "Roads",
+            "path": "Village/Roads",
+            "triangles": 176
+          },
+          {
+            "name": "Blocks",
+            "path": "Village/Blocks",
+            "triangles": 90
+          },
+          {
+            "name": "Buildings",
+            "path": "Village/Buildings",
+            "triangles": 60
+          },
+          {
+            "name": "BuildingsBrick",
+            "path": "Village/BuildingsBrick",
+            "triangles": 132
+          },
+          {
+            "name": "BuildingsStone",
+            "path": "Village/BuildingsStone",
+            "triangles": 540
+          },
+          {
+            "name": "BuildingsTrim",
+            "path": "Village/BuildingsTrim",
+            "triangles": 2176
+          },
+          {
+            "name": "Roofs",
+            "path": "Village/Roofs",
+            "triangles": 288
+          },
+          {
+            "name": "Windows",
+            "path": "Village/Windows",
+            "triangles": 48
+          },
+          {
+            "name": "WindowsLit",
+            "path": "Village/WindowsLit",
+            "triangles": 26
+          },
+          {
+            "name": "LampPosts",
+            "path": "Village/LampPosts",
+            "triangles": 48
+          },
+          {
+            "name": "LampBulbs",
+            "path": "Village/LampBulbs",
+            "triangles": 48
+          },
+          {
+            "name": "Landmark",
+            "path": "Village/Landmark",
+            "triangles": 160
+          }
+        ],
+        "mesh_triangles": 3984,
+        "multimesh_instances": 6,
+        "multimesh_nodes": [
+          {
+            "instances": 6,
+            "name": "WindowFrames_0_0",
+            "path": "Village/WindowFrames_0_0",
+            "per_instance_triangles": 224,
+            "stored_instances": 6,
+            "stored": 6
+          },
+          {
+            "instances": 6,
+            "name": "WindowFrames_1_0",
+            "path": "Village/WindowFrames_1_0",
+            "per_instance_triangles": 224,
+            "stored_instances": 6,
+            "stored": 6
+          },
+          {
+            "instances": 3,
+            "name": "WindowFrames_2_0",
+            "path": "Village/WindowFrames_2_0",
+            "per_instance_triangles": 224,
+            "stored_instances": 3,
+            "stored": 3
+          },
+          {
+            "instances": 6,
+            "name": "WindowFrames_1_2",
+            "path": "Village/WindowFrames_1_2",
+            "per_instance_triangles": 224,
+            "stored_instances": 6,
+            "stored": 6
+          },
+          {
+            "instances": 4,
+            "name": "WindowFrames_2_2",
+            "path": "Village/WindowFrames_2_2",
+            "per_instance_triangles": 224,
+            "stored_instances": 4,
+            "stored": 4
+          },
+          {
+            "instances": 26,
+            "name": "StreetTrees",
+            "path": "Village/StreetTrees",
+            "per_instance_triangles": 280,
+            "stored_instances": 26,
+            "stored": 26
+          }
+        ],
+        "multimesh_placements": 51,
+        "multimesh_triangles": 12880,
+        "navigation": [
+          {
+            "path": "Village/Navigation",
+            "polygons": 652,
+            "vertices": 603
+          }
+        ],
+        "navigation_regions": 1,
+        "nodes": 44,
+        "scene_instance_paths": [],
+        "scene_instances": 0,
+        "triangles": 16864
+      }
+    },
+    "textures": [
+      {
+        "class": "ImageTexture",
+        "height": 256,
+        "key": "res://village.tscn::ImageTexture_6chth",
+        "path": "res://village.tscn::ImageTexture_6chth",
+        "width": 256
+      },
+      {
+        "class": "ImageTexture",
+        "height": 256,
+        "key": "res://village.tscn::ImageTexture_g3aas",
+        "path": "res://village.tscn::ImageTexture_g3aas",
+        "width": 256
+      },
+      {
+        "class": "ImageTexture",
+        "height": 240,
+        "key": "res://village.tscn::ImageTexture_hv5jv",
+        "path": "res://village.tscn::ImageTexture_hv5jv",
+        "width": 240
+      },
+      {
+        "class": "ImageTexture",
+        "height": 240,
+        "key": "res://village.tscn::ImageTexture_hvfom",
+        "path": "res://village.tscn::ImageTexture_hvfom",
+        "width": 240
+      },
+      {
+        "class": "ImageTexture",
+        "height": 240,
+        "key": "res://village.tscn::ImageTexture_iqi72",
+        "path": "res://village.tscn::ImageTexture_iqi72",
+        "width": 240
+      },
+      {
+        "class": "ImageTexture",
+        "height": 240,
+        "key": "res://village.tscn::ImageTexture_l2c5s",
+        "path": "res://village.tscn::ImageTexture_l2c5s",
+        "width": 240
+      },
+      {
+        "class": "ImageTexture",
+        "height": 256,
+        "key": "res://village.tscn::ImageTexture_lvl4c",
+        "path": "res://village.tscn::ImageTexture_lvl4c",
+        "width": 256
+      },
+      {
+        "class": "ImageTexture",
+        "height": 240,
+        "key": "res://village.tscn::ImageTexture_mdd6f",
+        "path": "res://village.tscn::ImageTexture_mdd6f",
+        "width": 240
+      },
+      {
+        "class": "ImageTexture",
+        "height": 240,
+        "key": "res://village.tscn::ImageTexture_n7jeo",
+        "path": "res://village.tscn::ImageTexture_n7jeo",
+        "width": 240
+      },
+      {
+        "class": "ImageTexture",
+        "height": 240,
+        "key": "res://village.tscn::ImageTexture_rdnjy",
+        "path": "res://village.tscn::ImageTexture_rdnjy",
+        "width": 240
+      },
+      {
+        "class": "ImageTexture",
+        "height": 240,
+        "key": "res://village.tscn::ImageTexture_s2dkp",
+        "path": "res://village.tscn::ImageTexture_s2dkp",
+        "width": 240
+      },
+      {
+        "class": "ImageTexture",
+        "height": 240,
+        "key": "res://village.tscn::ImageTexture_wm8w3",
+        "path": "res://village.tscn::ImageTexture_wm8w3",
+        "width": 240
+      }
+    ],
+    "texture_count": 12,
+    "collision": {
+      "shapes": 22,
+      "bodies": 4,
+      "parts": {
+        "CityFoundation": {
+          "shapes": 0,
+          "bodies": 0
+        },
+        "CityFoundationBody": {
+          "shapes": 1,
+          "bodies": 1
+        },
+        "Land": {
+          "shapes": 1,
+          "bodies": 1
+        },
+        "Pond": {
+          "shapes": 1,
+          "bodies": 1
+        },
+        "Village": {
+          "shapes": 19,
+          "bodies": 1
+        }
+      },
+      "parts_with_collision": [
+        "CityFoundationBody",
+        "Land",
+        "Pond",
+        "Village"
+      ]
+    }
+  },
+  "notes": [
+    "counts come from re-opening the saved scene (ai_loop/audit_tool.gd) and, for MultiMesh instances in a text .tscn, from the buffers stored in the file; generator output is never used as evidence",
+    "the collision block is the recount B-1509's validation_report lacked for its collision_coverage check (left Unverified there)"
+  ],
+  "spec_set": "spec_set"
+}
