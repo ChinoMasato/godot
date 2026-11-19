@@ -1,0 +1,43 @@
+{
+  "entry": "ask",
+  "flags": {
+    "has_shard": false,
+    "lantern_lit": false
+  },
+  "nodes": {
+    "ask": {
+      "speaker": "番人",
+      "text": "灯籠を直すには、川辺に落ちた灯りの欠片が要る。",
+      "choices": [
+        {"text": "川辺を探す", "to": "river"},
+        {"text": "先に灯籠を見に行く", "to": "wait"}
+      ]
+    },
+    "river": {
+      "text": "川辺で灯りの欠片を拾った。",
+      "set": {"has_shard": true},
+      "choices": [{"text": "灯籠へ向かう", "to": "shrine"}]
+    },
+    "wait": {
+      "text": "広場に着いた。灯籠の火は消えている。",
+      "choices": [{"text": "灯籠を調べる", "to": "shrine"}]
+    },
+    "shrine": {
+      "text": "灯籠には小さなくぼみがある。",
+      "choices": [
+        {"text": "欠片をはめる", "to": "light", "when": {"has_shard": true}},
+        {"text": "番人に報告する", "to": "return", "when": {"has_shard": false}}
+      ]
+    },
+    "light": {
+      "text": "灯籠に火が戻り、広場が照らされた。",
+      "set": {"lantern_lit": true},
+      "end": true
+    },
+    "return": {
+      "speaker": "番人",
+      "text": "川辺で欠片を見つけたら、もう一度来てくれ。",
+      "end": true
+    }
+  }
+}
