@@ -26,6 +26,7 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
                   [--packet DIR] [--expect-clear]   on failure, a diagnosis packet in DIR (B-308)
+  uzu.py dialogue --spec PATH [--out PATH] [--max-chars N]   validate or build dialogue/quest data (B-406)
   uzu.py replay-compare --expected PATH --actual PATH [--snapshots]   compare JSON/JSONL logs (B-314)
   uzu.py catalog  <word> [<word> ...] [--limit N] [--caps a,b] [--profile caps.json]
                   search the feature catalog (B-403): every command, MCP tool,
@@ -1787,9 +1788,11 @@ def selftest_bake():
 def selftest_tools():
     """The self-tests of the Python tools; each runs in its own interpreter."""
     tools = ["mcp_server.py", "bench.py", "prepublish.py", "aiplayer.py", "telemetry/report.py", "feedback/to_backlog.py", "bridge/mock_server.py", "bridge/client.py"]
+    commands = [(tool, ["--self-test"]) for tool in tools]
+    commands.append(("tests/test_dialogue.py", []))
     ok = True
-    for tool in tools:
-        rc, out = run([sys.executable, os.path.join(HERE, tool), "--self-test"], timeout=900)
+    for tool, args in commands:
+        rc, out = run([sys.executable, os.path.join(HERE, tool), *args], timeout=900)
         print(("ok   " if rc == 0 else "FAIL ") + tool + ("" if rc == 0 else ": " + tail(out, 8)))
         ok = ok and rc == 0
     print("tools selftest: " + ("ok" if ok else "FAILED"))
@@ -1822,6 +1825,10 @@ def main(argv):
         print(__doc__)
         return 0 if argv else 2
     tool, rest = argv[0], argv[1:]
+    if tool == "dialogue":
+        import dialogue
+
+        return dialogue.main(rest)
     if tool == "replay-compare":
         import replay_compare
 

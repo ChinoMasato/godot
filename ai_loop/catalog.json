@@ -2,13 +2,13 @@
  "version": 1,
  "generated_by": "ai_loop/make_catalog.py",
  "counts": {
-  "cli": 14,
+  "cli": 15,
   "command": 69,
-  "mcp": 70,
+  "mcp": 71,
   "preset": 6,
-  "script": 24,
+  "script": 25,
   "class": 14,
-  "total": 197
+  "total": 200
  },
  "entries": [
   {
@@ -49,6 +49,19 @@
    "required_capabilities": [],
    "fallback": null,
    "usage": "uzu.py catalog <word> [<word> ...] [--limit N] [--caps a,b] [--profile caps.json]"
+  },
+  {
+   "name": "dialogue",
+   "kind": "cli",
+   "description": "validate or build dialogue/quest data (B-406)",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "usage": "uzu.py dialogue --spec PATH [--out PATH] [--max-chars N]"
   },
   {
    "name": "engine",
@@ -1353,6 +1366,23 @@
    }
   },
   {
+   "name": "dialogue_validate",
+   "kind": "mcp",
+   "description": "Validate a dialogue and quest-flag graph. Report unreachable nodes, missing branches, flag errors and text lengths. Optionally write the verified graph.",
+   "tags": [
+    "dialogue",
+    "mcp",
+    "validate"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "maps_to": {
+    "tool": "dialogue",
+    "command": ""
+   }
+  },
+  {
    "name": "export_preset",
    "kind": "mcp",
    "description": "Create or update an export preset (export_presets.cfg).",
@@ -2632,6 +2662,18 @@
     "script"
    ],
    "source": "ai_loop/catalog.py",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "dialogue",
+   "kind": "script",
+   "description": "Validate and build declarative dialogue and quest-flag data (B-406).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/dialogue.py",
    "required_capabilities": [],
    "fallback": null
   },
