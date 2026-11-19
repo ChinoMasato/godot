@@ -88,6 +88,8 @@ TOOLS = {
     "sfx_make": ("engine", "sfx", "Synthesize a sound effect (no sound files needed) and save it as a WAV: a preset (hit, jump, pickup, coin, explosion, laser, powerup, blip, land), varied by seed, with parameters changed by set. Returns its length, peak, loudness and pitch at the start and end, so you can judge it without listening.", {"out": _str("Output WAV, res://..."), "preset": _str("hit | jump | pickup | coin | explosion | laser | powerup | blip | land"), "seed": _str("Variation of the preset (0 = as is)"), "set": _str('JSON object of parameters to change, e.g. {"decay": 0.3, "frequency": 600}')}, ["out"]),
     "sfx_presets": ("engine", "sfx-presets", "List the sound effect presets with their parameters, and every parameter with its default.", {}, []),
     "sfx_sprite": ("engine", "sfx-sprite", "Pack several preset sound effects into ONE audio sprite WAV plus a JSON manifest of segments (name -> start/length in samples and seconds), so a game ships and loads one audio file instead of many. Play one segment in code with UZUSfx.play_sprite(parent, sprite, manifest, name). Returns the manifest, the totals and a description of the packed sound.", {"out": _str("Output WAV, res://..."), "names": _str("Comma-separated presets, e.g. hit,jump,pickup,coin (default)"), "gap-ms": _str("Silence between sounds in milliseconds (default 50)"), "seed": _str("Variation of the presets (0 = as is)"), "manifest-out": _str("Manifest JSON path (default: the WAV path with .json)")}, ["out"]),
+    "vfx_describe": ("engine", "vfx", "Validate and normalize a visual-effect recipe (BACKLOG B-1109): parts (sparks, smoke, debris, ring, beam, light, shake, hitstop, kick, sfx) with every parameter filled in, out-of-range values clamped (listed as warnings), unknown parts rejected, and the total duration. Give a built-in name (explosion, laser) or a full recipe JSON. Fire a recipe in code with UZUVfx.fire / fire_named.", {"name": _str("Built-in recipe: explosion | laser"), "recipe": _str('Recipe JSON object, e.g. {"name": "pop", "parts": [{"type": "ring", "radius": 4}, {"type": "sfx", "preset": "hit"}]}')}, []),
+    "vfx_recipes": ("engine", "vfx-recipes", "List the built-in visual-effect recipes (explosion, laser), each validated and normalized: their parts, parameters and total durations.", {}, []),
     "project_validate": ("engine", "validate", "Load every scene, resource and script of the project; list problems (missing files, broken scripts with errors, missing main scene or autoloads).", {}, []),
     "screenshot": ("look", "shot", "Render the main scene without a GPU and save a PNG.", {"out": _str("Output PNG path"), "frames": _str("Frames before capture (default 8)")}, ["out"]),
     "panorama": ("look", "panorama", "Capture a 360-degree equirectangular panorama around the main camera and save a PNG.", {"out": _str("Output PNG path"), "width": _str("Width in pixels (default 1024)")}, ["out"]),
@@ -208,6 +210,8 @@ def self_test():
             {"jsonrpc": "2.0", "id": 12, "method": "tools/call", "params": {"name": "catalog_search", "arguments": {"query": "sfx"}}},
             {"jsonrpc": "2.0", "id": 13, "method": "tools/call", "params": {"name": "catalog_search", "arguments": {"query": "no-such-feature-zzz"}}},
             {"jsonrpc": "2.0", "id": 14, "method": "tools/call", "params": {"name": "catalog_search", "arguments": {"query": "benchmark", "caps": "image_gen"}}},
+            {"jsonrpc": "2.0", "id": 15, "method": "tools/call", "params": {"name": "vfx_describe", "arguments": {"name": "laser"}}},
+            {"jsonrpc": "2.0", "id": 16, "method": "tools/call", "params": {"name": "vfx_describe", "arguments": {"recipe": "{\"parts\": [{\"type\": \"shockwave\"}]}"}}},
         ]
         proc = subprocess.run([sys.executable, os.path.abspath(__file__), "--project", project], input="\n".join(json.dumps(r) for r in requests) + "\n", capture_output=True, text=True, timeout=600)
         responses = {r["id"]: r for r in map(json.loads, proc.stdout.splitlines())}
@@ -234,7 +238,11 @@ def self_test():
         assert not responses[14]["result"]["isError"] and capped["profile"] == ["image_gen"], capped
         bench = next(m for m in capped["matches"] if m["name"] == "frame_benchmark")
         assert bench["missing_capabilities"] == ["gpu"], bench
-        assert len(responses) == 14, "notifications must not get a response"
+        laser = json.loads(responses[15]["result"]["content"][0]["text"])
+        assert not responses[15]["result"]["isError"] and laser["parts"][0]["type"] == "beam" and laser["duration"] > 0, laser
+        bad = json.loads(responses[16]["result"]["content"][0]["text"])
+        assert responses[16]["result"]["isError"] and "shockwave" in str(bad["errors"]), bad
+        assert len(responses) == 16, "notifications must not get a response"
     print("mcp selftest: ok")
     return 0
 

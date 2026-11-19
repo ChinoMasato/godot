@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="UZUVfx" inherits="Object" api_type="core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		Composite visual effects (explosions, lasers) fired from declarative recipes in one call.
+	</brief_description>
+	<description>
+		[UZUVfx] is U.ZU Engine's recipe-driven visual effects: a composite effect is declared as data — a [Dictionary] of parts with parameters — instead of code, and fired with one call. The parts are sparks, smoke, debris (small meshes on parabolic paths; there is no destruction simulation), a shockwave ring, a beam and a point-light flash, plus the [UZUJuice] parts (shake, hitstop, kick) and a synthesized [UZUSfx] sound, each with its own [code]delay[/code].
+		[codeblock]
+		# The built-in explosion, at a position:
+		UZUVfx.fire_named(self, Vector3(2, 1, 0), "explosion")
+		# A custom recipe, beamed from a muzzle to a target:
+		var recipe := {"name": "shot", "parts": [
+		    {"type": "beam", "color": [1, 0.4, 0.2]},
+		    {"type": "sparks", "at": "target", "count": 12},
+		    {"type": "sfx", "preset": "laser"}]}
+		UZUVfx.fire_between(self, muzzle.global_position, target.global_position, recipe)
+		[/codeblock]
+		Every parameter has a default and a range; [method validate_recipe] is a pure function that fills the defaults, clamps out-of-range values (reported as warnings) and rejects unknown types, keys and values (reported as errors), so an agent can check a recipe and read back its normalized parts and total duration without a scene tree. Fired effects are tracked as pure age/duration values ([method get_active_effects]) and free themselves when their life ends. [code]flash[/code] and [code]squash[/code] are not recipe parts: they need a specific target node, which a positional recipe does not have — call [UZUJuice] for those.
+		[b]Note:[/b] This class is specific to U.ZU Engine (UZUVfx, BACKLOG B-1109).
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="clear_effects" qualifiers="static">
+			<return type="void" />
+			<description>
+				Frees every live effect now, instead of waiting for their durations to end.
+			</description>
+		</method>
+		<method name="describe_recipe" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="name" type="String" />
+			<description>
+				A built-in recipe (see [method get_recipe_names]), validated and normalized — the same shape [method validate_recipe] returns — or a Dictionary with [code]ok = false[/code] and an [code]error[/code] for an unknown name.
+			</description>
+		</method>
+		<method name="fire" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="parent" type="Node" />
+			<param index="1" name="origin" type="Vector3" />
+			<param index="2" name="recipe" type="Dictionary" />
+			<description>
+				Fires [param recipe] under [param parent] at [param origin]. A beam part uses its [code]direction[/code] and [code]length[/code]; parts with [code]at = "target"[/code] sit at the origin. Returns the validation result plus [code]effect[/code] (the spawned root node), [code]part_types[/code] and [code]duration[/code]; an invalid recipe fires nothing and returns [code]ok = false[/code] with the errors.
+			</description>
+		</method>
+		<method name="fire_between" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="parent" type="Node" />
+			<param index="1" name="origin" type="Vector3" />
+			<param index="2" name="target" type="Vector3" />
+			<param index="3" name="recipe" type="Dictionary" />
+			<description>
+				Like [method fire], but a beam part spans from [param origin] to [param target], and parts with [code]at = "target"[/code] spawn at [param target].
+			</description>
+		</method>
+		<method name="fire_named" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="parent" type="Node" />
+			<param index="1" name="origin" type="Vector3" />
+			<param index="2" name="name" type="String" />
+			<description>
+				Fires the built-in recipe [param name] (see [method get_recipe_names]) at [param origin]; an unknown name returns [code]ok = false[/code] with an [code]error[/code].
+			</description>
+		</method>
+		<method name="fire_named_between" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="parent" type="Node" />
+			<param index="1" name="origin" type="Vector3" />
+			<param index="2" name="target" type="Vector3" />
+			<param index="3" name="name" type="String" />
+			<description>
+				The [method fire_between] form of [method fire_named].
+			</description>
+		</method>
+		<method name="get_active_count" qualifiers="static">
+			<return type="int" />
+			<description>
+				How many fired effects are alive right now.
+			</description>
+		</method>
+		<method name="get_active_effects" qualifiers="static">
+			<return type="Array" />
+			<description>
+				The live effects as pure values: one Dictionary per effect with [code]name[/code], [code]age[/code], [code]duration[/code], [code]remaining[/code] and [code]parts[/code] (the part types, in recipe order).
+			</description>
+		</method>
+		<method name="get_recipe" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="name" type="String" />
+			<description>
+				The built-in recipe [param name] as declared (defaults not filled in), or an empty Dictionary for an unknown name.
+			</description>
+		</method>
+		<method name="get_recipe_names" qualifiers="static">
+			<return type="PackedStringArray" />
+			<description>
+				The built-in sample recipes: [code]"explosion"[/code] and [code]"laser"[/code].
+			</description>
+		</method>
+		<method name="validate_recipe" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="recipe" type="Dictionary" />
+			<description>
+				Checks [param recipe] and normalizes it, without touching the scene tree: the result has [code]ok[/code], [code]name[/code], [code]errors[/code], [code]warnings[/code] (values clamped into their ranges), [code]parts[/code] (the normalized parts, every parameter filled with its default) and [code]duration[/code] (the effect's total life in seconds, including delays and a short particle tail). Part types: [code]sparks[/code], [code]smoke[/code], [code]debris[/code], [code]ring[/code], [code]beam[/code], [code]light[/code], [code]shake[/code], [code]hitstop[/code], [code]kick[/code], [code]sfx[/code].
+			</description>
+		</method>
+	</methods>
+</class>
