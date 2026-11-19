@@ -6,6 +6,7 @@
 	<description>
 		[UZUSfx] makes short game sounds (hits, jumps, pickups, explosions) in the style of the sfxr family of tools. A sound is a waveform whose pitch slides and jumps, shaped by an envelope and an optional low-pass filter. The result is a 16-bit mono [AudioStreamWAV].
 		A table of presets gives starting points, and a seed varies them a little. [method play] plays a sound once, with a small random change of pitch and volume, so repeated sounds do not feel mechanical. [method describe] reports what a sound is like (length, peak, loudness, pitch at the start and the end), for an agent that cannot listen.
+		Several presets can also be packed into one audio sprite — a single [AudioStreamWAV] with a manifest of segments — with [method generate_sprite] or [method build_sprite], and one segment of it played with [method play_sprite].
 		[codeblock]
 		var coin = UZUSfx.generate_preset("coin", 3)
 		UZUSfx.play(self, coin)
@@ -69,6 +70,32 @@
 				Returns the names of the presets: [code]hit[/code], [code]jump[/code], [code]pickup[/code], [code]coin[/code], [code]explosion[/code], [code]laser[/code], [code]powerup[/code], [code]blip[/code] and [code]land[/code].
 			</description>
 		</method>
+		<method name="build_sprite" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="names" type="PackedStringArray" />
+			<param index="1" name="gap_ms" type="int" default="50" />
+			<param index="2" name="seed" type="int" default="0" />
+			<description>
+				Builds an audio sprite in one call: returns a [Dictionary] with [code]stream[/code] (the packed [AudioStreamWAV]), [code]manifest[/code] (see [method sprite_manifest]), [code]sample_rate[/code], [code]gap_ms[/code], [code]gap_samples[/code], [code]total_samples[/code] and [code]total_sec[/code]. Returns an empty [Dictionary] with an error for an unknown preset or an empty name list.
+			</description>
+		</method>
+		<method name="generate_sprite" qualifiers="static">
+			<return type="AudioStreamWAV" />
+			<param index="0" name="names" type="PackedStringArray" />
+			<param index="1" name="gap_ms" type="int" default="50" />
+			<param index="2" name="seed" type="int" default="0" />
+			<description>
+				Packs the named presets into one 16-bit mono [AudioStreamWAV], in order, with [param gap_ms] milliseconds of silence between neighbours (not before the first or after the last). Deterministic: the same names, gap and seed give the same samples. Use [method sprite_manifest] for the segment of each name, and [method play_sprite] to play one segment.
+			</description>
+		</method>
+		<method name="get_sprite_segment" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="manifest" type="Dictionary" />
+			<param index="1" name="name" type="String" />
+			<description>
+				Returns the segment of [param name] in a sprite [param manifest]: [code]start_sample[/code], [code]length_samples[/code], [code]end_sample[/code], [code]start_sec[/code], [code]duration_sec[/code] and [code]end_sec[/code]. Returns an empty [Dictionary] when the manifest has no such name.
+			</description>
+		</method>
 		<method name="play" qualifiers="static">
 			<return type="AudioStreamPlayer" />
 			<param index="0" name="parent" type="Node" />
@@ -78,6 +105,34 @@
 			<param index="4" name="volume_db" type="float" default="0.0" />
 			<description>
 				Adds an [AudioStreamPlayer] under [param parent] that plays [param stream] once and frees itself when it has finished. Its pitch scale is 1 ± [param pitch_jitter], and its volume is [param volume_db] ± [param volume_jitter_db], both chosen at random. It starts when [param parent] is in the scene tree.
+			</description>
+		</method>
+		<method name="play_sprite" qualifiers="static">
+			<return type="AudioStreamPlayer" />
+			<param index="0" name="parent" type="Node" />
+			<param index="1" name="sprite" type="AudioStream" />
+			<param index="2" name="manifest" type="Dictionary" />
+			<param index="3" name="name" type="String" />
+			<param index="4" name="volume_db" type="float" default="0.0" />
+			<description>
+				Plays only the segment of [param name] of a sprite built by [method generate_sprite] or [method build_sprite]: adds an [AudioStreamPlayer] under [param parent] that starts at the segment and is stopped and freed at its end by the sprite runtime node. The segment is kept in the player's [code]uzu_sprite_segment[/code] metadata. Returns [code]null[/code] with an error when the manifest has no such segment.
+			</description>
+		</method>
+		<method name="sprite_manifest" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="names" type="PackedStringArray" />
+			<param index="1" name="gap_ms" type="int" default="50" />
+			<param index="2" name="seed" type="int" default="0" />
+			<description>
+				Returns where each named preset sits in the sprite that [method generate_sprite] builds with the same arguments: a [Dictionary] mapping each name to its segment (see [method get_sprite_segment]). This is a pure computation from the preset parameters — it needs no AudioServer and always agrees with the generated stream, because both come from the same segment computation. A repeated name keeps its first segment. Returns an empty [Dictionary] with an error for an unknown preset or an empty name list.
+			</description>
+		</method>
+		<method name="sprite_should_stop" qualifiers="static">
+			<return type="bool" />
+			<param index="0" name="playback_pos_sec" type="float" />
+			<param index="1" name="segment" type="Dictionary" />
+			<description>
+				Returns [code]true[/code] once a player at [param playback_pos_sec] seconds has reached the end of [param segment] and must stop (the pure stop condition that segment playback uses). An empty segment always returns [code]true[/code].
 			</description>
 		</method>
 	</methods>

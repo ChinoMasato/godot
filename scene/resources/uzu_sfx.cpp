@@ -34,9 +34,32 @@
 #include "core/math/random_pcg.h"
 #include "core/object/callable_mp.h"
 #include "core/object/class_db.h"
+#include "core/os/os.h"
 #include "scene/audio/audio_stream_player.h"
 #include "scene/main/node.h"
+#include "scene/main/scene_tree.h"
+#include "scene/main/window.h"
 #include "scene/scene_string_names.h"
+
+// The per-frame driver for sprite segment playback (B-1108): created once by
+// UZUSfx::ensure_sprite_runtime() as a child of the scene tree root. Segment
+// players live under the game's own nodes; this node only watches their
+// playback positions and stops each one at its segment end.
+class UZUSfxSpriteRuntime : public Node {
+	GDCLASS(UZUSfxSpriteRuntime, Node);
+
+public:
+	UZUSfxSpriteRuntime() {
+		set_process_mode(Node::PROCESS_MODE_ALWAYS);
+		set_process(true);
+		set_name("UZUSfxSpriteRuntime");
+	}
+	void _notification(int p_what) {
+		if (p_what == NOTIFICATION_PROCESS) {
+			UZUSfx::apply_sprite_playbacks();
+		}
+	}
+};
 
 namespace {
 
@@ -311,6 +334,238 @@ AudioStreamPlayer *UZUSfx::play(Node *p_parent, const Ref<AudioStream> &p_stream
 	return player;
 }
 
+namespace {
+
+// The one segment computation behind both the manifest and the packed
+// stream (B-1108), so the two cannot drift: a preset's sample count is
+// exactly the count generate() produces, int((attack + sustain + decay)
+// * sample_rate), and neighbours are separated by gap_samples of silence.
+bool sprite_layout(const PackedStringArray &p_names, int p_gap_ms, int p_seed, Vector<UZUSfxSpriteSegment> &r_segments, int &r_sample_rate, int &r_gap_samples, String &r_error) {
+	r_segments.clear();
+	if (p_names.is_empty()) {
+		r_error = "a sprite needs at least one preset name.";
+		return false;
+	}
+	const int gap_ms = CLAMP(p_gap_ms, 0, 5000);
+	r_sample_rate = 0;
+	r_gap_samples = 0;
+	int cursor = 0;
+	for (const String &name : p_names) {
+		const Dictionary params = UZUSfx::get_preset(name, p_seed);
+		if (params.is_empty()) {
+			r_error = vformat("unknown preset \"%s\" (see get_preset_names).", name);
+			return false;
+		}
+		const int rate = CLAMP(int(params["sample_rate"]), 8000, 96000);
+		if (r_sample_rate == 0) {
+			r_sample_rate = rate;
+			r_gap_samples = gap_ms * rate / 1000;
+		} else if (rate != r_sample_rate) {
+			r_error = "all sounds in a sprite must share one sample rate.";
+			return false;
+		}
+		const double total = MAX(0.0, double(params["attack"])) + MAX(0.0, double(params["sustain"])) + MAX(0.0, double(params["decay"]));
+		if (total <= 0.0 || total > 10.0) {
+			r_error = vformat("preset \"%s\" has an invalid length.", name);
+			return false;
+		}
+		UZUSfxSpriteSegment segment;
+		segment.start_sample = cursor;
+		segment.length_samples = int(total * double(rate)); // The same count generate() writes.
+		segment.sample_rate = rate;
+		r_segments.push_back(segment);
+		cursor += segment.length_samples + r_gap_samples;
+	}
+	return true;
+}
+
+struct SpritePlayback {
+	ObjectID id;
+	double start_sec = 0.0;
+	double end_sec = 0.0;
+	bool started = false;
+};
+
+Vector<SpritePlayback> &sprite_playbacks() {
+	static Vector<SpritePlayback> playbacks;
+	return playbacks;
+}
+
+} // namespace
+
+Dictionary UZUSfx::sprite_manifest(const PackedStringArray &p_names, int p_gap_ms, int p_seed) {
+	Vector<UZUSfxSpriteSegment> segments;
+	int rate = 0;
+	int gap_samples = 0;
+	String error;
+	if (!sprite_layout(p_names, p_gap_ms, p_seed, segments, rate, gap_samples, error)) {
+		ERR_FAIL_V_MSG(Dictionary(), "UZUSfx: " + error);
+	}
+	Dictionary manifest;
+	for (int i = 0; i < p_names.size(); i++) {
+		if (!manifest.has(p_names[i])) { // A repeated name keeps its first segment.
+			manifest[p_names[i]] = segments[i].to_dictionary();
+		}
+	}
+	return manifest;
+}
+
+Ref<AudioStreamWAV> UZUSfx::generate_sprite(const PackedStringArray &p_names, int p_gap_ms, int p_seed) {
+	if (AudioServer::get_singleton() == nullptr) {
+		return fail("no AudioServer is available in this environment.");
+	}
+	Vector<UZUSfxSpriteSegment> segments;
+	int rate = 0;
+	int gap_samples = 0;
+	String error;
+	if (!sprite_layout(p_names, p_gap_ms, p_seed, segments, rate, gap_samples, error)) {
+		return fail(error);
+	}
+	// Generate each sound and check it against the layout: if a generated
+	// length ever disagreed with the manifest, the sprite would be wrong.
+	Vector<Ref<AudioStreamWAV>> sounds;
+	int total_samples = 0;
+	for (int i = 0; i < p_names.size(); i++) {
+		const Ref<AudioStreamWAV> sound = generate_preset(p_names[i], p_seed);
+		if (sound.is_null()) {
+			return Ref<AudioStreamWAV>();
+		}
+		if (sound->get_format() != AudioStreamWAV::FORMAT_16_BITS || sound->is_stereo() || sound->get_mix_rate() != rate || sound->get_data().size() / 2 != segments[i].length_samples) {
+			return fail(vformat("preset \"%s\" does not match the sprite layout.", p_names[i]));
+		}
+		sounds.push_back(sound);
+		total_samples = segments[i].end_sample();
+	}
+	Vector<uint8_t> data;
+	data.resize(total_samples * 2);
+	uint8_t *w = data.ptrw();
+	memset(w, 0, total_samples * 2); // The gaps are silence (resize does not zero POD data).
+	for (int i = 0; i < sounds.size(); i++) {
+		const Vector<uint8_t> src = sounds[i]->get_data();
+		memcpy(w + segments[i].start_sample * 2, src.ptr(), src.size());
+	}
+	Ref<AudioStreamWAV> stream;
+	stream.instantiate();
+	stream->set_format(AudioStreamWAV::FORMAT_16_BITS);
+	stream->set_mix_rate(rate);
+	stream->set_stereo(false);
+	stream->set_data(data);
+	return stream;
+}
+
+Dictionary UZUSfx::build_sprite(const PackedStringArray &p_names, int p_gap_ms, int p_seed) {
+	const Ref<AudioStreamWAV> stream = generate_sprite(p_names, p_gap_ms, p_seed);
+	ERR_FAIL_COND_V_MSG(stream.is_null(), Dictionary(), "UZUSfx: could not build the sprite.");
+	const Dictionary manifest = sprite_manifest(p_names, p_gap_ms, p_seed);
+	const int rate = stream->get_mix_rate();
+	const int gap_ms = CLAMP(p_gap_ms, 0, 5000);
+	Dictionary result;
+	result["stream"] = stream;
+	result["manifest"] = manifest;
+	result["sample_rate"] = rate;
+	result["gap_ms"] = gap_ms;
+	result["gap_samples"] = gap_ms * rate / 1000;
+	result["total_samples"] = stream->get_data().size() / 2;
+	result["total_sec"] = double(stream->get_data().size() / 2) / double(rate);
+	return result;
+}
+
+Dictionary UZUSfx::get_sprite_segment(const Dictionary &p_manifest, const String &p_name) {
+	if (!p_manifest.has(p_name)) {
+		return Dictionary();
+	}
+	const Variant value = p_manifest[p_name];
+	return value.get_type() == Variant::DICTIONARY ? Dictionary(value) : Dictionary();
+}
+
+bool UZUSfx::sprite_should_stop(double p_playback_pos_sec, const Dictionary &p_segment) {
+	if (p_segment.is_empty()) {
+		return true; // No segment: nothing should keep playing.
+	}
+	UZUSfxSpriteSegment segment;
+	segment.start_sample = int(p_segment.get("start_sample", 0));
+	segment.length_samples = int(p_segment.get("length_samples", 0));
+	if (p_segment.has("end_sec")) {
+		// Work in seconds directly when the manifest carries them (exact).
+		return p_playback_pos_sec >= double(p_segment["end_sec"]) - 0.002;
+	}
+	if (p_segment.has("start_sec") && p_segment.has("duration_sec")) {
+		return p_playback_pos_sec >= double(p_segment["start_sec"]) + double(p_segment["duration_sec"]) - 0.002;
+	}
+	return segment.should_stop(p_playback_pos_sec);
+}
+
+AudioStreamPlayer *UZUSfx::play_sprite(Node *p_parent, const Ref<AudioStream> &p_sprite, const Dictionary &p_manifest, const String &p_name, float p_volume_db) {
+	ERR_FAIL_NULL_V(p_parent, nullptr);
+	ERR_FAIL_COND_V(p_sprite.is_null(), nullptr);
+	const Dictionary segment = get_sprite_segment(p_manifest, p_name);
+	ERR_FAIL_COND_V_MSG(segment.is_empty(), nullptr, vformat("UZUSfx: the sprite manifest has no segment \"%s\".", p_name));
+	const double start_sec = double(segment.get("start_sec", 0.0));
+	const double end_sec = segment.has("end_sec") ? double(segment["end_sec"]) : start_sec + double(segment.get("duration_sec", 0.0));
+	AudioStreamPlayer *player = memnew(AudioStreamPlayer);
+	player->set_name("UZUSfxSprite");
+	player->set_stream(p_sprite);
+	player->set_volume_db(p_volume_db);
+	player->set_meta("uzu_sprite_name", p_name);
+	player->set_meta("uzu_sprite_segment", segment);
+	player->connect(SceneStringName(finished), callable_mp(static_cast<Node *>(player), &Node::queue_free));
+	p_parent->add_child(player, true);
+	SpritePlayback playback;
+	playback.id = player->get_instance_id();
+	playback.start_sec = start_sec;
+	playback.end_sec = end_sec;
+	// Playback can only start inside the scene tree; when the parent is not
+	// in the tree yet, the runtime starts the player once it enters.
+	playback.started = player->is_inside_tree();
+	if (playback.started) {
+		player->play(float(start_sec));
+	}
+	sprite_playbacks().push_back(playback);
+	ensure_sprite_runtime();
+	return player;
+}
+
+void UZUSfx::apply_sprite_playbacks() {
+	Vector<SpritePlayback> &playbacks = sprite_playbacks();
+	for (int i = playbacks.size() - 1; i >= 0; i--) {
+		const SpritePlayback entry = playbacks[i]; // A copy: Vector::operator[] is read-only in this Godot.
+		Object *obj = ObjectDB::get_instance(entry.id);
+		AudioStreamPlayer *player = Object::cast_to<AudioStreamPlayer>(obj);
+		if (player == nullptr) {
+			playbacks.remove_at(i);
+			continue;
+		}
+		if (!entry.started) {
+			if (player->is_inside_tree()) {
+				player->play(float(entry.start_sec));
+				playbacks.ptrw()[i].started = true;
+			}
+			continue;
+		}
+		if (player->is_playing() && double(player->get_playback_position()) >= entry.end_sec - 0.002) {
+			player->stop();
+			player->queue_free();
+			playbacks.remove_at(i);
+		}
+	}
+}
+
+void UZUSfx::ensure_sprite_runtime() {
+	SceneTree *tree = Object::cast_to<SceneTree>(OS::get_singleton()->get_main_loop());
+	if (!tree) {
+		return;
+	}
+	Window *root = tree->get_root();
+	if (!root) {
+		return;
+	}
+	if (root->get_node_or_null(NodePath("UZUSfxSpriteRuntime"))) {
+		return;
+	}
+	UZUSfxSpriteRuntime *runtime = memnew(UZUSfxSpriteRuntime);
+	root->add_child(runtime);
+}
+
 void UZUSfx::_bind_methods() {
 	ClassDB::bind_static_method("UZUSfx", D_METHOD("get_defaults"), &UZUSfx::get_defaults);
 	ClassDB::bind_static_method("UZUSfx", D_METHOD("get_preset_names"), &UZUSfx::get_preset_names);
@@ -319,4 +574,10 @@ void UZUSfx::_bind_methods() {
 	ClassDB::bind_static_method("UZUSfx", D_METHOD("generate_preset", "name", "seed"), &UZUSfx::generate_preset, DEFVAL(0));
 	ClassDB::bind_static_method("UZUSfx", D_METHOD("describe", "stream"), &UZUSfx::describe);
 	ClassDB::bind_static_method("UZUSfx", D_METHOD("play", "parent", "stream", "pitch_jitter", "volume_jitter_db", "volume_db"), &UZUSfx::play, DEFVAL(0.05), DEFVAL(1.0), DEFVAL(0.0));
+	ClassDB::bind_static_method("UZUSfx", D_METHOD("sprite_manifest", "names", "gap_ms", "seed"), &UZUSfx::sprite_manifest, DEFVAL(50), DEFVAL(0));
+	ClassDB::bind_static_method("UZUSfx", D_METHOD("generate_sprite", "names", "gap_ms", "seed"), &UZUSfx::generate_sprite, DEFVAL(50), DEFVAL(0));
+	ClassDB::bind_static_method("UZUSfx", D_METHOD("build_sprite", "names", "gap_ms", "seed"), &UZUSfx::build_sprite, DEFVAL(50), DEFVAL(0));
+	ClassDB::bind_static_method("UZUSfx", D_METHOD("get_sprite_segment", "manifest", "name"), &UZUSfx::get_sprite_segment);
+	ClassDB::bind_static_method("UZUSfx", D_METHOD("sprite_should_stop", "playback_pos_sec", "segment"), &UZUSfx::sprite_should_stop);
+	ClassDB::bind_static_method("UZUSfx", D_METHOD("play_sprite", "parent", "sprite", "manifest", "name", "volume_db"), &UZUSfx::play_sprite, DEFVAL(0.0));
 }

@@ -49,6 +49,10 @@ extends SceneTree
 ##                (B-1105): a preset, varied by --seed, with parameters changed by --set (or all of them
 ##                without --preset); reports its length, peak, loudness and pitch so an agent can judge it
 ##   sfx-presets                                                  the presets and the parameters with their defaults
+##   sfx-sprite   --out res://sfx/sprite.wav [--names hit,jump,pickup,coin] [--gap-ms 50] [--seed 0]
+##                [--manifest-out res://sfx/sprite.json]   an audio sprite (B-1108): several presets packed
+##                into ONE wav, with a JSON manifest of the segments (name -> start/length in samples and
+##                seconds); play one segment in code with UZUSfx.play_sprite
 ##   map                                                          static index of the project (B-204): files by kind, dependencies
 ##                                                                both ways, scenes (root, nodes, scripts, instances, signal
 ##                                                                connections), autoloads, global classes, main scene
@@ -193,6 +197,38 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 			return {"ok": true, "command": command, "out": out, "preset": preset, "params": params, "sound": UZUSfx.describe(stream)}
 		"pbr-preset":
 			return _pbr_preset(_option(args, "name"), _option(args, "out", "res://materials/pbr"), _option(args, "size", "256").to_int(), _option(args, "seed", "1").to_int())
+		"sfx-sprite":
+			var out := _option(args, "out")
+			if out.is_empty() or not out.ends_with(".wav"):
+				return _error("sfx-sprite needs --out res://path.wav")
+			var names := PackedStringArray()
+			for part in _option(args, "names", "hit,jump,pickup,coin").split(","):
+				var trimmed := part.strip_edges()
+				if not trimmed.is_empty():
+					names.append(trimmed)
+			if names.is_empty():
+				return _error("sfx-sprite needs --names hit,jump,...")
+			for n in names:
+				if not UZUSfx.get_preset_names().has(n):
+					return _error("unknown preset '%s' (see sfx-presets)" % n)
+			var gap_ms := _option(args, "gap-ms", "50").to_int()
+			var seed := _option(args, "seed", "0").to_int()
+			var built := UZUSfx.build_sprite(names, gap_ms, seed)
+			if built.is_empty():
+				return _error("could not build the sprite (see the preset names)")
+			var stream := built["stream"] as AudioStreamWAV
+			DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out.get_base_dir()))
+			var err := stream.save_to_wav(out)
+			if err != OK:
+				return _error("could not save %s (%s)" % [out, error_string(err)])
+			var manifest_path := _option(args, "manifest-out", out.trim_suffix(".wav") + ".json")
+			DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(manifest_path.get_base_dir()))
+			var manifest_file := FileAccess.open(manifest_path, FileAccess.WRITE)
+			if manifest_file == null:
+				return _error("could not save the manifest %s" % manifest_path)
+			manifest_file.store_string(JSON.stringify({"names": Array(names), "gap_ms": gap_ms, "seed": seed, "sample_rate": built["sample_rate"], "gap_samples": built["gap_samples"], "total_samples": built["total_samples"], "total_sec": built["total_sec"], "segments": built["manifest"]}, "\t"))
+			manifest_file.close()
+			return {"ok": true, "command": command, "out": out, "manifest_out": manifest_path, "names": Array(names), "gap_ms": gap_ms, "seed": seed, "sample_rate": built["sample_rate"], "gap_samples": built["gap_samples"], "total_samples": built["total_samples"], "total_sec": built["total_sec"], "segments": built["manifest"], "sound": UZUSfx.describe(stream)}
 		"sfx-presets":
 			var presets := {}
 			for name in UZUSfx.get_preset_names():
