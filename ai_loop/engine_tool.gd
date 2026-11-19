@@ -17,6 +17,12 @@ extends SceneTree
 ##              objects, texture memory, props (MultiMesh instances and small meshes) per square meter
 ##              of the whole scene and of the area the props cover (props_per_m2_local),
 ##              lights; the heaviest nodes. ai_loop/uzu.py look rich adds a rendered frame and a budget
+##   pbr-preset --name wood|stone|brick|dirt|grass|plaster|tile --out res://materials/pbr [--size 256] [--seed 1]
+##              a procedural, seamless base texture for bare models (B-1209), turned into albedo/normal/ORM
+##              PNGs with UZUPBRFromImage (import the project before pbr-assign)
+##   pbr-assign --scene res://x.tscn --assign 'House*:plaster,Roof*:tile,Ground:grass' [--dir res://materials/pbr]
+##              [--scale 0.5] [--no-tint]   gives matching nodes a triplanar PBR material of the preset, tinted by
+##              their current color; saves
 ##   lod        [--node N] [--min-triangles 300] [--merge-angle 25] [--split-angle 60] [--imports]
 ##              distance LOD levels for the scene's meshes (B-1205): each mesh of a MeshInstance3D or a
 ##              MultiMesh with at least that many triangles gets simplified levels (meshoptimizer), which
@@ -185,6 +191,8 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 			if err != OK:
 				return _error("could not save %s (%s)" % [out, error_string(err)])
 			return {"ok": true, "command": command, "out": out, "preset": preset, "params": params, "sound": UZUSfx.describe(stream)}
+		"pbr-preset":
+			return _pbr_preset(_option(args, "name"), _option(args, "out", "res://materials/pbr"), _option(args, "size", "256").to_int(), _option(args, "seed", "1").to_int())
 		"sfx-presets":
 			var presets := {}
 			for name in UZUSfx.get_preset_names():
@@ -426,6 +434,24 @@ func _rich(root: Node, top_n: int) -> Dictionary:
 		for mat in _materials_of(n):
 			for tex in _textures_of(mat):
 				textures[tex] = true
+	# Materials without any texture look cheap (B-1209): their share among the scene's materials.
+	var untextured := 0
+	var material_count := 0
+	var seen_mats := {}
+	for n in [root] + root.find_children("*", "GeometryInstance3D", true, false):
+		if not n is GeometryInstance3D or not _visible(root, n) or n is GPUParticles3D or n is CPUParticles3D:
+			continue
+		var mats := _materials_of(n).filter(func(m): return m is Material)
+		if mats.is_empty() and (n is MeshInstance3D or n is MultiMeshInstance3D):
+			untextured += 1  # The default grey material.
+			material_count += 1
+		for m in mats:
+			if seen_mats.has(m):
+				continue
+			seen_mats[m] = true
+			material_count += 1
+			if _textures_of(m).is_empty():
+				untextured += 1
 	var texture_bytes := 0
 	for tex in textures:
 		texture_bytes += _texture_bytes(tex)
@@ -438,9 +464,154 @@ func _rich(root: Node, top_n: int) -> Dictionary:
 			"texture_mb": snappedf(texture_bytes / 1048576.0, 0.01), "props": props, "area_m2": snappedf(area, 0.01),
 			"props_per_m2": snappedf(props / area, 0.001) if area > 0 else 0.0,
 			"prop_area_m2": snappedf(prop_area, 0.01), "props_per_m2_local": snappedf(props / prop_area, 0.001) if prop_area > 0 else 0.0,
-			"lights": lights, "shadow_lights": shadow_lights},
+			"lights": lights, "shadow_lights": shadow_lights,
+			"materials": material_count, "untextured_share": snappedf(float(untextured) / material_count, 0.01) if material_count > 0 else 0.0},
 		"by_type": by_type, "top": nodes.slice(0, maxi(top_n, 0)),
 		"note": "static estimate: draw calls are one per surface before culling and shadows; look rich adds a rendered frame"}
+
+
+const PBR_PRESETS := {
+	# name: [UZUPBRFromImage kind, base tone]. Tones stay light and close to neutral, so a
+	# model's own color can tint them (a red roof stays red, with texture).
+	"wood": ["wood", Color(0.78, 0.66, 0.52)], "stone": ["cobble", Color(0.78, 0.76, 0.72)],
+	"brick": ["brick", Color(0.82, 0.68, 0.6)], "dirt": ["ground", Color(0.74, 0.64, 0.5)],
+	"grass": ["ground", Color(0.7, 0.8, 0.6)], "plaster": ["plaster", Color(0.92, 0.9, 0.86)],
+	"tile": ["brick", Color(0.85, 0.75, 0.7)],
+}
+
+
+func _noise(type: int, freq: float, seed: int, size: int, octaves := 4) -> PackedFloat32Array:
+	var n := FastNoiseLite.new()
+	n.noise_type = type
+	n.frequency = freq
+	n.seed = seed
+	n.fractal_octaves = octaves
+	var img := n.get_seamless_image(size, size)
+	var out := PackedFloat32Array()
+	out.resize(size * size)
+	for y in size:
+		for x in size:
+			out[y * size + x] = img.get_pixel(x, y).r
+	return out
+
+
+## A seamless base texture, drawn from noise and simple patterns (no outside images).
+func _pbr_base(name: String, size: int, seed: int) -> Image:
+	var tone: Color = PBR_PRESETS[name][1]
+	var img := Image.create_empty(size, size, false, Image.FORMAT_RGB8)
+	var soft := _noise(FastNoiseLite.TYPE_PERLIN, 4.0 / size, seed, size)
+	var fine := _noise(FastNoiseLite.TYPE_VALUE, 32.0 / size, seed + 1, size, 2)
+	var cells := _noise(FastNoiseLite.TYPE_CELLULAR, 6.0 / size, seed + 2, size, 1) if name == "stone" else PackedFloat32Array()
+	for y in size:
+		for x in size:
+			var i := y * size + x
+			var v := 0.85 + 0.15 * soft[i]
+			match name:
+				"wood":
+					# Planks across, grain along them, a dark seam between planks.
+					var plank := size / 4
+					var grain := 0.5 + 0.5 * sin((x * 0.15 + soft[i] * 14.0 + floori(y / plank) * 2.3))
+					v = 0.72 + 0.2 * grain + 0.08 * fine[i]
+					if y % plank < 2:
+						v *= 0.55
+				"stone":
+					v = 0.7 + 0.25 * soft[i] + 0.05 * fine[i]
+					if cells[i] > 0.72:  # The mortar between cobbles.
+						v *= 0.55
+				"brick", "tile":
+					var bh := size / (8 if name == "brick" else 6)
+					var bw := size / (4 if name == "brick" else 6)
+					var row := floori(y / bh)
+					var bx := (x + (bw / 2 if row % 2 == 1 else 0)) % bw
+					v = 0.78 + 0.12 * soft[i] + 0.1 * fine[i]
+					if y % bh < 2 or bx < 2:
+						v = 0.5 + 0.1 * fine[i]
+					elif name == "tile":
+						v *= 0.8 + 0.2 * float(y % bh) / bh  # Overlapping shingles, darker at the top.
+				"dirt":
+					v = 0.65 + 0.25 * soft[i] + 0.1 * fine[i]
+					if fine[i] > 0.93:
+						v = 0.95  # Pebbles.
+				"grass":
+					var blade := 0.5 + 0.5 * sin(x * 1.3 + fine[i] * 6.0)
+					v = 0.62 + 0.2 * soft[i] + 0.18 * blade * fine[i]
+				"plaster":
+					v = 0.86 + 0.1 * soft[i] + 0.04 * fine[i]
+			img.set_pixel(x, y, Color(tone.r * v, tone.g * v, tone.b * v))
+	return img
+
+
+func _pbr_preset(name: String, out: String, size: int, seed: int) -> Dictionary:
+	if not PBR_PRESETS.has(name):
+		return _error("pbr-preset needs --name %s" % "|".join(PBR_PRESETS.keys()))
+	var base := _pbr_base(name, clampi(size, 64, 1024), seed)
+	var made: Dictionary = UZUPBRFromImage.make(base, PBR_PRESETS[name][0], 1.0, 0.0, true)
+	if not made.get("ok", false):
+		return _error(str(made.get("error", "UZUPBRFromImage failed")))
+	var dir := out.path_join(name)
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
+	var files := {}
+	for key in ["albedo", "normal", "orm"]:
+		var path := dir.path_join(key + ".png")
+		(made[key] as Image).save_png(path)
+		files[key] = path
+	return {"ok": true, "command": "pbr-preset", "name": name, "kind": PBR_PRESETS[name][0], "files": files, "stats": made.get("stats", {})}
+
+
+## Material color of a node now (to tint the preset), or white.
+func _current_color(n: Node) -> Color:
+	for mat in _materials_of(n):
+		if mat is BaseMaterial3D:
+			return mat.albedo_color
+	return Color.WHITE
+
+
+func _pbr_assign(root: Node, args: PackedStringArray) -> Dictionary:
+	var dir := _option(args, "dir", "res://materials/pbr")
+	var scale := _option(args, "scale", "0.5").to_float()
+	var tint := not args.has("--no-tint")
+	var rules := []
+	for part in _option(args, "assign").split(",", false):
+		var kv := part.split(":")
+		if kv.size() != 2 or not PBR_PRESETS.has(kv[1].strip_edges()):
+			return _error("--assign needs 'NodePattern:preset,...' with presets %s" % ", ".join(PBR_PRESETS.keys()))
+		rules.append([kv[0].strip_edges(), kv[1].strip_edges()])
+	if rules.is_empty():
+		return _error("pbr-assign needs --assign 'House*:plaster,Ground:grass'")
+	var assigned := []
+	var cache := {}
+	for n in root.find_children("*", "GeometryInstance3D", true, false):
+		if not (n is MeshInstance3D or n is MultiMeshInstance3D):
+			continue
+		for rule in rules:
+			if not String(n.name).match(rule[0]):
+				continue
+			var preset: String = rule[1]
+			if not cache.has(preset):
+				var tex := {}
+				for key in ["albedo", "normal", "orm"]:
+					var path := dir.path_join(preset).path_join(key + ".png")
+					var t = load(path) if ResourceLoader.exists(path) else null
+					if not t is Texture2D:
+						return _error("no imported %s; run pbr-preset --name %s and import first (uzu.py look pbr does both)" % [path, preset])
+					tex[key] = t
+				cache[preset] = tex
+			var mat := ORMMaterial3D.new()
+			mat.albedo_texture = cache[preset].albedo
+			mat.normal_enabled = true
+			mat.normal_texture = cache[preset].normal
+			mat.orm_texture = cache[preset].orm
+			# Triplanar in world space: boxes and planes of any size get the same texel scale.
+			mat.uv1_triplanar = true
+			mat.uv1_world_triplanar = true
+			mat.uv1_scale = Vector3(scale, scale, scale)
+			if tint:
+				var c := _current_color(n)
+				mat.albedo_color = Color(minf(c.r * 1.25, 1.0), minf(c.g * 1.25, 1.0), minf(c.b * 1.25, 1.0))
+			n.material_override = mat
+			assigned.append({"node": str(root.get_path_to(n)), "preset": preset})
+			break
+	return {"ok": not assigned.is_empty(), "save": not assigned.is_empty(), "assigned": assigned, "error": "" if not assigned.is_empty() else "no node matched --assign"}
 
 
 ## Triangles per LOD level of a mesh's surfaces (level 0 is the full mesh).
@@ -594,6 +765,8 @@ func _scene_command(command: String, args: PackedStringArray, root: Node) -> Dic
 			return _rich(root, _option(args, "top", "10").to_int())
 		"lod":
 			return _lod(root, args)
+		"pbr-assign":
+			return _pbr_assign(root, args)
 		"scatter":
 			var surface := root.get_node_or_null(_option(args, "surface")) as MeshInstance3D
 			if surface == null or surface.mesh == null:
