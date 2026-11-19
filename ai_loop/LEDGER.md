@@ -222,3 +222,5 @@
 - 2026-11-20: B-1109 VFX レシピを ai-native へ統合（agent/b-1109-lead）。新規クラス UZUVfx がレシピ（Dictionary／JSON）から複合エフェクトを生成・追跡する。見本 explosion／laser を同梱し、全テスト 1572 pass。**Phase 11（UZUJuice）はこれで全項目完了**。
 
 - 2026-11-20: B-1306 と B-1004 を ai-native へ統合（agent/b-1306-lead）。『灯りの欠片』の UI を wafu 世界観テーマで作り直し（宣言的タイトル、ゲージ HUD、会話枠）、仮想スティックとインタラクトボタンのタッチ操作を追加。完走検証は同一ハッシュで pass、UI レポートで text_overflow 3件→0件。
+
+- 2026-11-20: B-1508 を ai-native へ統合（agent/b-1508-lead）。『灯りの欠片』の村を UZUWorldGen 生成（Land＋Pond＋City の合成、ground オプション新設、ベンチ当たり追加）に置き換え、完走検証と歩行検証（5/5）が通ることを確認。map_tool の NavigationMesh 保存は実測で問題なしと切り分け。

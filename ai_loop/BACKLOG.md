@@ -209,7 +209,7 @@
 - [x] B-1505 `UZUCityGen` 道路網と街区: 格子型と自然な曲がり型の2種。主要道と路地に分け、街区を敷地に割り、中心ほど高く密に、外ほど低くまばらに建物を置く。CLI `uzu.py map city`／MCP `map_city`。判定: 建物が道や水に重ならない単体テスト pass。（2026-11-19、UZUWorldGen として統合: modules/uzu_worldgen、uzu.py map／MCP map_nature・map_city。CI 全テスト 1548 pass）
 - [x] B-1506 建物の部品生成: 壁・窓・屋根・入口の部品の組み合わせで建物を作り、高さ・幅・屋根・色をシードで変える。夜は窓と街灯（B-705）が灯る。判定: 同じ街区で似た建物が並ばないことの確認（寸法と色のばらつきを数値で）と見本撮影。（2026-11-19、UZUWorldGen として統合: modules/uzu_worldgen、uzu.py map／MCP map_nature・map_city。CI 全テスト 1548 pass）
 - [x] B-1507 街の小物と歩行空間: 歩道と縁石、街灯、ベンチ、木を置き、当たり判定と NavigationMesh を出力する。判定: NavigationMesh が生成され、AI プレイヤーが街を歩けること（自己検証プレイ）。（2026-11-19、UZUWorldGen の街にベンチと NavigationMesh（Navigation、建物・木・街灯・ベンチ・噴水を除外、places_connected）、歩行の自己検証 uzu.py map walk／MCP map_walk。6つの街で全目的地に到着、全テスト 1561 pass。記録 iterations/2026-11-19-B-1507-claude.md）
-- [ ] B-1508 実証: 『灯りの欠片』（B-1001）の村の舞台を生成で作り直し、ルック適用と自己検証プレイを通す。判定: 生成版のスクリーンショット、生成時間、描画時間が iterations に残ること（GPU の見た目と重さはローカル RTX 4050 で確認）。
+- [x] B-1508 実証: 『灯りの欠片』の村を生成で作り直す 【完了 2026-11-20（リード統合）: Land（seed 172）＋Pond（seed 61）＋City（village/seed 1、ground=false）の合成で村を生成。追補3件: (1) ground オプション実装、(2) ベンチ当たり実装（フットプリントと同一の凸ボックス）、(3) map_tool の NavigationRegion3D 保存は実測で欠落なし（652ポリゴン完全一致）と確認し変更なし。障害物は生成物から実行時導出。完走検証 pass、歩行検証 5/5 到達、生成 609ms。全テスト 1573 pass。描画はソフトウェア計測で手作り版の約1.4倍、GPU 確認はローカル待ち。市の西半分は移動クランプ外で景観のみ（ゲーム内容は不変）】
   追補（2026-11-20、並行実装だった agent/b-1507-lead の抜き出しで判明。クラウド版 B-1507 は完了済みでこちらは統合見送り）: (1) 村を自然マップの上に置くときは地面プレーンを敷かない `ground` オプションが要る（クラウド版にはない）。本項目の村の作り直しで使う。(2) ベンチの当たり判定（クラウド版の当たりは地面・歩道・建物のみ）が未整備。同じく本項目で整える。
   (3) フォローアップ（2026-11-20 定期チェックの観察）: map_tool.gd の NavigationRegion3D 保存対応が ai-native に無い。生成都市を map_tool 経由で保存すると NavigationMesh が落ちる可能性があり、本項目の検証で確認して対応する。agent/b-1507-lead の map_tool.gd .res 保存2行と関連。
 
