@@ -14,14 +14,14 @@
     "start": "1abc957fe1c3f5c29d9177f07159ca668a2202228744dc78db69d218e978a4d9",
     "shard_crate": "3a9f3911f28d676c76cc4943667bf5b38b34011e75566cf06ad0747c20a4d3b4",
     "shard_pond": "eded5ed6bf921188c2ba525bb1a868ade56b2bda1a979b695bed2574c7a1b445",
-    "shard_tree": "ee7e64e38afa43b48c92daa8553dac8f1078b02c80ee76eb31568c2bca3759a7",
-    "lantern": "699837386e0edc99643a2529889b91169714195151c39575887f04458b7cb776"
+    "shard_tree": "6fcd1b2c12aa557d27c06504353e1795ad21994bc0639d63eb51555844817ad3",
+    "lantern": "ea4ea779f42e4898ca09d49fc5b22656b117d21f5f8aafc76fc31d584ebb0ad5"
    },
    "final_state": {
     "Main/Player:global_position": [
-     -0.95923513174057,
+     -0.985831439495087,
      0.720000028610229,
-     -8.14390659332275
+     -8.09416961669922
     ],
     "Main:cleared": true,
     "Main:juice_events": [
@@ -45,14 +45,14 @@
     "start": "1abc957fe1c3f5c29d9177f07159ca668a2202228744dc78db69d218e978a4d9",
     "shard_crate": "3a9f3911f28d676c76cc4943667bf5b38b34011e75566cf06ad0747c20a4d3b4",
     "shard_pond": "eded5ed6bf921188c2ba525bb1a868ade56b2bda1a979b695bed2574c7a1b445",
-    "shard_tree": "ee7e64e38afa43b48c92daa8553dac8f1078b02c80ee76eb31568c2bca3759a7",
-    "lantern": "699837386e0edc99643a2529889b91169714195151c39575887f04458b7cb776"
+    "shard_tree": "6fcd1b2c12aa557d27c06504353e1795ad21994bc0639d63eb51555844817ad3",
+    "lantern": "ea4ea779f42e4898ca09d49fc5b22656b117d21f5f8aafc76fc31d584ebb0ad5"
    },
    "final_state": {
     "Main/Player:global_position": [
-     -0.95923513174057,
+     -0.985831439495087,
      0.720000028610229,
-     -8.14390659332275
+     -8.09416961669922
     ],
     "Main:cleared": true,
     "Main:juice_events": [

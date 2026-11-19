@@ -19,6 +19,46 @@ const WORLD_X := 15.5
 const WORLD_Z := 11.5
 const PLAYER_SPEED := 3.4
 
+## The village layout is generated (B-1508): a UZUWorldGen city (houses,
+## streets, plaza, fountain) standing on a UZUWorldGen nature map, with a
+## second small nature map whose bowl is the pond. Fixed seeds keep the
+## village identical on every run, and the specs are static functions so
+## compose_village.gd builds the very same village for walking checks and
+## captures. The shrine, its lantern, the crates and the cast stay
+## hand-placed below: their positions are the game's fixed conditions.
+const CITY_CENTRE := Vector2(-21, -2)
+const CITY_EDGE := 26.5 # Half the city size plus half a road width.
+const LAND_SEED := 172
+const POND_SEED := 61
+const CITY_SEED := 1
+const POND_POS := Vector3(5.5, -0.37, 1.0)
+const POND_CENTRE := Vector2(9.5, 4.5)
+const POND_WATER_Y := -0.139 # POND_POS.y + the pond spec's water_level * height.
+
+var land_map: Node3D
+var pond_map: Node3D
+var city_map: Node3D
+
+static func land_spec() -> Dictionary:
+	return {
+		"size": 256.0, "cell": 4.0, "seed": LAND_SEED, "height": 2.2, "roughness": 0.3,
+		"water": false, "snow_line": 2.0, "trees": 2.0, "rocks": 0.4, "grass": 6.0,
+		"name": "Land", "position": [0, 0, 0],
+	}
+
+static func pond_spec() -> Dictionary:
+	return {
+		"size": 32.0, "cell": 1.0, "seed": POND_SEED, "height": 0.7, "roughness": 0.35,
+		"water_level": 0.33, "snow_line": 2.0, "trees": 0.0, "rocks": 0.0, "grass": 0.0,
+		"name": "Pond", "position": [POND_POS.x, POND_POS.y, POND_POS.z],
+	}
+
+static func city_spec() -> Dictionary:
+	return {
+		"preset": "village", "size": 48.0, "block": 16.0, "seed": CITY_SEED, "ground": false,
+		"name": "Village", "position": [CITY_CENTRE.x, 0, CITY_CENTRE.y],
+	}
+
 var player: Sprite3D
 var camera: Camera3D
 var sun: DirectionalLight3D
@@ -123,21 +163,6 @@ func _box(name: String, pos: Vector3, size: Vector3, color: Color, obstacle_r :=
 		obstacles.append({"pos": Vector2(pos.x, pos.z), "r": obstacle_r})
 	return mi
 
-func _tree(pos: Vector3) -> void:
-	var trunk := _box("Trunk", pos + Vector3(0, 0.5, 0), Vector3(0.35, 1.0, 0.35), Color(0.4, 0.29, 0.19))
-	trunk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	var cone := MeshInstance3D.new()
-	cone.name = "TreeTop"
-	var cm := CylinderMesh.new()
-	cm.top_radius = 0.0
-	cm.bottom_radius = 1.35
-	cm.height = 3.1
-	cone.mesh = cm
-	cone.material_override = UZULook.create_wind_foliage_material(0.35, 1.1)
-	cone.position = pos + Vector3(0, 2.5, 0)
-	add_child(cone)
-	obstacles.append({"pos": Vector2(pos.x, pos.z), "r": 0.65})
-
 func _sprite(texture_path: String, pos: Vector3) -> Sprite3D:
 	var s := Sprite3D.new()
 	s.texture = load(texture_path)
@@ -147,38 +172,7 @@ func _sprite(texture_path: String, pos: Vector3) -> Sprite3D:
 	return s
 
 func _build_world() -> void:
-	# Ground and a dirt path.
-	var ground := MeshInstance3D.new()
-	ground.name = "Ground"
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(34, 26)
-	ground.mesh = plane
-	ground.set_surface_override_material(0, _mat(Color(0.36, 0.47, 0.26)))
-	add_child(ground)
-	_box("Path", Vector3(0, 0.02, 1.5), Vector3(2.2, 0.04, 19), Color(0.55, 0.45, 0.32))
-	_box("PathEW", Vector3(0, 0.02, -3.5), Vector3(24, 0.04, 2.0), Color(0.55, 0.45, 0.32))
-
-	# Pond (south-east).
-	var pond := MeshInstance3D.new()
-	pond.name = "Pond"
-	var disc := CylinderMesh.new()
-	disc.top_radius = 2.4
-	disc.bottom_radius = 2.4
-	disc.height = 0.08
-	pond.mesh = disc
-	pond.set_surface_override_material(0, _mat(Color(0.25, 0.42, 0.62)))
-	pond.position = Vector3(9.5, 0.04, 4.5)
-	add_child(pond)
-	obstacles.append({"pos": Vector2(9.5, 4.5), "r": 2.3})
-
-	# Houses.
-	_house(Vector3(-6.5, 0, -4.5), Color(0.85, 0.76, 0.62))
-	_house(Vector3(6.0, 0, -5.5), Color(0.8, 0.72, 0.66))
-	_house(Vector3(-9.0, 0, 3.5), Color(0.76, 0.68, 0.58))
-
-	# Trees.
-	for p in [Vector3(-4.2, 0, -7.6), Vector3(4.8, 0, -8.6), Vector3(-12.5, 0, -2.0), Vector3(12.8, 0, -1.0), Vector3(-11.5, 0, 8.5), Vector3(13.0, 0, 8.0), Vector3(2.5, 0, 6.5)]:
-		_tree(p)
+	_build_generated_world()
 
 	# Shrine at the north edge: two pillars, a beam, and the lantern.
 	_box("ShrinePillarL", Vector3(-1.3, 1.5, -9.6), Vector3(0.4, 3.0, 0.4), Color(0.45, 0.25, 0.2), 0.45)
@@ -194,32 +188,33 @@ func _build_world() -> void:
 	add_child(lantern_light)
 	interactables.append({"pos": lantern_pos, "kind": "lantern", "id": "lantern", "label": "E： ランタンに灯す", "node": null})
 
-	# Crates near the east house; one shard sits by them.
-	_box("Crate1", Vector3(7.2, 0.5, -0.8), Vector3(1.0, 1.0, 1.0), Color(0.62, 0.48, 0.33), 0.85)
-	_box("Crate2", Vector3(7.3, 1.45, -0.9), Vector3(0.85, 0.85, 0.85), Color(0.58, 0.44, 0.3), 0.0)
+	# Crates on the pond shore; one shard sits by them.
+	var crate_y := _ground_height(7.2, -0.8)
+	_box("Crate1", Vector3(7.2, crate_y + 0.5, -0.8), Vector3(1.0, 1.0, 1.0), Color(0.62, 0.48, 0.33), 0.85)
+	_box("Crate2", Vector3(7.3, crate_y + 1.45, -0.9), Vector3(0.85, 0.85, 0.85), Color(0.58, 0.44, 0.3), 0.0)
 
 	# Player.
 	var flat_normal: Texture2D = load("res://art/flat_normal.png")
-	player = _sprite("res://art/hero.png", Vector3(0, 0.72, 4.5))
+	player = _sprite("res://art/hero.png", Vector3(0, _ground_height(0, 4.5) + 0.72, 4.5))
 	player.name = "Player"
 	UZULook.configure_lit_sprite(player, flat_normal, 1.5)
 	UZULook.add_blob_shadow(player, 0.5)
 
 	# NPCs.
-	_npc("npc_red", Vector3(2.2, 0.72, -7.6), "村長", [
+	_npc("npc_red", Vector3(2.2, _ground_height(2.2, -7.6) + 0.72, -7.6), "村長", [
 		"おお、旅の子か。村の灯りが消えて三日になる。",
 		"灯りの欠片が三つ、村に落ちたんじゃ。光っておるから分かるはず。",
 		"集めたら祠のランタンに戻しておくれ。祭りが開ける。"])
-	_npc("npc_green", Vector3(6.8, 0.72, 2.6), "ミドリ", [
+	_npc("npc_green", Vector3(6.8, _ground_height(6.8, 2.6) + 0.72, 2.6), "ミドリ", [
 		"池のほとりで何か光ってたよ。水辺は足元に気をつけてね。"])
-	_npc("npc_purple", Vector3(-4.6, 0.72, 0.8), "スミレ", [
+	_npc("npc_purple", Vector3(-4.6, _ground_height(-4.6, 0.8) + 0.72, 0.8), "スミレ", [
 		"木の陰って暗いけど、よーく見ると光るものがあるんだ。",
 		"北西の大きな木の裏、あやしいと思うなあ。"])
 
 	# Light shards.
-	_shard("shard_tree", Vector3(-4.9, 0.55, -8.6))
-	_shard("shard_pond", Vector3(7.6, 0.55, 6.4))
-	_shard("shard_crate", Vector3(6.1, 0.55, 0.6))
+	_shard("shard_tree", Vector3(-4.9, _ground_height(-4.9, -8.6) + 0.55, -8.6))
+	_shard("shard_pond", Vector3(7.6, _ground_height(7.6, 6.4) + 0.55, 6.4))
+	_shard("shard_crate", Vector3(6.1, _ground_height(6.1, 0.6) + 0.55, 0.6))
 
 	camera = Camera3D.new()
 	camera.name = "Camera3D"
@@ -228,20 +223,221 @@ func _build_world() -> void:
 	camera.global_position = player.global_position + Vector3(0, 7.2, 9.2)
 	camera.look_at(player.global_position + Vector3(0, 0.9, 0), Vector3.UP)
 
-func _house(pos: Vector3, wall: Color) -> void:
-	_box("House", pos + Vector3(0, 1.25, 0), Vector3(3.6, 2.5, 3.0), wall, 2.4)
-	var roof := MeshInstance3D.new()
-	roof.name = "Roof"
-	var prism := PrismMesh.new()
-	prism.left_to_right = 0.5
-	prism.size = Vector3(4.2, 1.4, 3.6)
-	roof.mesh = prism
-	roof.set_surface_override_material(0, _mat(Color(0.5, 0.3, 0.24)))
-	roof.position = pos + Vector3(0, 3.2, 0)
-	add_child(roof)
-	# A warm window that reads at dusk.
-	var win := _box("Window", pos + Vector3(0.9, 1.4, 1.53), Vector3(0.7, 0.7, 0.05), Color(1.0, 0.75, 0.4))
-	win.material_override = null
+## Builds the generated village (B-1508) under parent and returns the
+## three map holders with the city's generate result. Shared by the game
+## and compose_village.gd, so both build the very same village.
+static func build_generated_world(parent: Node) -> Dictionary:
+	var rl := UZUWorldGen.generate_nature(parent, land_spec())
+	var land := parent.get_node(NodePath(String(rl["node"]))) as Node3D
+	# Level the village by the land itself: the highest terrain under the
+	# city tiling becomes y = 0, the city's level, and the land falls away
+	# from the streets on every side.
+	var peak := -1.0e9
+	var gx := CITY_CENTRE.x - CITY_EDGE
+	while gx <= CITY_CENTRE.x + CITY_EDGE:
+		var gz := CITY_CENTRE.y - CITY_EDGE
+		while gz <= CITY_CENTRE.y + CITY_EDGE:
+			peak = maxf(peak, UZUWorldGen.height_at(land, gx, gz))
+			gz += 1.0
+		gx += 1.0
+	land.position.y = -peak - 0.05
+	# The land's own woods and rocks stay scenery: clear them out of the
+	# ground the game is played on (the player's clamp, with a margin).
+	_trim_scatter(land, Rect2(-WORLD_X - 2.0, -WORLD_Z - 2.0, 2.0 * WORLD_X + 4.0, 2.0 * WORLD_Z + 4.0))
+
+	var rp := UZUWorldGen.generate_nature(parent, pond_spec())
+	var pond := parent.get_node(NodePath(String(rp["node"]))) as Node3D
+	# The pond map reaches west under the city; cut its terrain at the
+	# city's east border, where the land map continues underneath. (The
+	# cut is visual only: height_at is analytic and unaffected.)
+	_trim_terrain(pond, CITY_CENTRE.x + CITY_EDGE)
+
+	var rc := UZUWorldGen.generate_city(parent, city_spec())
+	var city := parent.get_node(NodePath(String(rc["node"]))) as Node3D
+
+	# A foundation slab under the tiling, its top just below street
+	# level: with ground=false the streets have no floor of their own, so
+	# physics walkers (the walking check, any future body) stand on this.
+	# It ends where the tiling ends; beyond it, the land is the ground.
+	var foundation := MeshInstance3D.new()
+	foundation.name = "CityFoundation"
+	var fmesh := BoxMesh.new()
+	fmesh.size = Vector3(2.0 * CITY_EDGE, 0.5, 2.0 * CITY_EDGE)
+	foundation.mesh = fmesh
+	var fmat := StandardMaterial3D.new()
+	fmat.albedo_color = Color(0.4, 0.34, 0.24)
+	foundation.set_surface_override_material(0, fmat)
+	foundation.position = Vector3(CITY_CENTRE.x, -0.28, CITY_CENTRE.y)
+	parent.add_child(foundation)
+	foundation.owner = parent
+	var fbody := StaticBody3D.new()
+	fbody.name = "CityFoundationBody"
+	fbody.position = foundation.position
+	var fcs := CollisionShape3D.new()
+	var fshape := BoxShape3D.new()
+	fshape.size = fmesh.size
+	fcs.shape = fshape
+	fbody.add_child(fcs)
+	parent.add_child(fbody)
+	fbody.owner = parent
+	fcs.owner = parent
+	return {"land": land, "pond": pond, "city": city, "city_result": rc}
+
+## Builds the generated village and derives the game's obstacle circles
+## from what was generated: building and bench footprints from the
+## city's collision shapes, street trees from its multimesh, the
+## fountain from the plaza place, and the pond from the water's edge on
+## the combined nature fields.
+func _build_generated_world() -> void:
+	var built := build_generated_world(self)
+	land_map = built["land"]
+	pond_map = built["pond"]
+	city_map = built["city"]
+	_derive_city_obstacles(built["city_result"])
+	_derive_pond_obstacle()
+
+func _derive_city_obstacles(rc: Dictionary) -> void:
+	var body := city_map.get_node_or_null(NodePath("CityBody")) as StaticBody3D
+	if body:
+		for child in body.get_children():
+			var cs := child as CollisionShape3D
+			if cs == null or not (cs.name.begins_with("Building") or cs.name.begins_with("Bench")):
+				continue
+			var conv := cs.shape as ConvexPolygonShape3D
+			if conv == null:
+				continue
+			var pts := conv.get_points()
+			var c := Vector3.ZERO
+			for q in pts:
+				c += q
+			c = c / pts.size() + cs.position
+			var rad := 0.0
+			for q in pts:
+				rad = maxf(rad, Vector2(q.x + cs.position.x - c.x, q.z + cs.position.z - c.z).length())
+			# The movement code adds the player's radius (0.35) back on.
+			obstacles.append({"pos": Vector2(c.x + CITY_CENTRE.x, c.z + CITY_CENTRE.y), "r": rad - 0.35})
+	var trees := city_map.get_node_or_null(NodePath("StreetTrees")) as MultiMeshInstance3D
+	if trees and trees.multimesh:
+		for i in trees.multimesh.instance_count:
+			var o := trees.multimesh.get_instance_transform(i).origin
+			obstacles.append({"pos": Vector2(o.x + CITY_CENTRE.x, o.z + CITY_CENTRE.y), "r": 0.35})
+	var places: Dictionary = rc.get("places", {})
+	if places.has("plaza"):
+		var pp: Array = places["plaza"]["position"]
+		# The plaza place sits beside the fountain; the fountain's centre
+		# is 4.5 m north of it.
+		obstacles.append({"pos": Vector2(pp[0], pp[2] - 4.5), "r": 2.85})
+
+func _derive_pond_obstacle() -> void:
+	var pts: Array[Vector2] = []
+	var gx := POND_CENTRE.x - 4.2
+	while gx <= POND_CENTRE.x + 4.2:
+		var gz := POND_CENTRE.y - 4.2
+		while gz <= POND_CENTRE.y + 4.2:
+			if _nature_height(gx, gz) < POND_WATER_Y:
+				pts.append(Vector2(gx, gz))
+			gz += 0.6
+		gx += 0.6
+	if pts.size() < 12:
+		obstacles.append({"pos": POND_CENTRE, "r": 2.3})
+		return
+	var c := Vector2.ZERO
+	for q in pts:
+		c += q
+	c /= pts.size()
+	var rad := 0.0
+	for q in pts:
+		rad = maxf(rad, c.distance_to(q))
+	obstacles.append({"pos": c, "r": rad + 0.45 - 0.35})
+
+## The combined nature height at a point (the higher field wins); the
+## pond field is trimmed visually at the city border, but east of it the
+## analytic field is the visible surface, so this stays exact there.
+func _nature_height(x: float, z: float) -> float:
+	var g := -1.0e9
+	if land_map:
+		var a := UZUWorldGen.height_at(land_map, x, z)
+		if not is_nan(a):
+			g = maxf(g, a)
+	if pond_map:
+		var b := UZUWorldGen.height_at(pond_map, x, z)
+		if not is_nan(b):
+			g = maxf(g, b)
+	return g
+
+## The ground a character stands on: the city tiling is flat at y = 0;
+## outside it, the nature fields.
+func _ground_height(x: float, z: float) -> float:
+	if absf(x - CITY_CENTRE.x) <= CITY_EDGE and absf(z - CITY_CENTRE.y) <= CITY_EDGE:
+		return 0.0
+	var g := _nature_height(x, z)
+	return g if g > -1.0e8 else 0.0
+
+## Removes a nature map's scattered instances (trees, rocks, grass) whose
+## position falls inside rect (x/z, holder-local = game coordinates for
+## the land map), by compacting the multimesh buffers.
+static func _trim_scatter(holder: Node3D, rect: Rect2) -> void:
+	for child in holder.get_children():
+		var mmi := child as MultiMeshInstance3D
+		if mmi == null or mmi.multimesh == null:
+			continue
+		var mm := mmi.multimesh
+		var kept: Array[Transform3D] = []
+		for i in mm.instance_count:
+			var t := mm.get_instance_transform(i)
+			if not rect.has_point(Vector2(t.origin.x, t.origin.z)):
+				kept.append(t)
+		if kept.size() == mm.instance_count:
+			continue
+		for i in kept.size():
+			mm.set_instance_transform(i, kept[i])
+		mm.instance_count = kept.size()
+
+## Cuts a nature map's terrain mesh west of keep_game_x (faces whose
+## centroid is below it are dropped).
+static func _trim_terrain(holder: Node3D, keep_game_x: float) -> void:
+	var terrain := holder.get_node(NodePath("Terrain")) as MeshInstance3D
+	if terrain == null or not (terrain.mesh is ArrayMesh):
+		return
+	var mesh := terrain.mesh as ArrayMesh
+	var arrays := mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var faces: Array = []
+	if index.size() > 0:
+		for i in range(0, index.size() - 2, 3):
+			faces.append([index[i], index[i + 1], index[i + 2]])
+	else:
+		for i in range(0, verts.size() - 2, 3):
+			faces.append([i, i + 1, i + 2])
+	var out_v := PackedVector3Array()
+	var out_n := PackedVector3Array()
+	var out_c := PackedColorArray()
+	var ox := holder.position.x
+	for f in faces:
+		var cx := (verts[f[0]].x + verts[f[1]].x + verts[f[2]].x) / 3.0 + ox
+		if cx < keep_game_x:
+			continue
+		for k in 3:
+			out_v.append(verts[f[k]])
+			if normals.size() == verts.size():
+				out_n.append(normals[f[k]])
+			if colors.size() == verts.size():
+				out_c.append(colors[f[k]])
+	var new_arrays: Array = []
+	new_arrays.resize(Mesh.ARRAY_MAX)
+	new_arrays[Mesh.ARRAY_VERTEX] = out_v
+	if out_n.size() > 0:
+		new_arrays[Mesh.ARRAY_NORMAL] = out_n
+	if out_c.size() > 0:
+		new_arrays[Mesh.ARRAY_COLOR] = out_c
+	var new_mesh := ArrayMesh.new()
+	new_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, new_arrays)
+	if mesh.get_surface_count() > 0 and mesh.surface_get_material(0) != null:
+		new_mesh.surface_set_material(0, mesh.surface_get_material(0))
+	terrain.mesh = new_mesh
 
 func _npc(texture_name: String, pos: Vector3, npc_name: String, lines: Array) -> void:
 	var s := _sprite("res://art/" + texture_name + ".png", pos)
@@ -287,9 +483,9 @@ func _update_player(delta: float) -> void:
 	if input_vec.length() > 0.0:
 		var dir := Vector3(input_vec.x, 0, input_vec.y)
 		player.global_position += dir * PLAYER_SPEED * delta
-		player.global_position.y = 0.72 + abs(sin(Time.get_ticks_msec() / 90.0)) * 0.05
+		player.global_position.y = _ground_height(player.global_position.x, player.global_position.z) + 0.72 + abs(sin(Time.get_ticks_msec() / 90.0)) * 0.05
 	else:
-		player.global_position.y = 0.72
+		player.global_position.y = _ground_height(player.global_position.x, player.global_position.z) + 0.72
 	var p := player.global_position
 	p.x = clampf(p.x, -WORLD_X, WORLD_X)
 	p.z = clampf(p.z, -WORLD_Z, WORLD_Z)

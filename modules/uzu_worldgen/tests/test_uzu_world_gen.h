@@ -400,6 +400,75 @@ TEST_CASE("[SceneTree][UZUWorldGen] City streets: benches placed, a navigation m
 	memdelete(root2);
 }
 
+TEST_CASE("[SceneTree][UZUWorldGen] City ground option and bench collision (B-1508)") {
+	Dictionary s;
+	s["preset"] = "village";
+	s["size"] = 48.0;
+	s["block"] = 16.0;
+	s["seed"] = 1;
+	// The option resolves, on by default (existing cities keep their plane).
+	const Dictionary resolved = UZUWorldGen::resolve("city", s);
+	REQUIRE(bool(resolved["ok"]));
+	CHECK(bool(Dictionary(resolved["options"])["ground"]));
+
+	// Default: the ground plane is there, as a mesh and as a shape, and
+	// every bench placed also got a collision shape.
+	Node3D *root = memnew(Node3D);
+	const Dictionary r = UZUWorldGen::generate_city(root, s);
+	REQUIRE(bool(r["ok"]));
+	Node *city = root->get_node(NodePath(String(r["node"])));
+	CHECK(city->get_node_or_null(NodePath("Ground")) != nullptr);
+	Node *body = city->get_node_or_null(NodePath("CityBody"));
+	REQUIRE(body);
+	int bench_shapes = 0;
+	bool ground_shape = false;
+	for (int i = 0; i < body->get_child_count(); i++) {
+		const String child_name = body->get_child(i)->get_name();
+		if (child_name == "Ground") {
+			ground_shape = true;
+		}
+		if (child_name.begins_with("Bench")) {
+			bench_shapes++;
+		}
+	}
+	CHECK(ground_shape);
+	CHECK(bench_shapes > 0);
+	CHECK(bench_shapes == int(Dictionary(r["counts"])["benches"]));
+
+	// ground=false (the city stands on a nature map): no ground mesh, no
+	// ground shape; buildings, benches and the navigation base stay.
+	s["ground"] = false;
+	Node3D *root2 = memnew(Node3D);
+	const Dictionary r2 = UZUWorldGen::generate_city(root2, s);
+	REQUIRE(bool(r2["ok"]));
+	Node *city2 = root2->get_node(NodePath(String(r2["node"])));
+	CHECK(city2->get_node_or_null(NodePath("Ground")) == nullptr);
+	Node *body2 = city2->get_node_or_null(NodePath("CityBody"));
+	REQUIRE(body2);
+	int bench_shapes2 = 0;
+	bool ground_shape2 = false;
+	bool building_shape2 = false;
+	for (int i = 0; i < body2->get_child_count(); i++) {
+		const String child_name = body2->get_child(i)->get_name();
+		if (child_name == "Ground") {
+			ground_shape2 = true;
+		}
+		if (child_name.begins_with("Bench")) {
+			bench_shapes2++;
+		}
+		if (child_name.begins_with("Building")) {
+			building_shape2 = true;
+		}
+	}
+	CHECK_FALSE(ground_shape2);
+	CHECK(bench_shapes2 == bench_shapes);
+	CHECK(building_shape2);
+	REQUIRE(r2.has("navigation"));
+	CHECK(bool(Dictionary(r2["navigation"])["places_connected"]));
+	memdelete(root);
+	memdelete(root2);
+}
+
 TEST_CASE("[SceneTree][UZUWorldGen] Buildings from parts: the same layout as plain boxes, framed windows, textured materials") {
 	Dictionary s;
 	s["preset"] = "village";
