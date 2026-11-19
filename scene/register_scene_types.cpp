@@ -287,6 +287,7 @@
 #include "scene/3d/trail_3d.h"
 #include "scene/3d/two_bone_ik_3d.h"
 #include "scene/3d/uzu_juice.h"
+#include "scene/3d/uzu_vfx.h"
 #include "scene/3d/uzu_look.h"
 #include "scene/3d/visible_on_screen_notifier_3d.h"
 #include "scene/3d/voxel_gi.h"
@@ -796,6 +797,7 @@ void register_scene_types() {
 	GDREGISTER_CLASS(WorldEnvironment);
 	GDREGISTER_ABSTRACT_CLASS(UZULook);
 	GDREGISTER_ABSTRACT_CLASS(UZUJuice);
+	GDREGISTER_ABSTRACT_CLASS(UZUVfx);
 	GDREGISTER_CLASS(FogVolume);
 	GDREGISTER_CLASS(FogMaterial);
 	GDREGISTER_CLASS(RemoteTransform3D);

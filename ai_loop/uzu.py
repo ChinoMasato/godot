@@ -52,7 +52,9 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
 engine commands: run, check, validate, shot, import, export, templates, uids [--fix] (B-205),
-map-estimate (B-903: an outside model, then map-import), and every command of ai_loop/engine_tool.gd
+map-estimate (B-903: an outside model, then map-import), vfx [--name explosion|laser | --recipe JSON]
+and vfx-recipes (B-1109: visual-effect recipes validated and normalized as structured output),
+and every command of ai_loop/engine_tool.gd
 (tree, props, get, set, add, instance, remove, reparent, call, connect, script, new,
 classes, describe, actions, res-new, res-props, res-get, res-set, setting-get,
 setting-set, action-add, action-remove, import-get, import-set, export-preset, presets);
@@ -1567,6 +1569,15 @@ def selftest_engine():
             c.expect("sfx-sprite", r.get("ok") and os.path.getsize(os.path.join(q, "sfx", "sprite.wav")) > 10000 and set(segs) == {"hit", "jump", "pickup", "coin"} and segs["jump"]["start_sample"] > segs["hit"]["end_sample"] and segs["coin"]["end_sample"] == r["total_samples"] and manifest_ok, r)
             r = _call(engine, q, ["sfx-sprite", "--names", "hit,nope", "--out", "res://sfx/bad.wav"])
             c.expect("sfx-sprite unknown preset", not r["ok"] and "nope" in r["error"], r)
+            # B-1109: VFX recipes validated and normalized as structured output.
+            r = _call(engine, q, ["vfx", "--name", "explosion"])
+            c.expect("vfx explosion", r.get("ok") and [p["type"] for p in r["parts"]] == ["debris", "sparks", "smoke", "ring", "light", "shake", "hitstop", "sfx"] and r["duration"] > 1.9, r)
+            r = _call(engine, q, ["vfx", "--recipe", '{"parts": [{"type": "ring", "radius": 99}]}'])
+            c.expect("vfx clamps with a warning", r.get("ok") and r["parts"][0]["radius"] == 50.0 and any("radius" in w for w in r["warnings"]), r)
+            r = _call(engine, q, ["vfx", "--recipe", '{"parts": [{"type": "shockwave"}]}'])
+            c.expect("vfx unknown part", not r["ok"] and "shockwave" in str(r["errors"]), r)
+            r = _call(engine, q, ["vfx-recipes"])
+            c.expect("vfx-recipes", r.get("ok") and "laser" in r["recipes"] and r["recipes"]["laser"]["parts"][0]["type"] == "beam", r)
             # B-1203: props scattered over a plane, saved with their transforms, the same for the same seed.
             with open(os.path.join(q, "field.tscn"), "w", encoding="utf-8") as f:
                 f.write('[gd_scene format=3]\n\n[sub_resource type="PlaneMesh" id="p"]\nsize = Vector2(10, 10)\n\n[node name="F" type="Node3D"]\n\n[node name="Ground" type="MeshInstance3D" parent="."]\nmesh = SubResource("p")\n')

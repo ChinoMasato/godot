@@ -49,6 +49,10 @@ extends SceneTree
 ##                (B-1105): a preset, varied by --seed, with parameters changed by --set (or all of them
 ##                without --preset); reports its length, peak, loudness and pitch so an agent can judge it
 ##   sfx-presets                                                  the presets and the parameters with their defaults
+##   vfx          --name explosion|laser | --recipe '{"name": "x", "parts": [{"type": "ring", "radius": 4}]}'
+##                a visual-effect recipe (B-1109), validated and normalized: the parts with every
+##                parameter filled in, the values clamped into range (warnings), the total duration
+##   vfx-recipes                                                  the built-in recipes (explosion, laser), validated
 ##   sfx-sprite   --out res://sfx/sprite.wav [--names hit,jump,pickup,coin] [--gap-ms 50] [--seed 0]
 ##                [--manifest-out res://sfx/sprite.json]   an audio sprite (B-1108): several presets packed
 ##                into ONE wav, with a JSON manifest of the segments (name -> start/length in samples and
@@ -234,6 +238,26 @@ func _run(command: String, args: PackedStringArray) -> Dictionary:
 			for name in UZUSfx.get_preset_names():
 				presets[name] = UZUSfx.get_preset(name)
 			return {"ok": true, "command": command, "presets": presets, "defaults": UZUSfx.get_defaults()}
+		"vfx":
+			var recipe_name := _option(args, "name")
+			if not recipe_name.is_empty():
+				var described := UZUVfx.describe_recipe(recipe_name)
+				described["command"] = command
+				return described
+			var recipe_text := _option(args, "recipe")
+			if recipe_text.is_empty():
+				return _error("vfx needs --name explosion|laser or --recipe '{...}' (see vfx-recipes)")
+			var parsed = JSON.parse_string(recipe_text)
+			if not parsed is Dictionary:
+				return _error("--recipe needs a JSON object, e.g. '{\"parts\": [{\"type\": \"ring\"}]}'")
+			var checked := UZUVfx.validate_recipe(parsed)
+			checked["command"] = command
+			return checked
+		"vfx-recipes":
+			var recipes := {}
+			for recipe_name in UZUVfx.get_recipe_names():
+				recipes[recipe_name] = UZUVfx.describe_recipe(recipe_name)
+			return {"ok": true, "command": command, "recipes": recipes}
 		"res-new", "res-props", "res-get", "res-set":
 			return _resource_command(command, args)
 		"setting-get", "setting-set":

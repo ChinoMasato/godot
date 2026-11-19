@@ -3,12 +3,12 @@
  "generated_by": "ai_loop/make_catalog.py",
  "counts": {
   "cli": 16,
-  "command": 70,
-  "mcp": 73,
+  "command": 72,
+  "mcp": 75,
   "preset": 6,
   "script": 27,
-  "class": 14,
-  "total": 206
+  "class": 15,
+  "total": 211
  },
  "entries": [
   {
@@ -927,6 +927,37 @@
    "fallback": null,
    "tool": "engine",
    "usage": "uzu.py engine <project> validate"
+  },
+  {
+   "name": "vfx",
+   "kind": "command",
+   "description": "a visual-effect recipe (B-1109), validated and normalized: the parts with every parameter filled in, the values clamped into range (warnings), the total duration",
+   "tags": [
+    "cli",
+    "engine",
+    "vfx"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "required_capabilities": [],
+   "fallback": null,
+   "tool": "engine",
+   "usage": "uzu.py engine <project> vfx"
+  },
+  {
+   "name": "vfx-recipes",
+   "kind": "command",
+   "description": "the built-in recipes (explosion, laser), validated",
+   "tags": [
+    "cli",
+    "engine",
+    "recipes",
+    "vfx"
+   ],
+   "source": "ai_loop/engine_tool.gd",
+   "required_capabilities": [],
+   "fallback": null,
+   "tool": "engine",
+   "usage": "uzu.py engine <project> vfx-recipes"
   },
   {
    "name": "apply",
@@ -2580,6 +2611,42 @@
    }
   },
   {
+   "name": "vfx_describe",
+   "kind": "mcp",
+   "description": "Validate and normalize a visual-effect recipe (BACKLOG B-1109): parts (sparks, smoke, debris, ring, beam, light, shake, hitstop, kick, sfx) with every parameter filled in, out-of-range values clamped (listed as warnings), unknown parts rejected, and the total duration. Give a built-in name (explosion, laser) or a full recipe JSON. Fire a recipe in code with UZUVfx.fire / fire_named.",
+   "tags": [
+    "describe",
+    "engine",
+    "mcp",
+    "vfx"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "maps_to": {
+    "tool": "engine",
+    "command": "vfx"
+   }
+  },
+  {
+   "name": "vfx_recipes",
+   "kind": "mcp",
+   "description": "List the built-in visual-effect recipes (explosion, laser), each validated and normalized: their parts, parameters and total durations.",
+   "tags": [
+    "engine",
+    "mcp",
+    "recipes",
+    "vfx"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "maps_to": {
+    "tool": "engine",
+    "command": "vfx-recipes"
+   }
+  },
+  {
    "name": "fantasy",
    "kind": "preset",
    "description": "Fantasy: brown leather panels, gold borders, round corners.",
@@ -3138,6 +3205,18 @@
     "uzu"
    ],
    "source": "doc/classes/UZUUIWorld.xml",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "UZUVfx",
+   "kind": "class",
+   "description": "Composite visual effects (explosions, lasers) fired from declarative recipes in one call.",
+   "tags": [
+    "class",
+    "uzu"
+   ],
+   "source": "doc/classes/UZUVfx.xml",
    "required_capabilities": [],
    "fallback": null
   },
