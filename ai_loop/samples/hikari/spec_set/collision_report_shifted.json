@@ -1,0 +1,441 @@
+{
+  "command": "collision-check",
+  "format": "uzu-collision-check/1",
+  "scene": "res://village.tscn",
+  "ok": false,
+  "params": {
+    "cell": 0.5,
+    "step": 0.25,
+    "char_width": 0.7,
+    "body_height": 1.8,
+    "max_slope": 55.0,
+    "min_visual_area": 1.0,
+    "coverage_min": 0.8,
+    "overhang_max": 0.25,
+    "min_pocket_area": 5.0
+  },
+  "grid": {
+    "cell": 0.5,
+    "width": 516,
+    "height": 516,
+    "origin": [
+      -129.0,
+      -129.0
+    ],
+    "traversable_cells": 261458,
+    "components": 11
+  },
+  "starts": [
+    {
+      "label": "start[0]",
+      "position": [
+        -27.75,
+        -0.3,
+        -75.75
+      ],
+      "cells_reached": 259989
+    },
+    {
+      "label": "start[1]",
+      "position": [
+        -28.25,
+        -0.03,
+        -7.75
+      ],
+      "cells_reached": 259989
+    }
+  ],
+  "places": [
+    {
+      "id": "Village__gate_east",
+      "position": [
+        3.0,
+        0.02,
+        -10.89
+      ],
+      "stand": -0.03,
+      "reached_from": [
+        "start[0]",
+        "start[1]"
+      ],
+      "component": 0
+    },
+    {
+      "id": "Village__gate_north",
+      "position": [
+        -31.71,
+        0.02,
+        -26.0
+      ],
+      "stand": -0.03,
+      "reached_from": [
+        "start[0]",
+        "start[1]"
+      ],
+      "component": 0
+    },
+    {
+      "id": "Village__gate_south",
+      "position": [
+        -27.33,
+        0.02,
+        22.0
+      ],
+      "stand": -0.03,
+      "reached_from": [
+        "start[0]",
+        "start[1]"
+      ],
+      "component": 0
+    },
+    {
+      "id": "Village__gate_west",
+      "position": [
+        -45.0,
+        0.02,
+        -9.46
+      ],
+      "stand": -0.03,
+      "reached_from": [
+        "start[0]",
+        "start[1]"
+      ],
+      "component": 0
+    },
+    {
+      "id": "Village__plaza",
+      "position": [
+        -21.25,
+        0.15,
+        2.32
+      ],
+      "stand": 0.15,
+      "reached_from": [
+        "start[0]",
+        "start[1]"
+      ],
+      "component": 0
+    },
+    {
+      "id": "Village__spawn",
+      "position": [
+        -28.19,
+        0.02,
+        -7.9
+      ],
+      "stand": -0.03,
+      "reached_from": [
+        "start[0]",
+        "start[1]"
+      ],
+      "component": 0
+    },
+    {
+      "id": "Village__tallest_roof",
+      "position": [
+        -36.7,
+        6.55,
+        -1.66
+      ],
+      "stand": 6.55,
+      "reached_from": [],
+      "component": 6
+    }
+  ],
+  "components": [
+    {
+      "id": 0,
+      "cells": 259989,
+      "area_m2": 64997.2,
+      "has_start": true,
+      "places": [
+        "Village__gate_east",
+        "Village__gate_north",
+        "Village__gate_south",
+        "Village__gate_west",
+        "Village__plaza",
+        "Village__spawn"
+      ],
+      "stand_min": -1.37,
+      "stand_max": 0.27
+    },
+    {
+      "id": 2,
+      "cells": 357,
+      "area_m2": 89.2,
+      "has_start": false,
+      "places": [],
+      "stand_min": 3.35,
+      "stand_max": 3.35
+    },
+    {
+      "id": 9,
+      "cells": 256,
+      "area_m2": 64.0,
+      "has_start": false,
+      "places": [],
+      "stand_min": 3.35,
+      "stand_max": 3.35
+    },
+    {
+      "id": 1,
+      "cells": 238,
+      "area_m2": 59.5,
+      "has_start": false,
+      "places": [],
+      "stand_min": 3.35,
+      "stand_max": 3.35
+    },
+    {
+      "id": 10,
+      "cells": 210,
+      "area_m2": 52.5,
+      "has_start": false,
+      "places": [],
+      "stand_min": 3.35,
+      "stand_max": 3.35
+    },
+    {
+      "id": 6,
+      "cells": 176,
+      "area_m2": 44.0,
+      "has_start": false,
+      "places": [
+        "Village__tallest_roof"
+      ],
+      "stand_min": 6.55,
+      "stand_max": 6.55
+    },
+    {
+      "id": 3,
+      "cells": 168,
+      "area_m2": 42.0,
+      "has_start": false,
+      "places": [],
+      "stand_min": 3.35,
+      "stand_max": 3.35
+    },
+    {
+      "id": 4,
+      "cells": 16,
+      "area_m2": 4.0,
+      "has_start": false,
+      "places": [],
+      "stand_min": 1.1,
+      "stand_max": 1.1
+    },
+    {
+      "id": 5,
+      "cells": 16,
+      "area_m2": 4.0,
+      "has_start": false,
+      "places": [],
+      "stand_min": 1.1,
+      "stand_max": 1.1
+    },
+    {
+      "id": 7,
+      "cells": 16,
+      "area_m2": 4.0,
+      "has_start": false,
+      "places": [],
+      "stand_min": 1.1,
+      "stand_max": 1.1
+    },
+    {
+      "id": 8,
+      "cells": 16,
+      "area_m2": 4.0,
+      "has_start": false,
+      "places": [],
+      "stand_min": 1.1,
+      "stand_max": 1.1
+    }
+  ],
+  "summary": {
+    "findings": 10,
+    "errors": 1,
+    "warnings": 2,
+    "info": 7,
+    "by_kind": {
+      "direct_route_blocked": 1,
+      "place_unreachable": 1,
+      "elevated_region": 5,
+      "visual_without_collision": 2,
+      "wall_leak": 1
+    }
+  },
+  "findings": [
+    {
+      "kind": "direct_route_blocked",
+      "severity": "info",
+      "position": [
+        -28.09,
+        -0.35,
+        -29.0
+      ],
+      "detail": "the straight approach from start 'start[0]' to start 'start[1]' is blocked (a ledge of 0.31 m exceeds the 0.25 m step at the line); the starts are connected by a detour",
+      "objects": [],
+      "evidence": {
+        "from": "start[0]",
+        "to": "start[1]",
+        "required_rise_m": 0.31,
+        "straight_m": 68.0
+      }
+    },
+    {
+      "kind": "place_unreachable",
+      "severity": "info",
+      "position": [
+        -36.7,
+        6.55,
+        -1.66
+      ],
+      "detail": "place 'Village__tallest_roof' is not reached from any start; it sits on an elevated surface (reachable only by falling onto it)",
+      "objects": [],
+      "evidence": {
+        "stand": 6.55,
+        "component": 6
+      }
+    },
+    {
+      "kind": "elevated_region",
+      "severity": "info",
+      "position": [
+        -35.0,
+        3.35,
+        -17.25
+      ],
+      "detail": "elevated walkable surface of 59.5 m^2, reachable only by falling onto it",
+      "objects": [],
+      "evidence": {
+        "area_m2": 59.5,
+        "component": 1
+      }
+    },
+    {
+      "kind": "elevated_region",
+      "severity": "info",
+      "position": [
+        -21.25,
+        3.35,
+        -17.25
+      ],
+      "detail": "elevated walkable surface of 89.2 m^2, reachable only by falling onto it",
+      "objects": [],
+      "evidence": {
+        "area_m2": 89.2,
+        "component": 2
+      }
+    },
+    {
+      "kind": "elevated_region",
+      "severity": "info",
+      "position": [
+        -5.0,
+        3.35,
+        -18.5
+      ],
+      "detail": "elevated walkable surface of 42.0 m^2, reachable only by falling onto it",
+      "objects": [],
+      "evidence": {
+        "area_m2": 42.0,
+        "component": 3
+      }
+    },
+    {
+      "kind": "elevated_region",
+      "severity": "info",
+      "position": [
+        -20.0,
+        3.35,
+        13.5
+      ],
+      "detail": "elevated walkable surface of 64.0 m^2, reachable only by falling onto it",
+      "objects": [],
+      "evidence": {
+        "area_m2": 64.0,
+        "component": 9
+      }
+    },
+    {
+      "kind": "elevated_region",
+      "severity": "info",
+      "position": [
+        -5.0,
+        3.35,
+        13.75
+      ],
+      "detail": "elevated walkable surface of 52.5 m^2, reachable only by falling onto it",
+      "objects": [],
+      "evidence": {
+        "area_m2": 52.5,
+        "component": 10
+      }
+    },
+    {
+      "kind": "visual_without_collision",
+      "severity": "warning",
+      "position": [
+        -21.25,
+        0.15,
+        -2.17
+      ],
+      "detail": "visual geometry over 38.2 m^2 can be walked through (no collision in the body band)",
+      "objects": [
+        "Village/Landmark"
+      ],
+      "evidence": {
+        "area_m2": 38.2
+      }
+    },
+    {
+      "kind": "wall_leak",
+      "severity": "error",
+      "position": [
+        -40.26,
+        0.15,
+        -17.62
+      ],
+      "detail": "a 11.2 m^2 hole in the collision lets a walker cross a visual barrier between two regions the visuals keep apart (すり抜け)",
+      "objects": [
+        "Village/Buildings",
+        "Village/BuildingsStone",
+        "Village/BuildingsTrim",
+        "Village/Windows",
+        "Village/WindowsLit"
+      ],
+      "evidence": {
+        "area_m2": 11.2
+      }
+    },
+    {
+      "kind": "visual_without_collision",
+      "severity": "warning",
+      "position": [
+        -21.0,
+        0.15,
+        -22.75
+      ],
+      "detail": "visual geometry over 0.5 m^2 can be walked through (no collision in the body band)",
+      "objects": [
+        "Village/LampPosts"
+      ],
+      "evidence": {
+        "area_m2": 0.5
+      }
+    }
+  ],
+  "notes": [
+    "static geometric check on a grid: AABB footprints stand in for rotated shapes, heightfields are sampled at cell centres, and multi-storey interiors collapse to their highest standable surface; the dynamic proof is the physics walker (B-1510)",
+    "the body fit keeps passages of roughly char_width + cell open and closes narrower ones, so gaps between char_width and that width are reported closed: the grid cannot certify a gap it cannot resolve",
+    "extraction: 22 static shapes, 0 disabled, 0 areas (not blockers), 0 non-static shapes skipped"
+  ],
+  "shifted_from": [
+    -37.2,
+    0.0,
+    -17.24
+  ],
+  "shifted_node": "Village/CityBody/Building0",
+  "shifted_dx_m": 2.0
+}

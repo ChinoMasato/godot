@@ -2,13 +2,13 @@
  "version": 1,
  "generated_by": "ai_loop/make_catalog.py",
  "counts": {
-  "cli": 20,
+  "cli": 21,
   "command": 72,
-  "mcp": 79,
+  "mcp": 80,
   "preset": 7,
-  "script": 34,
+  "script": 36,
   "class": 15,
-  "total": 227
+  "total": 231
  },
  "entries": [
   {
@@ -90,6 +90,19 @@
    "required_capabilities": [],
    "fallback": null,
    "usage": "uzu.py catalog <word> [<word> ...] [--limit N] [--caps a,b] [--profile caps.json]"
+  },
+  {
+   "name": "collision-check",
+   "kind": "cli",
+   "description": "mechanical collision check of a saved scene (B-1224): rasterizes the collision and the visuals onto a grid and checks them geometrically -- visual footprints collision does not cover, collision no visual explains, wall leaks (visual barrier, collision gap) and plugged gaps, walkable connectivity from the starts under the step rule (unreachable places, disconnected starts with the bottleneck and its required rise, pockets), and overlapping collision of different bodies. Findings carry coordinates; --heatmap writes a top-down PNG of the same raster. Static and geometric; the dynamic proof is the physics walker (map walk-graph)",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "usage": "uzu.py collision-check <project> --scene res://x.tscn [--start x,z ...] [--cell 0.5] [--step 0.25] [--char-width 0.7] [--body-height 1.8] [--out report.json] [--heatmap map.png]"
   },
   {
    "name": "dialogue",
@@ -1515,6 +1528,24 @@
    "maps_to": {
     "tool": "engine",
     "command": "classes"
+   }
+  },
+  {
+   "name": "collision_check",
+   "kind": "mcp",
+   "description": "Mechanical collision check of a saved scene (BACKLOG B-1224): rasterizes the scene's collision solids and visual footprints onto a grid (cell ~ the character's width) and checks them geometrically -- visual footprints the collision does not cover, collision no visual explains (invisible walls), wall leaks (a visual barrier with a collision gap a walker slips through) and plugged gaps (invisible collision sealing an open passage), walkable connectivity from the start places under a step rule (unreachable places, disconnected starts with the bottleneck position and its required rise, pockets with no start and no place), and collision AABBs of different bodies overlapping by volume. Every finding carries coordinates and a severity; ok when no finding is an error. --heatmap also writes a top-down PNG of the raster. Static and geometric; the dynamic counterpart is map_walk_graph (B-1510). Starts default to the places whose name says spawn.",
+   "tags": [
+    "check",
+    "collision",
+    "collision-check",
+    "mcp"
+   ],
+   "source": "ai_loop/mcp_server.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "maps_to": {
+    "tool": "collision-check",
+    "command": null
    }
   },
   {
@@ -2984,6 +3015,30 @@
     "script"
    ],
    "source": "ai_loop/catalog.py",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "collision_check",
+   "kind": "script",
+   "description": "Mechanical collision check of a saved scene (BACKLOG B-1224): the",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/collision_check.py",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "collision_tool",
+   "kind": "script",
+   "description": "Collision extraction, engine side (BACKLOG B-1224): loads a SAVED scene (.tscn / .scn) through the resource loader, instantiates it WITHOUT adding it to the tree (no _ready runs, nothing is played), and extracts the raw geometry the mechani",
+   "tags": [
+    "gdscript",
+    "script"
+   ],
+   "source": "ai_loop/collision_tool.gd",
    "required_capabilities": [],
    "fallback": null
   },

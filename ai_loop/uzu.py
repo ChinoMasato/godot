@@ -45,6 +45,17 @@ or through ai_loop\\windows\\uzu.bat.
                   the spec_set folder next to the scene). Differences come back per check with the
                   expected and recounted values; families the artifact cannot express are reported
                   not_countable with the reason
+  uzu.py collision-check <project> --scene res://x.tscn [--start x,z ...] [--cell 0.5]
+                  [--step 0.25] [--char-width 0.7] [--body-height 1.8] [--out report.json]
+                  [--heatmap map.png]   mechanical collision check of a saved scene (B-1224):
+                  rasterizes the collision and the visuals onto a grid and checks them
+                  geometrically -- visual footprints collision does not cover, collision no
+                  visual explains, wall leaks (visual barrier, collision gap) and plugged
+                  gaps, walkable connectivity from the starts under the step rule (unreachable
+                  places, disconnected starts with the bottleneck and its required rise,
+                  pockets), and overlapping collision of different bodies. Findings carry
+                  coordinates; --heatmap writes a top-down PNG of the same raster. Static and
+                  geometric; the dynamic proof is the physics walker (map walk-graph)
   uzu.py picture  <project> <command> [options]   Picture prototype: doctor, schema, analyze, snap, adopt, validate, shot, map, pbr
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
@@ -1065,6 +1076,54 @@ def audit_scene_cmd(project, args):
 
 
 IMAGEWALK_PROBE = 'UZUImageWalk="*res://addons/uzu_selfplay/image_walk.gd"\n'
+
+
+def collision_check_cmd(project, args):
+    """Mechanical collision check of a saved scene (B-1224): ai_loop/collision_tool.gd
+    extracts the collision solids (AABBs, heightfields, concave faces, planes), the
+    visual footprints and the uzu_places metadata from the artifact, and
+    ai_loop/collision_check.py rasterizes them onto a grid and checks them
+    geometrically: coverage of visuals by collision (and the reverse overhang),
+    wall leaks and plugged gaps, walkable connectivity from the starts under the
+    step rule (unreachable places, disconnected starts with the bottleneck and
+    its required rise, pockets) and overlapping collision. ok when no finding
+    has severity "error". Starts default to the places whose name says spawn."""
+    scene = opt(args, "scene")
+    if not scene:
+        raise ToolError("collision-check needs --scene res://...", command="collision-check")
+    scene_file = os.path.join(project, scene[len("res://"):]) if scene.startswith("res://") else scene
+    if not os.path.isfile(scene_file):
+        raise ToolError(f"the scene is not in the project: {scene} (generate or compose it first)",
+                        command="collision-check")
+    extract, _ = gd_tool(project, "collision_tool.gd", ["--scene", scene], "COLLISION_RESULT ", timeout=900)
+    if not extract.get("ok"):
+        raise ToolError(extract.get("error", "the collision extraction failed"), command="collision-check")
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import collision_check
+    opts = {}
+    for name in ("cell", "step", "char-width", "body-height", "max-slope",
+                 "min-visual-area", "coverage-min", "overhang-max", "min-pocket-area"):
+        value = opt(args, name)
+        if value:
+            opts[name.replace("-", "_")] = float(value)
+    starts = []
+    for i, a in enumerate(args):
+        if a == "--start" and i + 1 < len(args):
+            sx, sz = args[i + 1].split(",")
+            starts.append((float(sx), float(sz), f"start[{len(starts)}]"))
+    try:
+        report, raster = collision_check.analyze(extract, opts, starts or None)
+    except ValueError as e:
+        raise ToolError(str(e), command="collision-check")
+    heatmap = opt(args, "heatmap")
+    if heatmap:
+        report["heatmap"] = collision_check.write_heatmap(raster, heatmap)
+    out_file = opt(args, "out")
+    if out_file:
+        with open(out_file, "w", encoding="utf-8") as f:
+            json.dump(report, f, ensure_ascii=False, indent=2)
+    return {"command": "collision-check", **report}
 
 
 def animation_cmd(project, args):
@@ -2324,6 +2383,7 @@ def selftest_tools():
     commands.append(("tests/test_spec_set.py", []))
     commands.append(("tests/test_walk_graph.py", []))
     commands.append(("tests/test_audit_scene.py", []))
+    commands.append(("tests/test_collision_check.py", []))
     commands.append(("tests/test_image_scene.py", []))
     commands.append(("tests/test_animation.py", []))
     ok = True
@@ -2407,7 +2467,7 @@ def main(argv):
             result = {"ok": False, "error": e.message}
         print(json.dumps(result, ensure_ascii=False))
         return 0 if result.get("ok") else 1
-    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui", "map", "audit-scene", "image-scene", "anim") or not rest:
+    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui", "map", "audit-scene", "collision-check", "image-scene", "anim") or not rest:
         print(__doc__, file=sys.stderr)
         return 2
     project = os.path.abspath(rest[0])
@@ -2415,7 +2475,7 @@ def main(argv):
         print(json.dumps({"ok": False, "error": f"{rest[0]} is not a project (no project.godot)"}))
         return 2
     try:
-        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui, "map": map_, "audit-scene": audit_scene_cmd, "image-scene": image_scene_cmd, "anim": animation_cmd}[tool](project, rest[1:])
+        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui, "map": map_, "audit-scene": audit_scene_cmd, "collision-check": collision_check_cmd, "image-scene": image_scene_cmd, "anim": animation_cmd}[tool](project, rest[1:])
     except ToolError as e:
         result = {"ok": False, "error": e.message, **e.extra}
         print(json.dumps(result, ensure_ascii=False))
