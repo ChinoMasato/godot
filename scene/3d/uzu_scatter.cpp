@@ -167,9 +167,9 @@ Vector<Transform3D> UZUScatter::compute(const Ref<Mesh> &p_surface, const Transf
 				for (int dz = -1; dz <= 1 && !too_close; dz++) {
 					for (int dy = -1; dy <= 1 && !too_close; dy++) {
 						for (int dx = -1; dx <= 1 && !too_close; dx++) {
-							const LocalVector<Vector3> *near = grid.getptr(c + Vector3i(dx, dy, dz));
-							if (near) {
-								for (const Vector3 &q : *near) {
+							const LocalVector<Vector3> *cell_points = grid.getptr(c + Vector3i(dx, dy, dz));
+							if (cell_points) {
+								for (const Vector3 &q : *cell_points) {
 									if (q.distance_squared_to(point) < min_distance * min_distance) {
 										too_close = true;
 										break;
