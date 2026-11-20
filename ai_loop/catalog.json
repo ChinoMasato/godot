@@ -2,13 +2,13 @@
  "version": 1,
  "generated_by": "ai_loop/make_catalog.py",
  "counts": {
-  "cli": 20,
+  "cli": 21,
   "command": 72,
   "mcp": 79,
   "preset": 7,
-  "script": 34,
+  "script": 35,
   "class": 15,
-  "total": 227
+  "total": 229
  },
  "entries": [
   {
@@ -129,6 +129,19 @@
    "required_capabilities": [],
    "fallback": null,
    "usage": "uzu.py enrich <project> --preset village_rich|meadow|ruins [--scene res://x.tscn] [--surface Ground] [--seed N] [--density-scale 1] [--shot out.png] [--no-render]"
+  },
+  {
+   "name": "feel-report",
+   "kind": "cli",
+   "description": "feel proxy metrics (B-1112, see ai_loop/feel_report.py and ai_loop/selfplay/feel_probe.gd): a self-verifying play sampled per frame -- per game event, the input -> reaction latency, hitstop / slowmo segments, shake and kick curves, flash segments and UI easing samples. Numbers for comparing runs (juice on/off, presets), never a \"feels good\" verdict; --no-juice measures the same play with the game's juice calls disabled, --probe-selftest fires one effect per channel without gameplay",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "usage": "uzu.py feel-report <project> [--seed 7] [--no-juice] [--out r.json] [--compare r2.json] [--watch k,...] [--probe-selftest [--frames 1500]]"
   },
   {
    "name": "image-scene",
@@ -3008,6 +3021,18 @@
     "script"
    ],
    "source": "ai_loop/engine_tool.gd",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "feel_report",
+   "kind": "script",
+   "description": "Feel proxy metrics for a self-verifying play (BACKLOG B-1112).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/feel_report.py",
    "required_capabilities": [],
    "fallback": null
   },

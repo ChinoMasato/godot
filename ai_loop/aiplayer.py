@@ -32,7 +32,10 @@ AUTOLOADS = 'UZUControl="*res://addons/uzu_selfplay/control.gd"\nUZUTelemetry="*
 
 
 class Game:
-    def __init__(self, project, seed=None, render=False, telemetry_log=None):
+    def __init__(self, project, seed=None, render=False, telemetry_log=None, extra_autoloads=None, extra_user_args=None):
+        # extra_autoloads: {name: path under ai_loop/} copied into the addon
+        # folder and registered after the standard autoloads (B-1112's feel
+        # probe is the first user). extra_user_args: more "--" arguments.
         self.work = tempfile.mkdtemp(prefix="uzu_aiplayer_")
         game = os.path.join(self.work, "game")
         shutil.copytree(project, game, ignore=shutil.ignore_patterns(".godot"))
@@ -41,10 +44,14 @@ class Game:
         shutil.copy(os.path.join(HERE, "selfplay", "control.gd"), addon)
         shutil.copy(os.path.join(HERE, "telemetry", "telemetry.gd"), addon)
         shutil.copy(os.path.join(HERE, "selfplay", "state_hash.gd"), addon)  # State hashes and save states (B-307, B-309).
+        autoloads = AUTOLOADS
+        for name, rel in (extra_autoloads or {}).items():
+            shutil.copy(os.path.join(HERE, rel), addon)
+            autoloads += '%s="*res://addons/uzu_selfplay/%s"\n' % (name, os.path.basename(rel))
         cfg = os.path.join(game, "project.godot")
         with open(cfg, encoding="utf-8") as f:
             text = f.read()
-        text = text.replace("\n[autoload]\n", "\n[autoload]\n\n" + AUTOLOADS, 1) if "\n[autoload]\n" in text else text + "\n[autoload]\n\n" + AUTOLOADS
+        text = text.replace("\n[autoload]\n", "\n[autoload]\n\n" + autoloads, 1) if "\n[autoload]\n" in text else text + "\n[autoload]\n\n" + autoloads
         with open(cfg, "w", encoding="utf-8") as f:
             f.write(text)
         # B-311: the copy has no .godot, so imported resources (fonts,
@@ -56,6 +63,7 @@ class Game:
         user_args = ["--uzu-telemetry", telemetry_log or os.path.join(self.work, "events.jsonl")]
         if seed is not None:
             user_args += ["--uzu-seed", str(seed)]  # control.gd fixes the global random seed (B-305).
+        user_args += list(extra_user_args or [])
         cmd = [uzu.find_godot(), "--path", game, "--fixed-fps", "60"]
         env = None
         if render:
