@@ -62,6 +62,11 @@ or through ai_loop\\windows\\uzu.bat.
                   eaves in geometry, a high-density version baked down to a practical GLB with a PBR
                   texture set; prints per-building triangle counts, the bake miss rate and GLB paths,
                   and renders the street three ways (WorldGen-style, grey recipe, textured recipe)
+  uzu.py rock --spec spec.json [--out DIR] [--check] [--blender PATH] [--timeout 1800]
+                  [--tex-size 2048] [--samples 48]   procedural rocks (B-1219 stage 2): faceted rocks
+                  from parameters (seed, radius, cuts, bevel) -- half-space cuts make the flat faces
+                  and ridges noise displacement cannot -- baked down to a practical GLB with a PBR
+                  texture set (albedo / normal / ORM); prints triangle counts and the bake miss rate
   uzu.py publish  <build | project> [options]     through the bridge API (B-505)
   uzu.py selftest [engine | selfplay | tools | all | bake]   (all = engine, selfplay, tools; bake runs the editor)
 
@@ -797,9 +802,31 @@ def rich(project, args):
         hints.append("almost every edge is sharp (no chamfers); chamfered edges catch the light and read as made, not as primitives")
     if frame and metrics["frame_draw_calls"] > 2000:
         hints.append(f"{metrics['frame_draw_calls']} draw calls in the frame; MultiMesh (scatter) or merging meshes helps")
+    # B-1219 stage 2: Blender-route stats (uzu.py building's stats.json)
+    # on the same model_quality scale, so a building baked outside the
+    # engine and a scene measured inside it read on one ruler.
+    blender_quality = None
+    if opt(args, "blender-stats"):
+        stats_path = opt(args, "blender-stats")
+        stats_path = os.path.join(project, stats_path[len("res://"):]) if stats_path.startswith("res://") else stats_path
+        with open(stats_path, encoding="utf-8") as f:
+            blender_stats = json.load(f)
+        blender_quality = []
+        for b in blender_stats.get("buildings", []):
+            entry = {"name": b.get("name"), "model_quality": b.get("model_quality", {}),
+                     "triangles_high": b.get("triangles_high"),
+                     "bake_miss_rate": b.get("bake_miss_rate"),
+                     "sharp_edge_preservation": (b.get("reduction") or {}).get("sharp_edge_preservation"),
+                     "orm_texture": b.get("orm_texture")}
+            blender_quality.append(entry)
+            mq = entry["model_quality"]
+            if mq.get("bevel_share", 1) < 0.05 and mq.get("triangles", 0) > 0:
+                hints.append(f"blender building {entry['name']}: bevel_share {mq['bevel_share']} -- almost every edge is sharp; the recipe's chamfers should show here")
+            if (entry["bake_miss_rate"] or 0) > 0.01:
+                hints.append(f"blender building {entry['name']}: bake miss rate {entry['bake_miss_rate']} -- rays are missing the high model (cage / ray distance)")
     return {"ok": not failures, "command": "rich", "scene": scene, "summary": static["summary"], "frame": frame,
             "budget": budget or None, "failures": failures, "hints": hints, "top": static.get("top", []), "by_type": static.get("by_type", {}),
-            "model_quality": quality, "note": static.get("note", "")}
+            "model_quality": quality, "blender_model_quality": blender_quality, "note": static.get("note", "")}
 
 
 def _flag_value(args, name):
@@ -2176,6 +2203,10 @@ def main(argv):
         import building_recipe
 
         return building_recipe.main(rest)
+    if tool == "rock":
+        import rock_recipe
+
+        return rock_recipe.main(rest)
     if tool == "selftest":
         return selftest(rest[0] if rest else "all")
     if tool == "picture":

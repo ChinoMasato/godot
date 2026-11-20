@@ -1,0 +1,113 @@
+{
+  "buildings": [
+    {
+      "name": "house_default",
+      "triangles_practical": 6552,
+      "triangles_high": 57484,
+      "parts": 200,
+      "unique_part_meshes": 90,
+      "interior_culling": {
+        "faces_culled": 445,
+        "triangles_before": 7256,
+        "triangles_after": 6572,
+        "sharp_edges_before": 7866,
+        "sharp_edges_after": 7866
+      },
+      "reduction": {
+        "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
+        "angle_limit_deg": 12.0,
+        "triangles_before": 6572,
+        "triangles_after": 6552,
+        "sharp_edges_before": 7866,
+        "sharp_edges_after": 7714,
+        "sharp_edge_preservation": 1.0
+      },
+      "bake_miss_rate": 8.298755186721991e-05,
+      "texture_size": 1024,
+      "orm_texture": "house_default_orm.png",
+      "model_quality": {
+        "triangles": 6552,
+        "chamfered_edges": 5902,
+        "sharp_edges": 439,
+        "bevel_share": 0.931,
+        "triangles_per_m2": 10.66,
+        "pbr_coverage": 1.0,
+        "size_m": 9.43
+      },
+      "roof_tiles": {
+        "instances": 594,
+        "tile_triangles": 8,
+        "added_triangles": 4752,
+        "shared_mesh": "house_default_tile"
+      },
+      "triangles_total": 11304,
+      "glb": "house_default.glb",
+      "glb_bytes": 2934704,
+      "bake_texture_size": 2048
+    },
+    {
+      "name": "house_alpine",
+      "triangles_practical": 8018,
+      "triangles_high": 70796,
+      "parts": 248,
+      "unique_part_meshes": 106,
+      "interior_culling": {
+        "faces_culled": 616,
+        "triangles_before": 8984,
+        "triangles_after": 8038,
+        "sharp_edges_before": 9738,
+        "sharp_edges_after": 9738
+      },
+      "reduction": {
+        "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
+        "angle_limit_deg": 12.0,
+        "triangles_before": 8038,
+        "triangles_after": 8018,
+        "sharp_edges_before": 9738,
+        "sharp_edges_after": 9570,
+        "sharp_edge_preservation": 1.0
+      },
+      "bake_miss_rate": 0.0006847305096351364,
+      "texture_size": 1024,
+      "orm_texture": "house_alpine_orm.png",
+      "model_quality": {
+        "triangles": 8018,
+        "chamfered_edges": 7144,
+        "sharp_edges": 605,
+        "bevel_share": 0.922,
+        "triangles_per_m2": 11.46,
+        "pbr_coverage": 1.0,
+        "size_m": 11.1
+      },
+      "roof_tiles": {
+        "instances": 756,
+        "tile_triangles": 8,
+        "added_triangles": 6048,
+        "shared_mesh": "house_alpine_tile"
+      },
+      "triangles_total": 14066,
+      "glb": "house_alpine.glb",
+      "glb_bytes": 2860284,
+      "bake_texture_size": 2048
+    }
+  ],
+  "renders": {
+    "a_worldgen": "render_a_worldgen.png",
+    "b_recipe_gray": "render_b_recipe_gray.png",
+    "c_recipe_textured": "render_c_recipe_textured.png"
+  },
+  "layout": [
+    {
+      "name": "house_default",
+      "x": 0.0,
+      "y": 7.65,
+      "flip": false
+    },
+    {
+      "name": "house_alpine",
+      "x": 0.0,
+      "y": -7.65,
+      "flip": true
+    }
+  ]
+}

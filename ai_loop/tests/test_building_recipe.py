@@ -75,6 +75,76 @@ class DeriveTest(unittest.TestCase):
         self.assertFalse(b["chimney"])
 
 
+class StyleTest(unittest.TestCase):
+    """B-1219 stage 2: styles are data (ai_loop/building_styles.json)."""
+
+    def test_default_style_reproduces_stage1_constants(self):
+        b = building_recipe.derive_building(dict(HOUSE), 0)
+        self.assertEqual(b["style_name"], "default")
+        self.assertEqual(b["floor_height"], 2.8)
+        self.assertEqual(b["foundation_height"], 0.55)
+        self.assertEqual(b["wall_thickness"], 0.18)
+        self.assertEqual(b["eaves"], 0.45)
+        win = [o for o in b["openings"]["back"] if o["type"] == "window"][0]
+        self.assertEqual((win["w"], win["h"]), (0.9, 1.3))
+        geo = b["style"]["geometry"]
+        self.assertEqual(geo["tints"]["wall"]["plaster"], [0.93, 0.89, 0.82])
+
+    def test_a_style_is_a_data_only_change(self):
+        plain = building_recipe.derive_building(dict(HOUSE), 0)
+        alpine = building_recipe.derive_building(dict(HOUSE, style="alpine"), 0)
+        self.assertEqual(alpine["style_name"], "alpine")
+        # steeper roof, deeper eaves, taller floors, smaller windows
+        self.assertGreater(alpine["roof_rise"], plain["roof_rise"])
+        self.assertEqual(alpine["eaves"], 0.7)
+        self.assertEqual(alpine["floor_height"], 3.0)
+        win = [o for o in alpine["openings"]["back"] if o["type"] == "window"][0]
+        self.assertEqual((win["w"], win["h"]), (0.8, 1.1))
+        # untouched keys fall back to the default style (deep merge)
+        self.assertEqual(alpine["style"]["geometry"]["wall_thickness"], 0.18)
+        self.assertEqual(alpine["style"]["materials"]["wood"]["board_scale"], 3.4)
+        self.assertEqual(alpine["style"]["materials"]["plaster"]["roughness"], 0.92)
+
+    def test_unknown_style_and_unknown_key_are_errors(self):
+        with self.assertRaises(ValueError):
+            building_recipe.derive_building(dict(HOUSE, style="baroque"), 0)
+        doc = building_recipe.load_styles()
+        bad = {"styles": {"default": doc["styles"]["default"],
+                          "x": {"geometry": {"bogus": 1}}}}
+        with self.assertRaises(ValueError):
+            building_recipe.resolve_style(bad, "x")
+        with self.assertRaises(ValueError):
+            building_recipe.resolve_style({"styles": {}}, "default")
+
+    def test_styles_file_is_valid_and_complete(self):
+        doc = building_recipe.load_styles()
+        self.assertIn("default", doc["styles"])
+        resolved = building_recipe.resolve_style(doc, "default")
+        for section in ("geometry", "materials"):
+            self.assertIn(section, resolved)
+        for key in ("floor_height", "foundation_height", "wall_thickness",
+                    "window", "door", "roof", "tints", "roof_tiles"):
+            self.assertIn(key, resolved["geometry"])
+
+
+class SampleStatsTest(unittest.TestCase):
+    """The committed sample street (regenerated in stage 2) carries the
+    model_quality block on the engine report's scale."""
+
+    def test_sample_stats_model_quality_keys(self):
+        stats = json.loads((LOOP / "look_samples" / "b1219" / "stats.json")
+                           .read_text(encoding="utf-8"))
+        self.assertEqual(len(stats["buildings"]), 5)
+        for b in stats["buildings"]:
+            mq = b["model_quality"]
+            for key in ("triangles", "chamfered_edges", "sharp_edges",
+                        "bevel_share", "triangles_per_m2", "pbr_coverage", "size_m"):
+                self.assertIn(key, mq, f"{b['name']}.{key}")
+            self.assertEqual(mq["pbr_coverage"], 1.0)
+            self.assertIn("orm_texture", b)
+            self.assertIn("interior_culling", b)
+
+
 class CheckCliTest(unittest.TestCase):
     def run_cli(self, *argv):
         return subprocess.run([sys.executable, str(LOOP / "uzu.py"), *argv],

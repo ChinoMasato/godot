@@ -2,107 +2,215 @@
   "buildings": [
     {
       "name": "house_plaster",
-      "triangles_practical": 7414,
+      "triangles_practical": 6727,
       "triangles_high": 57660,
       "parts": 204,
       "unique_part_meshes": 92,
+      "interior_culling": {
+        "faces_culled": 453,
+        "triangles_before": 7432,
+        "triangles_after": 6743,
+        "sharp_edges_before": 8058,
+        "sharp_edges_after": 8058
+      },
       "reduction": {
         "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
         "angle_limit_deg": 12.0,
-        "triangles_before": 7432,
-        "triangles_after": 7414,
+        "triangles_before": 6743,
+        "triangles_after": 6727,
         "sharp_edges_before": 8058,
         "sharp_edges_after": 7922,
         "sharp_edge_preservation": 1.0
       },
-      "bake_miss_rate": 8.862498338281562e-05,
+      "bake_miss_rate": 0.000231000231000231,
       "texture_size": 1024,
+      "orm_texture": "house_plaster_orm.png",
+      "model_quality": {
+        "triangles": 6727,
+        "chamfered_edges": 6081,
+        "sharp_edges": 480,
+        "bevel_share": 0.927,
+        "triangles_per_m2": 10.73,
+        "pbr_coverage": 1.0,
+        "size_m": 9.36
+      },
+      "roof_tiles": {
+        "instances": 594,
+        "tile_triangles": 8,
+        "added_triangles": 4752,
+        "shared_mesh": "house_plaster_tile"
+      },
+      "triangles_total": 11479,
       "glb": "house_plaster.glb",
-      "glb_bytes": 2293236,
+      "glb_bytes": 2656596,
       "bake_texture_size": 2048
     },
     {
       "name": "house_brick",
-      "triangles_practical": 8766,
+      "triangles_practical": 8150,
       "triangles_high": 66132,
       "parts": 243,
       "unique_part_meshes": 100,
+      "interior_culling": {
+        "faces_culled": 421,
+        "triangles_before": 8800,
+        "triangles_after": 8180,
+        "sharp_edges_before": 9537,
+        "sharp_edges_after": 9537
+      },
       "reduction": {
         "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
         "angle_limit_deg": 12.0,
-        "triangles_before": 8800,
-        "triangles_after": 8766,
+        "triangles_before": 8180,
+        "triangles_after": 8150,
         "sharp_edges_before": 9537,
         "sharp_edges_after": 9321,
         "sharp_edge_preservation": 1.0
       },
-      "bake_miss_rate": 0.0014569295210344199,
+      "bake_miss_rate": 0.004001978506227798,
       "texture_size": 1024,
+      "orm_texture": "house_brick_orm.png",
+      "model_quality": {
+        "triangles": 8150,
+        "chamfered_edges": 7275,
+        "sharp_edges": 637,
+        "bevel_share": 0.919,
+        "triangles_per_m2": 10.5,
+        "pbr_coverage": 1.0,
+        "size_m": 8.4
+      },
+      "triangles_total": 8150,
       "glb": "house_brick.glb",
-      "glb_bytes": 2662520,
+      "glb_bytes": 2917356,
       "bake_texture_size": 2048
     },
     {
       "name": "shop_wood",
-      "triangles_practical": 8628,
+      "triangles_practical": 7659,
       "triangles_high": 67312,
       "parts": 237,
       "unique_part_meshes": 104,
+      "interior_culling": {
+        "faces_culled": 613,
+        "triangles_before": 8668,
+        "triangles_after": 7697,
+        "sharp_edges_before": 9396,
+        "sharp_edges_after": 9396
+      },
       "reduction": {
         "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
         "angle_limit_deg": 12.0,
-        "triangles_before": 8668,
-        "triangles_after": 8628,
+        "triangles_before": 7697,
+        "triangles_after": 7659,
         "sharp_edges_before": 9396,
         "sharp_edges_after": 9192,
         "sharp_edge_preservation": 1.0
       },
-      "bake_miss_rate": 0.0001467997651203758,
+      "bake_miss_rate": 0.0017315135465471583,
       "texture_size": 1024,
+      "orm_texture": "shop_wood_orm.png",
+      "model_quality": {
+        "triangles": 7659,
+        "chamfered_edges": 6788,
+        "sharp_edges": 501,
+        "bevel_share": 0.931,
+        "triangles_per_m2": 12.2,
+        "pbr_coverage": 1.0,
+        "size_m": 7.36
+      },
+      "triangles_total": 7659,
       "glb": "shop_wood.glb",
-      "glb_bytes": 2448468,
+      "glb_bytes": 2503220,
       "bake_texture_size": 2048
     },
     {
       "name": "house_tall",
-      "triangles_practical": 12046,
+      "triangles_practical": 11230,
       "triangles_high": 102124,
       "parts": 327,
       "unique_part_meshes": 135,
+      "interior_culling": {
+        "faces_culled": 538,
+        "triangles_before": 12076,
+        "triangles_after": 11256,
+        "sharp_edges_before": 13098,
+        "sharp_edges_after": 13098
+      },
       "reduction": {
         "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
         "angle_limit_deg": 12.0,
-        "triangles_before": 12076,
-        "triangles_after": 12046,
+        "triangles_before": 11256,
+        "triangles_after": 11230,
         "sharp_edges_before": 13098,
         "sharp_edges_after": 12909,
         "sharp_edge_preservation": 1.0
       },
-      "bake_miss_rate": 0.0004588559192413582,
+      "bake_miss_rate": 0.0014039754673760437,
       "texture_size": 1024,
+      "orm_texture": "house_tall_orm.png",
+      "model_quality": {
+        "triangles": 11230,
+        "chamfered_edges": 10449,
+        "sharp_edges": 764,
+        "bevel_share": 0.932,
+        "triangles_per_m2": 14.38,
+        "pbr_coverage": 1.0,
+        "size_m": 11.93
+      },
+      "roof_tiles": {
+        "instances": 500,
+        "tile_triangles": 8,
+        "added_triangles": 4000,
+        "shared_mesh": "house_tall_tile"
+      },
+      "triangles_total": 15230,
       "glb": "house_tall.glb",
-      "glb_bytes": 2443540,
+      "glb_bytes": 2572856,
       "bake_texture_size": 2048
     },
     {
       "name": "house_small",
-      "triangles_practical": 3492,
+      "triangles_practical": 3101,
       "triangles_high": 25484,
       "parts": 97,
       "unique_part_meshes": 41,
+      "interior_culling": {
+        "faces_culled": 252,
+        "triangles_before": 3492,
+        "triangles_after": 3101,
+        "sharp_edges_before": 3786,
+        "sharp_edges_after": 3786
+      },
       "reduction": {
         "method": "weld + delete coincident interior face pairs + dissolve manifold edges flatter than the angle limit (same material only); ridges are never dissolved",
         "angle_limit_deg": 12.0,
-        "triangles_before": 3492,
-        "triangles_after": 3492,
+        "triangles_before": 3101,
+        "triangles_after": 3101,
         "sharp_edges_before": 3786,
         "sharp_edges_after": 3726,
         "sharp_edge_preservation": 1.0
       },
-      "bake_miss_rate": 0.0008818878481936504,
+      "bake_miss_rate": 0.0002839457095803282,
       "texture_size": 1024,
+      "orm_texture": "house_small_orm.png",
+      "model_quality": {
+        "triangles": 3101,
+        "chamfered_edges": 2739,
+        "sharp_edges": 272,
+        "bevel_share": 0.91,
+        "triangles_per_m2": 7.35,
+        "pbr_coverage": 1.0,
+        "size_m": 7.47
+      },
+      "roof_tiles": {
+        "instances": 594,
+        "tile_triangles": 8,
+        "added_triangles": 4752,
+        "shared_mesh": "house_small_tile"
+      },
+      "triangles_total": 7853,
       "glb": "house_small.glb",
-      "glb_bytes": 2175704,
+      "glb_bytes": 2508172,
       "bake_texture_size": 2048
     }
   ],

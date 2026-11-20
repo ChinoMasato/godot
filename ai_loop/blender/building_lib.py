@@ -153,12 +153,26 @@ def _shade(rgb, f):
     return tuple(max(0.0, min(1.0, v * f)) for v in rgb[:3])
 
 
+def _style_materials(spec):
+    """Procedural-material parameters from the resolved style the CLI
+    derived into the spec (B-1219 stage 2: styles as data). Specs from
+    before styles carry no style block; the fallbacks at the call sites
+    are the stage-1 constants -- the same values building_styles.json
+    ships as its default style -- so old specs build the same materials."""
+    return (spec.get("style") or {}).get("materials") or {}
+
+
+def _mp(mats, section, key, fallback):
+    return (mats.get(section) or {}).get(key, fallback)
+
+
 def make_materials(spec, coords_obj):
     """Procedural PBR materials for one building, tinted from the spec."""
     links_of = {}
     tint = spec["wall_tint"]
     roof_tint = spec["roof_tint"]
     mats = {}
+    P = _style_materials(spec)
 
     def new(name):
         mat = bpy.data.materials.new(f"{spec['name']}_{name}")
@@ -171,16 +185,18 @@ def make_materials(spec, coords_obj):
         mat = new("wall")
         bsdf = _bsdf(mat)
         coord = _tex_coord(mat, coords_obj)
-        n1 = _noise(mat, 3.5)
+        n1 = _noise(mat, _mp(P, "plaster", "noise_scale", 3.5))
         mat.node_tree.links.new(coord.outputs["Object"], n1.inputs["Vector"])
         ramp = _ramp(mat, [(0.25, (*_shade(tint, 0.90), 1.0)),
                            (0.80, (*_shade(tint, 1.04), 1.0))])
         mat.node_tree.links.new(n1.outputs["Fac"], ramp.inputs["Fac"])
         mat.node_tree.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
-        bsdf.inputs["Roughness"].default_value = 0.92
-        n2 = _noise(mat, 30.0, detail=4.0)
+        bsdf.inputs["Roughness"].default_value = _mp(P, "plaster", "roughness", 0.92)
+        n2 = _noise(mat, _mp(P, "plaster", "fine_noise_scale", 30.0), detail=4.0)
         mat.node_tree.links.new(coord.outputs["Object"], n2.inputs["Vector"])
-        bump = _bump(mat, n2.outputs["Fac"], strength=0.12, distance=0.03)
+        bump = _bump(mat, n2.outputs["Fac"],
+                     strength=_mp(P, "plaster", "bump_strength", 0.12),
+                     distance=_mp(P, "plaster", "bump_distance", 0.03))
         mat.node_tree.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     elif spec["wall"] == "brick":
         mat = new("wall")
@@ -191,21 +207,23 @@ def make_materials(spec, coords_obj):
         brick.offset_frequency = 2
         brick.inputs["Color1"].default_value = (*_shade(tint, 1.0), 1.0)
         brick.inputs["Color2"].default_value = (*_shade(tint, 0.78), 1.0)
-        brick.inputs["Mortar"].default_value = (0.62, 0.58, 0.52, 1.0)
-        brick.inputs["Mortar Size"].default_value = 0.04
-        brick.inputs["Mortar Smooth"].default_value = 0.004
-        brick.inputs["Bias"].default_value = -0.25
+        brick.inputs["Mortar"].default_value = (*_mp(P, "brick", "mortar_color", (0.62, 0.58, 0.52)), 1.0)
+        brick.inputs["Mortar Size"].default_value = _mp(P, "brick", "mortar_size", 0.04)
+        brick.inputs["Mortar Smooth"].default_value = _mp(P, "brick", "mortar_smooth", 0.004)
+        brick.inputs["Bias"].default_value = _mp(P, "brick", "bias", -0.25)
         # TexBrick scales its input x5 internally (measured: width 1.0
         # over a 0..1 range gives 5 bricks), so real-world sizes are x5.
-        brick.inputs["Brick Width"].default_value = 0.44 * 5
-        brick.inputs["Row Height"].default_value = 0.105 * 5
+        brick.inputs["Brick Width"].default_value = _mp(P, "brick", "brick_width", 0.44) * 5
+        brick.inputs["Row Height"].default_value = _mp(P, "brick", "row_height", 0.105) * 5
         mat.node_tree.links.new(_pattern_uv(mat, coord), brick.inputs["Vector"])
         n1 = _noise(mat, 6.0, detail=4.0)
         mat.node_tree.links.new(coord.outputs["Object"], n1.inputs["Vector"])
         varied = _mix(mat, 'MULTIPLY', 0.35, brick.outputs["Color"], n1.outputs["Color"])
         mat.node_tree.links.new(varied.outputs["Color"], bsdf.inputs["Base Color"])
-        bsdf.inputs["Roughness"].default_value = 0.86
-        bump = _bump(mat, brick.outputs["Fac"], strength=0.5, distance=0.02)
+        bsdf.inputs["Roughness"].default_value = _mp(P, "brick", "roughness", 0.86)
+        bump = _bump(mat, brick.outputs["Fac"],
+                     strength=_mp(P, "brick", "bump_strength", 0.5),
+                     distance=_mp(P, "brick", "bump_distance", 0.02))
         mat.node_tree.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     else:  # wood siding: horizontal bands + grain
         mat = new("wall")
@@ -215,9 +233,9 @@ def make_materials(spec, coords_obj):
         wave.wave_type = 'BANDS'
         wave.bands_direction = 'Z'
         wave.wave_profile = 'SIN'
-        wave.inputs["Scale"].default_value = 4.4  # ~0.23 m per board
-        wave.inputs["Distortion"].default_value = 1.2
-        wave.inputs["Detail"].default_value = 3.0
+        wave.inputs["Scale"].default_value = _mp(P, "wood", "board_scale", 4.4)  # ~0.23 m per board
+        wave.inputs["Distortion"].default_value = _mp(P, "wood", "distortion", 1.2)
+        wave.inputs["Detail"].default_value = _mp(P, "wood", "detail", 3.0)
         mat.node_tree.links.new(coord.outputs["Object"], wave.inputs["Vector"])
         ramp = _ramp(mat, [(0.0, (*_shade(tint, 0.62), 1.0)),
                            (0.18, (*_shade(tint, 1.0), 1.0)),
@@ -228,8 +246,10 @@ def make_materials(spec, coords_obj):
         mat.node_tree.links.new(coord.outputs["Object"], n1.inputs["Vector"])
         varied = _mix(mat, 'MULTIPLY', 0.30, ramp.outputs["Color"], n1.outputs["Color"])
         mat.node_tree.links.new(varied.outputs["Color"], bsdf.inputs["Base Color"])
-        bsdf.inputs["Roughness"].default_value = 0.78
-        bump = _bump(mat, wave.outputs["Fac"], strength=0.35, distance=0.02)
+        bsdf.inputs["Roughness"].default_value = _mp(P, "wood", "roughness", 0.78)
+        bump = _bump(mat, wave.outputs["Fac"],
+                     strength=_mp(P, "wood", "bump_strength", 0.35),
+                     distance=_mp(P, "wood", "bump_distance", 0.02))
         mat.node_tree.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
 
     # ---- roof ------------------------------------------------------------
@@ -237,13 +257,13 @@ def make_materials(spec, coords_obj):
     bsdf = _bsdf(mat)
     coord = _tex_coord(mat, coords_obj)
     if spec["roof"] == "flat":
-        n1 = _noise(mat, 5.0, detail=4.0)
+        n1 = _noise(mat, _mp(P, "flat_roof", "noise_scale", 5.0), detail=4.0)
         mat.node_tree.links.new(coord.outputs["Object"], n1.inputs["Vector"])
         ramp = _ramp(mat, [(0.3, (*_shade(roof_tint, 0.85), 1.0)),
                            (0.75, (*_shade(roof_tint, 1.1), 1.0))])
         mat.node_tree.links.new(n1.outputs["Fac"], ramp.inputs["Fac"])
         mat.node_tree.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
-        bsdf.inputs["Roughness"].default_value = 0.96
+        bsdf.inputs["Roughness"].default_value = _mp(P, "flat_roof", "roughness", 0.96)
     else:  # tile courses from a brick pattern
         brick = mat.node_tree.nodes.new("ShaderNodeTexBrick")
         brick.offset = 0.5
@@ -251,55 +271,61 @@ def make_materials(spec, coords_obj):
         brick.inputs["Color1"].default_value = (*_shade(roof_tint, 1.0), 1.0)
         brick.inputs["Color2"].default_value = (*_shade(roof_tint, 0.8), 1.0)
         brick.inputs["Mortar"].default_value = (*_shade(roof_tint, 0.55), 1.0)
-        brick.inputs["Mortar Size"].default_value = 0.02
-        brick.inputs["Mortar Smooth"].default_value = 0.003
-        brick.inputs["Bias"].default_value = -0.2
-        brick.inputs["Brick Width"].default_value = 0.30 * 5  # x5: TexBrick internal scale
-        brick.inputs["Row Height"].default_value = 0.15 * 5
+        brick.inputs["Mortar Size"].default_value = _mp(P, "roof_tile", "mortar_size", 0.02)
+        brick.inputs["Mortar Smooth"].default_value = _mp(P, "roof_tile", "mortar_smooth", 0.003)
+        brick.inputs["Bias"].default_value = _mp(P, "roof_tile", "bias", -0.2)
+        brick.inputs["Brick Width"].default_value = _mp(P, "roof_tile", "brick_width", 0.30) * 5  # x5: TexBrick internal scale
+        brick.inputs["Row Height"].default_value = _mp(P, "roof_tile", "row_height", 0.15) * 5
         mat.node_tree.links.new(_pattern_uv(mat, coord), brick.inputs["Vector"])
         mat.node_tree.links.new(brick.outputs["Color"], bsdf.inputs["Base Color"])
-        bsdf.inputs["Roughness"].default_value = 0.88
-        bump = _bump(mat, brick.outputs["Fac"], strength=0.7, distance=0.03)
+        bsdf.inputs["Roughness"].default_value = _mp(P, "roof_tile", "roughness", 0.88)
+        bump = _bump(mat, brick.outputs["Fac"],
+                     strength=_mp(P, "roof_tile", "bump_strength", 0.7),
+                     distance=_mp(P, "roof_tile", "bump_distance", 0.03))
         mat.node_tree.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
 
     # ---- trim / frames / door -------------------------------------------
-    frame_col = (0.16, 0.10, 0.06) if spec["wall"] != "brick" else (0.88, 0.84, 0.76)
+    frame_col = tuple(_mp(P, "trim", "color_dark", (0.16, 0.10, 0.06))) \
+        if spec["wall"] != "brick" else tuple(_mp(P, "trim", "color_light", (0.88, 0.84, 0.76)))
     mat = new("trim")
     bsdf = _bsdf(mat)
     bsdf.inputs["Base Color"].default_value = (*frame_col, 1.0)
-    bsdf.inputs["Roughness"].default_value = 0.62
+    bsdf.inputs["Roughness"].default_value = _mp(P, "trim", "roughness", 0.62)
     coord = _tex_coord(mat, coords_obj)
     n1 = _noise(mat, 22.0, detail=4.0)
     mat.node_tree.links.new(coord.outputs["Object"], n1.inputs["Vector"])
-    bump = _bump(mat, n1.outputs["Fac"], strength=0.15, distance=0.015)
+    bump = _bump(mat, n1.outputs["Fac"],
+                 strength=_mp(P, "trim", "bump_strength", 0.15), distance=0.015)
     mat.node_tree.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
 
     mat = new("door")
     bsdf = _bsdf(mat)
-    bsdf.inputs["Base Color"].default_value = (*_shade(frame_col, 0.8), 1.0)
-    bsdf.inputs["Roughness"].default_value = 0.58
+    bsdf.inputs["Base Color"].default_value = (*_shade(frame_col, _mp(P, "door", "shade", 0.8)), 1.0)
+    bsdf.inputs["Roughness"].default_value = _mp(P, "door", "roughness", 0.58)
 
     # ---- glass ------------------------------------------------------------
     mat = new("glass")
     bsdf = _bsdf(mat)
-    bsdf.inputs["Base Color"].default_value = (0.05, 0.08, 0.11, 1.0)
-    bsdf.inputs["Roughness"].default_value = 0.07
+    bsdf.inputs["Base Color"].default_value = (*_mp(P, "glass", "color", (0.05, 0.08, 0.11)), 1.0)
+    bsdf.inputs["Roughness"].default_value = _mp(P, "glass", "roughness", 0.07)
 
     # ---- stone (foundation, steps, chimney cap) ---------------------------
     mat = new("stone")
     bsdf = _bsdf(mat)
     coord = _tex_coord(mat, coords_obj)
-    n1 = _noise(mat, 4.0, detail=6.0)
+    n1 = _noise(mat, _mp(P, "stone", "noise_scale", 4.0), detail=6.0)
     mat.node_tree.links.new(coord.outputs["Object"], n1.inputs["Vector"])
     ramp = _ramp(mat, [(0.3, (0.30, 0.29, 0.27, 1.0)), (0.75, (0.52, 0.50, 0.46, 1.0))])
     mat.node_tree.links.new(n1.outputs["Fac"], ramp.inputs["Fac"])
     mat.node_tree.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
-    bsdf.inputs["Roughness"].default_value = 0.98
+    bsdf.inputs["Roughness"].default_value = _mp(P, "stone", "roughness", 0.98)
     voro = mat.node_tree.nodes.new("ShaderNodeTexVoronoi")
     voro.feature = 'DISTANCE_TO_EDGE'
-    voro.inputs["Scale"].default_value = 3.0
+    voro.inputs["Scale"].default_value = _mp(P, "stone", "voronoi_scale", 3.0)
     mat.node_tree.links.new(coord.outputs["Object"], voro.inputs["Vector"])
-    bump = _bump(mat, voro.outputs["Distance"], strength=0.5, distance=0.04)
+    bump = _bump(mat, voro.outputs["Distance"],
+                 strength=_mp(P, "stone", "bump_strength", 0.5),
+                 distance=_mp(P, "stone", "bump_distance", 0.04))
     mat.node_tree.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
 
     # ---- brick for the chimney (always brick, whatever the walls are) -----
@@ -308,15 +334,15 @@ def make_materials(spec, coords_obj):
     coord = _tex_coord(mat, coords_obj)
     brick = mat.node_tree.nodes.new("ShaderNodeTexBrick")
     brick.offset_frequency = 2
-    brick.inputs["Color1"].default_value = (0.52, 0.27, 0.20, 1.0)
-    brick.inputs["Color2"].default_value = (0.42, 0.21, 0.16, 1.0)
-    brick.inputs["Mortar"].default_value = (0.60, 0.56, 0.50, 1.0)
-    brick.inputs["Mortar Size"].default_value = 0.012
-    brick.inputs["Brick Width"].default_value = 0.44
-    brick.inputs["Row Height"].default_value = 0.105
+    brick.inputs["Color1"].default_value = (*_mp(P, "chimney_brick", "color1", (0.52, 0.27, 0.20)), 1.0)
+    brick.inputs["Color2"].default_value = (*_mp(P, "chimney_brick", "color2", (0.42, 0.21, 0.16)), 1.0)
+    brick.inputs["Mortar"].default_value = (*_mp(P, "chimney_brick", "mortar_color", (0.60, 0.56, 0.50)), 1.0)
+    brick.inputs["Mortar Size"].default_value = _mp(P, "chimney_brick", "mortar_size", 0.012)
+    brick.inputs["Brick Width"].default_value = _mp(P, "chimney_brick", "brick_width", 0.44)
+    brick.inputs["Row Height"].default_value = _mp(P, "chimney_brick", "row_height", 0.105)
     mat.node_tree.links.new(coord.outputs["Object"], brick.inputs["Vector"])
     mat.node_tree.links.new(brick.outputs["Color"], bsdf.inputs["Base Color"])
-    bsdf.inputs["Roughness"].default_value = 0.88
+    bsdf.inputs["Roughness"].default_value = _mp(P, "chimney_brick", "roughness", 0.88)
 
     return mats
 
@@ -680,6 +706,176 @@ class Builder:
         return high
 
 
+# ------------------------------------------------------- model quality metrics
+
+def _material_has_pbr(mat):
+    """Whether a material carries a PBR texture set: an image texture
+    feeding Base Color and one feeding Normal (the same test the
+    engine-side report uses, ai_loop/engine_tool.gd _material_pbr)."""
+    if mat is None or not mat.use_nodes:
+        return False
+    base_ok = normal_ok = False
+    for node in mat.node_tree.nodes:
+        if node.type != 'TEX_IMAGE':
+            continue
+        for link in mat.node_tree.links:
+            if link.from_node != node:
+                continue
+            if link.to_node.type == 'BSDF_PRINCIPLED' and link.to_socket.name == 'Base Color':
+                base_ok = True
+            if link.to_node.type == 'NORMAL_MAP':
+                for link2 in mat.node_tree.links:
+                    if link2.from_node == link.to_node and \
+                            link2.to_socket.name == 'Normal' and \
+                            link2.to_node.type == 'BSDF_PRINCIPLED':
+                        normal_ok = True
+            if link.to_node.type == 'BSDF_PRINCIPLED' and link.to_socket.name == 'Normal':
+                normal_ok = True
+    return base_ok and normal_ok
+
+
+def model_quality_metrics(obj):
+    """Model-quality numbers for one mesh, on the SAME scale as the
+    engine-side richness report (ai_loop/engine_tool.gd _model_quality,
+    BACKLOG B-1204/B-1219): an edge between two faces is a chamfer when
+    the angle between the face normals is 30-60 degrees and sharp when
+    above 75; bevel_share is chamfers over chamfers + sharps;
+    triangles_per_m2 is triangles over surface area; pbr_coverage is
+    the share of triangles whose material has color and normal maps.
+    So a Blender-route building and an engine-measured scene read on
+    one ruler. (The engine samples the first 20000 triangles of a mesh;
+    these meshes stay below that, so no sampling note is needed.)"""
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.edges.ensure_lookup_table()
+    bm.faces.ensure_lookup_table()
+    chamfer = sharp = 0
+    for e in bm.edges:
+        if len(e.link_faces) != 2:
+            continue
+        ang = e.calc_face_angle(None)
+        if ang is None:
+            continue
+        deg = math.degrees(ang)
+        if deg > 75.0:
+            sharp += 1
+        elif 30.0 < deg < 60.0:
+            chamfer += 1
+    area = sum(f.calc_area() for f in bm.faces)
+    tris = sum(len(f.verts) - 2 for f in bm.faces)
+    pbr_tris = 0
+    mats = obj.data.materials
+    has_pbr = [_material_has_pbr(m) for m in mats]
+    for f in bm.faces:
+        if 0 <= f.material_index < len(has_pbr) and has_pbr[f.material_index]:
+            pbr_tris += len(f.verts) - 2
+    bm.free()
+    dims = obj.dimensions
+    return {
+        "triangles": tris,
+        "chamfered_edges": chamfer,
+        "sharp_edges": sharp,
+        "bevel_share": round(chamfer / (chamfer + sharp), 3) if chamfer + sharp else 0.0,
+        "triangles_per_m2": round(tris / area, 2) if area > 0 else 0.0,
+        "pbr_coverage": round(pbr_tris / tris, 3) if tris else 0.0,
+        "size_m": round(max(dims), 2) if len(dims) else 0.0,
+    }
+
+
+# ------------------------------------------------------- interior face culling
+
+def _point_in_solid(bvh, point):
+    """Parity test: a point is inside the closed mesh when a ray from
+    it crosses the surface an odd number of times. Three ray directions
+    vote, so a ray that grazes an edge cannot flip the answer alone."""
+    votes = 0
+    for d in ((1.0, 0.371, 0.529), (-0.529, 1.0, 0.371), (0.371, -0.529, 1.0)):
+        direction = Vector(d).normalized()
+        origin = Vector(point)
+        count = 0
+        for _ in range(256):
+            loc, _nrm, _idx, _dist = bvh.ray_cast(origin, direction)
+            if loc is None:
+                break
+            count += 1
+            origin = loc + direction * 1e-4
+        if count % 2 == 1:
+            votes += 1
+    return votes >= 2
+
+
+def cull_buried_faces(obj, eps=0.01):
+    """Delete faces that are buried inside the building's own solid
+    (B-1219 stage 2): the end of a wall segment inside the corner
+    column, the chimney's faces inside the roof prism, a string
+    course's back inside the wall. A face is culled only when EVERY
+    sample (its centre and its vertices), pushed eps outward along the
+    face normal, lands inside the solid -- so a partially covered face
+    (a T-junction, the eaves underside) always survives. Faces looking
+    into the room void or an opening survive too: their outward samples
+    are in empty space. What is removed was never visible from
+    anywhere; the sharp-edge counts before/after are reported so the
+    cost is visible in the stats."""
+    import bmesh
+    from mathutils.bvhtree import BVHTree
+    pre_tris = tri_count(obj)
+    pre_sharp = len(sharp_edge_sigs(obj))
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bvh = BVHTree.FromBMesh(bm)
+    bm.faces.ensure_lookup_table()
+    kill = []
+    for f in bm.faces:
+        n = f.normal
+        samples = [f.calc_center_median()] + [v.co for v in f.verts]
+        if all(_point_in_solid(bvh, s + n * eps) for s in samples):
+            kill.append(f)
+    if kill:
+        bmesh.ops.delete(bm, geom=kill, context='FACES_ONLY')
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    return {
+        "faces_culled": len(kill),
+        "triangles_before": pre_tris,
+        "triangles_after": tri_count(obj),
+        "sharp_edges_before": pre_sharp,
+        "sharp_edges_after": len(sharp_edge_sigs(obj)),
+    }
+
+
+def pack_orm(ao_img, rough_img, name):
+    """Pack an ORM texture (the PBR set's second half, B-1219 stage 2):
+    R = ambient occlusion, G = roughness, B = metallic. Every recipe
+    material is a dielectric, so metallic packs as 0. Inputs are the
+    filled bake outputs at export size; the result is Non-Color."""
+    import numpy as np
+    w, h = ao_img.size
+    ao = np.asarray(ao_img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    rg = np.asarray(rough_img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    orm = np.zeros((h, w, 4), dtype=np.float32)
+    orm[..., 0] = ao[..., 0]
+    orm[..., 1] = rg[..., 0]
+    orm[..., 3] = 1.0
+    img = bpy.data.images.new(name, w, h)
+    img.colorspace_settings.name = 'Non-Color'
+    img.pixels = orm.ravel().tolist()
+    return img
+
+
+def _gltf_settings_group():
+    """The node group the glTF exporter reads occlusion from: a group
+    named "glTF Settings" with an "Occlusion" input (Blender manual,
+    glTF imported/exported scenes: occlusion texture)."""
+    group = bpy.data.node_groups.get("glTF Settings")
+    if group is None:
+        group = bpy.data.node_groups.new("glTF Settings", 'ShaderNodeTree')
+        group.interface.new_socket(name="Occlusion", in_out='INPUT',
+                                   socket_type='NodeSocketFloat')
+    return group
+
+
 # ------------------------------------------------------------------ bake
 
 def _uv_island_mask(obj, grid=256):
@@ -956,6 +1152,11 @@ def bake_building(spec, builder, outdir, tex_size):
     bpy.ops.object.join()
     joined.name = spec["name"]
 
+    # stage 2: cull the faces buried inside the building's own solid
+    # (wall-segment ends inside the corner columns, the chimney inside
+    # the roof prism, ...) before the edge-preserving reduction runs
+    stats["interior_culling"] = cull_buried_faces(joined)
+
     # the tool owns the low-poly reduction: edge-preserving dissolve,
     # with the ridge preservation measured and reported
     stats["reduction"] = reduce_practical(joined)
@@ -967,7 +1168,8 @@ def bake_building(spec, builder, outdir, tex_size):
     bpy.ops.object.mode_set(mode='OBJECT')
 
     imgs = {}
-    for key, cs in (("albedo", 'sRGB'), ("roughness", 'Non-Color'), ("normal", 'Non-Color')):
+    for key, cs in (("albedo", 'sRGB'), ("roughness", 'Non-Color'),
+                    ("normal", 'Non-Color'), ("ao", 'Non-Color')):
         img = bpy.data.images.new(f"{spec['name']}_{key}", tex_size, tex_size)
         img.colorspace_settings.name = cs
         imgs[key] = img
@@ -1023,6 +1225,10 @@ def bake_building(spec, builder, outdir, tex_size):
     bake_mat.node_tree.nodes.active = target
     bake.normal_space = 'TANGENT'
     bpy.ops.object.bake(type='NORMAL')
+    # stage 2: ambient occlusion, packed into the ORM texture below
+    target.image = imgs["ao"]
+    bake_mat.node_tree.nodes.active = target
+    bpy.ops.object.bake(type='AO')
 
     stats["bake_miss_rate"] = bake_miss_rate(joined, imgs["albedo"])
 
@@ -1031,6 +1237,7 @@ def bake_building(spec, builder, outdir, tex_size):
     fill_gaps(imgs["albedo"])
     fill_gaps(imgs["roughness"], flat=(0.9, 0.9, 0.9))
     fill_gaps(imgs["normal"], flat=(0.5, 0.5, 1.0))
+    fill_gaps(imgs["ao"], flat=(1.0, 1.0, 1.0))
 
     # Bake high, ship lower: at 1024 the atlas gives a window pane only
     # ~8x15 texels and boundary texels mix in the neighbours (panes read
@@ -1041,11 +1248,18 @@ def bake_building(spec, builder, outdir, tex_size):
             img.scale(EXPORT_TEX_SIZE, EXPORT_TEX_SIZE)
         stats["texture_size"] = EXPORT_TEX_SIZE
 
+    # stage 2: pack AO + roughness (+ metallic 0) into one ORM texture
+    imgs["orm"] = pack_orm(imgs["ao"], imgs["roughness"], f"{spec['name']}_orm")
+    stats["orm_texture"] = f"{spec['name']}_orm.png"
+
     for key, img in imgs.items():
         img.filepath_raw = os.path.join(outdir, f"{spec['name']}_{key}.png")
         img.save()
 
-    # the practical material: one PBR set from the baked images
+    # the practical material: one PBR set from the baked images. The
+    # ORM texture feeds Roughness (G) and Metallic (B) -- which is what
+    # makes the glTF exporter write it as metallicRoughnessTexture --
+    # and its R channel feeds the exporter's Occlusion input.
     mat = bpy.data.materials.new(f"{spec['name']}_baked")
     mat.use_nodes = True
     nt = mat.node_tree
@@ -1058,8 +1272,14 @@ def bake_building(spec, builder, outdir, tex_size):
 
     a = tex_node(imgs["albedo"])
     nt.links.new(a.outputs["Color"], bsdf.inputs["Base Color"])
-    r = tex_node(imgs["roughness"])
-    nt.links.new(r.outputs["Color"], bsdf.inputs["Roughness"])
+    orm_node = tex_node(imgs["orm"])
+    sep = nt.nodes.new("ShaderNodeSeparateColor")
+    nt.links.new(orm_node.outputs["Color"], sep.inputs["Color"])
+    nt.links.new(sep.outputs["Green"], bsdf.inputs["Roughness"])
+    nt.links.new(sep.outputs["Blue"], bsdf.inputs["Metallic"])
+    settings = nt.nodes.new("ShaderNodeGroup")
+    settings.node_tree = _gltf_settings_group()
+    nt.links.new(sep.outputs["Red"], settings.inputs["Occlusion"])
     n = tex_node(imgs["normal"])
     nmap = nt.nodes.new("ShaderNodeNormalMap")
     nt.links.new(n.outputs["Color"], nmap.inputs["Color"])
@@ -1067,12 +1287,28 @@ def bake_building(spec, builder, outdir, tex_size):
     joined.data.materials.clear()
     joined.data.materials.append(mat)
 
+    # model quality on the engine report's scale (B-1204), so the two
+    # routes' numbers can be read side by side
+    stats["model_quality"] = model_quality_metrics(joined)
+
     bpy.data.objects.remove(cage, do_unlink=True)
     bake.use_cage = False
+
+    # stage 2: geometric roof tiles as instances of one shared mesh
+    # (gable roofs; hip slopes would need diagonal clipping, flat roofs
+    # have no tiles -- both keep the baked texture courses)
+    tiles = add_roof_tiles(spec, builder)
+    if tiles:
+        stats["roof_tiles"] = tiles[1]
+        stats["triangles_total"] = stats["triangles_practical"] + tiles[1]["added_triangles"]
+    else:
+        stats["triangles_total"] = stats["triangles_practical"]
 
     glb_path = os.path.join(outdir, spec["name"] + ".glb")
     bpy.ops.object.select_all(action='DESELECT')
     joined.select_set(True)
+    for obj in (tiles[0] if tiles else []):
+        obj.select_set(True)
     bpy.context.view_layer.objects.active = joined
     bpy.ops.export_scene.gltf(filepath=glb_path, export_format='GLB',
                               use_selection=True, export_apply=True,
@@ -1083,6 +1319,91 @@ def bake_building(spec, builder, outdir, tex_size):
     if "texture_size" not in stats:
         stats["texture_size"] = tex_size
     return stats, joined
+
+
+def _tile_mesh(name, tiles_geo, mat):
+    """One roof tile: a curved shell segment (an arc profile extruded
+    along its length). Local frame: X across the tile, +Y down-slope
+    along its length, Z out of the roof; the arc's edges rest at z=0
+    and the crown rises above. All tile objects share this one mesh --
+    density by instancing, the geometry is stored once."""
+    r = tiles_geo["radius"]
+    arc = math.radians(tiles_geo["arc_degrees"])
+    length = tiles_geo["length"]
+    steps = 4
+    prof = []
+    for i in range(steps + 1):
+        a = -arc / 2 + arc * i / steps
+        prof.append((r * math.sin(a), r * (math.cos(a) - math.cos(arc / 2))))
+    verts = [(x, 0.0, z) for x, z in prof] + [(x, length, z) for x, z in prof]
+    faces = [(i, i + 1, steps + 1 + i + 1, steps + 1 + i) for i in range(steps)]
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    if mat is not None:
+        mesh.materials.append(mat)
+    return mesh
+
+
+def add_roof_tiles(spec, builder):
+    """Geometric roof tiles on a gable roof (B-1219 stage 2): rows of
+    one shared tile mesh laid over both slopes, each row lifted a few
+    millimetres over the one below so the overlap reads and nothing is
+    coincident with the slab. Returns (objects, stats) or None.
+
+    Gable only: hip slopes are trapezoids whose tiles would need
+    diagonal clipping at the hips, and flat roofs have no tiles; both
+    keep the baked texture courses. Placement follows the roof boxes'
+    canonical frame (ridge along the longer side), including the
+    90-degree swap for deep buildings."""
+    geo = ((spec.get("style") or {}).get("geometry") or {}).get("roof_tiles") or {}
+    if spec["roof"] != "gable" or not geo.get("enabled", False):
+        return None
+    W, D = spec["width"], spec["depth"]
+    A, B = max(W, D), min(W, D)
+    top, rise, eaves = builder.top, spec["roof_rise"], spec["eaves"]
+    half = B / 2 + eaves
+    theta = math.atan2(rise, half)
+    slope = math.hypot(half, rise) + 0.18
+    slab_t = 0.12
+    length = geo["length"]
+    row_spacing = geo["row_spacing"]
+    col_spacing = geo["column_spacing"]
+
+    tile_mat = plain_material(f"{spec['name']}_tiles", _shade(spec["roof_tint"], 0.95),
+                              _mp(_style_materials(spec), "roof_tile", "roughness", 0.88))
+    tile_mesh = _tile_mesh(f"{spec['name']}_tile", geo, tile_mat)
+    tile_tris = sum(len(p.vertices) - 2 for p in tile_mesh.polygons)
+
+    objs = []
+    # (centre y, rot_x, eave sign in slab-local Y, flip of the tile's
+    # down-slope direction): the front slope's local +Y runs up-slope,
+    # the back slope's runs down-slope (see build_roof).
+    for center_y, rot_x, eave_sign, flip in ((-half / 2, theta, -1.0, math.pi),
+                                             (half / 2, -theta, 1.0, 0.0)):
+        m_slab = Matrix.Translation((0, center_y, top + rise / 2 + 0.02)) \
+            @ Matrix.Rotation(rot_x, 4, 'X')
+        row = 0
+        while row_spacing * (row + 0.5) + length / 2 < slope - 0.05:
+            v_c = eave_sign * (slope / 2 - row_spacing * (row + 0.5))
+            lift = geo["lift"] + row * 0.004
+            u = -(A + 0.7) / 2 + col_spacing / 2
+            while u < (A + 0.7) / 2 - 0.04:
+                m = m_slab @ Matrix.Translation((u, v_c, slab_t / 2 + lift)) \
+                    @ Matrix.Rotation(flip, 4, 'Z') \
+                    @ Matrix.Translation((0, -length / 2, 0))
+                if builder._roof_swap():
+                    m = Matrix.Rotation(math.radians(90), 4, 'Z') @ m
+                obj = bpy.data.objects.new(f"{spec['name']}_tile{len(objs)}", tile_mesh)
+                obj.matrix_basis = m
+                builder._link(obj)
+                objs.append(obj)
+                u += col_spacing
+            row += 1
+    stats = {"instances": len(objs), "tile_triangles": tile_tris,
+             "added_triangles": tile_tris * len(objs),
+             "shared_mesh": tile_mesh.name}
+    return objs, stats
 
 
 # ------------------------------------------------------------------ street
@@ -1419,11 +1740,10 @@ def run(spec, outdir):
         before = set(bpy.data.objects)
         bpy.ops.import_scene.gltf(filepath=glb)
         imported = [o for o in bpy.data.objects if o not in before and o.type == 'MESH']
-        entry = at[b["name"]]
-        for obj in imported:
-            obj.location = (entry["x"], entry["y"], 0)
-            if entry["flip"]:
-                obj.rotation_euler.z = math.pi
+        # parent under one empty per building instead of rewriting each
+        # object's location: a stage-2 GLB also carries roof-tile nodes
+        # whose placement lives on their own transforms
+        parent_at(imported, "Baked_" + b["name"], at[b["name"]])
     frame_camera(scene)
     path = os.path.join(outdir, "render_c_recipe_textured.png")
     render_to(scene, path)

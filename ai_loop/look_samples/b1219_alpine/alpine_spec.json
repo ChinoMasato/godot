@@ -1,0 +1,3 @@
+{"buildings":[
+ {"name":"house_default","width":6.5,"depth":5.5,"floors":2,"roof":"gable","wall":"wood","seed":21},
+ {"name":"house_alpine","width":6.5,"depth":5.5,"floors":2,"roof":"gable","wall":"wood","seed":21,"style":"alpine"}]}

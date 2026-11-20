@@ -1,0 +1,4 @@
+{"rocks":[
+ {"name":"boulder_big","seed":5,"radius":1.6,"cuts":8},
+ {"name":"boulder_wide","seed":12,"radius":1.1,"cuts":6,"bevel":0.05},
+ {"name":"shard_rock","seed":23,"radius":0.8,"cuts":10,"bevel":0.015}]}
