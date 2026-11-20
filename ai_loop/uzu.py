@@ -67,6 +67,13 @@ or through ai_loop\\windows\\uzu.bat.
   uzu.py selfplay <project> --input replay.json [--frames 1800] [--seed N] [--out r.json] [--movie m.avi] [--log e.jsonl]
                   [--hash-every 30 [--compare earlier.json]]   state hashes for determinism checks (B-307)
                   [--packet DIR] [--expect-clear]   on failure, a diagnosis packet in DIR (B-308)
+  uzu.py feel-report <project> [--seed 7] [--no-juice] [--out r.json] [--compare r2.json] [--watch k,...]
+                  [--probe-selftest [--frames 1500]]   feel proxy metrics (B-1112, see ai_loop/feel_report.py
+                  and ai_loop/selfplay/feel_probe.gd): a self-verifying play sampled per frame -- per game
+                  event, the input -> reaction latency, hitstop / slowmo segments, shake and kick curves,
+                  flash segments and UI easing samples. Numbers for comparing runs (juice on/off, presets),
+                  never a "feels good" verdict; --no-juice measures the same play with the game's juice
+                  calls disabled, --probe-selftest fires one effect per channel without gameplay
   uzu.py dialogue --spec PATH [--out PATH] [--max-chars N]   validate or build dialogue/quest data (B-406)
   uzu.py replay-compare --expected PATH --actual PATH [--snapshots]   compare JSON/JSONL logs (B-314)
   uzu.py audio-check <file.wav> [--manifest sprite.json] [--loop] [--out report.json]
@@ -2465,6 +2472,7 @@ def selftest_tools():
     commands.append(("tests/test_spec_diff.py", []))
     commands.append(("tests/test_animation.py", []))
     commands.append(("tests/test_audio_check.py", []))
+    commands.append(("tests/test_feel_report.py", []))
     ok = True
     for tool, args in commands:
         rc, out = run([sys.executable, os.path.join(HERE, tool), *args], timeout=900)
@@ -2504,6 +2512,10 @@ def main(argv):
         import dialogue
 
         return dialogue.main(rest)
+    if tool == "feel-report":
+        import feel_report
+
+        return feel_report.main(rest)
     if tool == "replay-compare":
         import replay_compare
 

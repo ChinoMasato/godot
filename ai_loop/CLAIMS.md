@@ -137,5 +137,9 @@
 | B-1223 仕様差分検証 | Muse (lead branch) | agent/b-1223-lead | ai_loop/spec_diff.py, ai_loop/spec_diff_check.py, ai_loop/uzu.py, ai_loop/tests/test_spec_diff.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。Python テスト全件 pass、反証確認済み） | 2026-11-20 |
 
 | B-1220 | Codex | agent/b-1220-codex | ai_loop/animation_tool.gd, ai_loop/animation/, ai_loop/uzu.py・ai_loop/mcp_server.py（anim の入口）, ai_loop/catalog.json（再生成）, ai_loop/tests/test_animation.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。Python 89件・エンジン 1576 pass、CI green） | 2026-11-20 |
+<<<<<<< HEAD
 | B-1111 音の機械チェック | Muse (lead branch) | agent/b-1111-lead | ai_loop/audio_check.py, ai_loop/uzu.py, ai_loop/tests/test_audio_check.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。Python テスト全件 pass） | 2026-11-20 |
 | B-1224 当たり判定の機械チェック支援 | Muse (lead branch) | agent/b-1224-lead | ai_loop/collision_tool.gd, ai_loop/collision_check.py, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/tests/test_collision_check.py, ai_loop/samples/hikari/collision_check.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。村ベースライン ok、ずらし変種を検出） | 2026-11-20 |
+=======
+| B-1112 手触りの代理指標 | Muse (lead branch) | agent/b-1112-lead | ai_loop/selfplay/feel_probe.gd（新規）, ai_loop/feel_report.py（新規）, ai_loop/aiplayer.py（後方互換の拡張）, ai_loop/uzu.py（feel-report の入口）, ai_loop/samples/hikari/main.gd（--uzu-no-juice の最小フック）, ai_loop/tests/test_feel_report.py（新規）, ai_loop/catalog.json（再生成）, ai_loop/iterations/ | 実装・検証完了（リード統合待ち）: プローブ＋feel-report 実装、hikari で収集×3・点火の指標取得と juice 無効版との数値差を確認、Python 全12ファイル pass、エンジン全テスト 1574/1576（fail は既知 [UDPServer] 2件のみ）、C++ 変更なし | 2026-11-20 |
+>>>>>>> fork/agent/b-1112-lead

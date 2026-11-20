@@ -70,6 +70,12 @@ var shards := 0
 ## Juice events fired so far (B-1107): the verification reads this back to
 ## prove UZUJuice actually fired during a playthrough.
 var juice_events: Array = []
+## Juice on/off for feel measurement (B-1112): the user arg
+## "--uzu-no-juice" disables every UZUJuice / UZUUIJuice effect call in
+## this file, so the same playthrough can be measured with and without
+## them. The game's own record (juice_events) is kept either way, and
+## panel visibility ends up the same (see _juice_motion).
+var juice_enabled := true
 var cleared := false
 var play_seconds := 0.0
 var dialogue_lines: Array = []
@@ -107,6 +113,7 @@ var stage_target := {}
 
 func _ready() -> void:
 	add_to_group("uzu_state")
+	juice_enabled = not OS.get_cmdline_user_args().has("--uzu-no-juice")
 	InputSetup.setup()
 	_build_world()
 	var report := UZULook.apply_hd2d(self, UZULook.ATMOSPHERE_GOLDEN_HOUR, false)
@@ -565,17 +572,26 @@ func _do_interact() -> void:
 		"lantern":
 			_touch_lantern()
 
+## A world-motion panel open/close, or just the end-state visibility
+## when juice is disabled (B-1112): the panel ends up shown or hidden
+## exactly as the motion would leave it, only without the animation.
+func _juice_motion(panel: Control, open: bool) -> void:
+	if juice_enabled:
+		UZUUIJuice.apply_world_motion(panel, WORLD, open)
+	else:
+		panel.visible = open
+
 func _open_dialogue(speaker: String, lines: Array) -> void:
 	dialogue_lines = lines.duplicate()
 	dialogue_name.text = speaker
 	dialogue_open = true
-	UZUUIJuice.apply_world_motion(dialogue_panel, WORLD, true)
+	_juice_motion(dialogue_panel, true)
 	_advance_dialogue()
 
 func _advance_dialogue() -> void:
 	if dialogue_lines.is_empty():
 		dialogue_open = false
-		UZUUIJuice.apply_world_motion(dialogue_panel, WORLD, false)
+		_juice_motion(dialogue_panel, false)
 		return
 	dialogue_text.text = dialogue_lines.pop_front()
 
@@ -583,7 +599,8 @@ func _collect_shard(it: Dictionary) -> void:
 	shards += 1
 	UZUTelemetry.checkpoint("shard_%d" % shards)
 	juice_events.append("pickup")
-	UZUJuice.impact(player, "pickup")
+	if juice_enabled:
+		UZUJuice.impact(player, "pickup")
 	if it["node"]:
 		(it["node"] as Node).queue_free()
 		it["node"] = null
@@ -593,8 +610,11 @@ func _collect_shard(it: Dictionary) -> void:
 		(it["sparkles"] as Node).queue_free()
 	stage_target = stages[mini(shards, 3)].duplicate()
 	hud_shards.text = "%d / 3" % shards
-	UZUUIJuice.count_up(hud_gauge, shards - 1, shards, 0.6, "ease_in")
-	UZUUIJuice.hover_pulse(hud_panel, 0.6, 0.25)
+	if juice_enabled:
+		UZUUIJuice.count_up(hud_gauge, shards - 1, shards, 0.6, "ease_in")
+		UZUUIJuice.hover_pulse(hud_panel, 0.6, 0.25)
+	else:
+		hud_gauge.value = shards
 	if shards >= 3:
 		_set_objective("祠のランタンに欠片を戻そう")
 	else:
@@ -610,9 +630,10 @@ func _touch_lantern() -> void:
 	lantern_glow = 1.0
 	UZUTelemetry.checkpoint("lantern_lit")
 	juice_events.append("lantern")
-	UZUJuice.impact(player, "pickup", 1.5)
-	UZUJuice.kick(0.7)
-	UZUJuice.burst3d(self, lantern_pos + Vector3(0, 1.0, 0), Color(1.0, 0.8, 0.4), 1.4)
+	if juice_enabled:
+		UZUJuice.impact(player, "pickup", 1.5)
+		UZUJuice.kick(0.7)
+		UZUJuice.burst3d(self, lantern_pos + Vector3(0, 1.0, 0), Color(1.0, 0.8, 0.4), 1.4)
 	UZUTelemetry.clear()
 	var fireflies := UZULook.create_particles(UZULook.PARTICLES_FIREFLIES, Vector3(9, 2.5, 9))
 	fireflies.position = Vector3(0, 1.2, -6.5)
@@ -622,7 +643,7 @@ func _touch_lantern() -> void:
 	clear_text.text = "村に灯りが戻った！\nクリア時間 %d 分 %d 秒\n\n遊んでくれてありがとう。" % [int(play_seconds) / 60, int(play_seconds) % 60]
 	_fit(clear_panel)
 	clear_panel.position = -clear_panel.size / 2.0
-	UZUUIJuice.apply_world_motion(clear_panel, WORLD, true)
+	_juice_motion(clear_panel, true)
 
 func _set_objective(text: String) -> void:
 	hud_objective.text = text
@@ -753,4 +774,4 @@ func _build_ui() -> void:
 func _open_hud() -> void:
 	await get_tree().process_frame
 	if hud_panel:
-		UZUUIJuice.apply_world_motion(hud_panel, WORLD, true)
+		_juice_motion(hud_panel, true)

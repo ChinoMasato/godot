@@ -1,0 +1,989 @@
+{
+ "format": "uzu-feel-report/1",
+ "mode": "playthrough",
+ "game": "hikari",
+ "conditions": {
+  "seed": 7,
+  "juice": true,
+  "watch": [
+   "Main/Player:modulate",
+   "find:ShardGauge:value"
+  ]
+ },
+ "cleared": true,
+ "final_shards": 3,
+ "checkpoints": [
+  "start",
+  "shard_1",
+  "shard_2",
+  "shard_3",
+  "lantern_lit"
+ ],
+ "events": [
+  {
+   "id": "start",
+   "frame": 32,
+   "press_frame": 2,
+   "latency_frames": null,
+   "channels": {},
+   "ui_events": [
+    {
+     "pf": 3,
+     "frame": 4,
+     "msec": 1423,
+     "event": "open",
+     "phase": "start",
+     "preset": "ease_in",
+     "target": "HUD"
+    },
+    {
+     "pf": 3,
+     "frame": 4,
+     "msec": 1423,
+     "event": "open",
+     "phase": "end",
+     "preset": "ease_in",
+     "target": "HUD"
+    }
+   ]
+  },
+  {
+   "id": "shard_1",
+   "frame": 155,
+   "press_frame": 153,
+   "latency_frames": 1,
+   "channels": {
+    "watch:Main/Player:modulate": [
+     {
+      "watch": "Main/Player:modulate",
+      "onset_pf": 153,
+      "onset_frame": 154,
+      "frames": 20,
+      "msec": 119,
+      "peak_deviation": 0.6533
+     }
+    ],
+    "watch:find:ShardGauge:value": [
+     {
+      "watch": "find:ShardGauge:value",
+      "onset_pf": 173,
+      "onset_frame": 174,
+      "frames": 951,
+      "msec": 3252,
+      "peak_deviation": 3.0,
+      "open": true
+     }
+    ]
+   },
+   "ui_events": [
+    {
+     "pf": 153,
+     "frame": 154,
+     "msec": 1466,
+     "event": "count_up",
+     "phase": "start",
+     "preset": "ease_in",
+     "target": "ShardGauge"
+    },
+    {
+     "pf": 153,
+     "frame": 154,
+     "msec": 1466,
+     "event": "hover",
+     "phase": "start",
+     "preset": "overshoot",
+     "target": "HUD"
+    },
+    {
+     "pf": 183,
+     "frame": 184,
+     "msec": 1713,
+     "event": "hover",
+     "phase": "end",
+     "preset": "overshoot",
+     "target": "HUD"
+    }
+   ]
+  },
+  {
+   "id": "shard_2",
+   "frame": 346,
+   "press_frame": 344,
+   "latency_frames": 1,
+   "channels": {
+    "watch:Main/Player:modulate": [
+     {
+      "watch": "Main/Player:modulate",
+      "onset_pf": 344,
+      "onset_frame": 345,
+      "frames": 21,
+      "msec": 130,
+      "peak_deviation": 0.6883
+     }
+    ]
+   },
+   "ui_events": [
+    {
+     "pf": 344,
+     "frame": 345,
+     "msec": 1876,
+     "event": "count_up",
+     "phase": "start",
+     "preset": "ease_in",
+     "target": "ShardGauge"
+    },
+    {
+     "pf": 344,
+     "frame": 345,
+     "msec": 1876,
+     "event": "hover",
+     "phase": "start",
+     "preset": "overshoot",
+     "target": "HUD"
+    },
+    {
+     "pf": 375,
+     "frame": 376,
+     "msec": 2133,
+     "event": "hover",
+     "phase": "end",
+     "preset": "overshoot",
+     "target": "HUD"
+    }
+   ]
+  },
+  {
+   "id": "shard_3",
+   "frame": 817,
+   "press_frame": 815,
+   "latency_frames": 1,
+   "channels": {
+    "watch:Main/Player:modulate": [
+     {
+      "watch": "Main/Player:modulate",
+      "onset_pf": 815,
+      "onset_frame": 816,
+      "frames": 20,
+      "msec": 120,
+      "peak_deviation": 0.6942
+     }
+    ]
+   },
+   "ui_events": [
+    {
+     "pf": 815,
+     "frame": 816,
+     "msec": 2343,
+     "event": "count_up",
+     "phase": "start",
+     "preset": "ease_in",
+     "target": "ShardGauge"
+    },
+    {
+     "pf": 815,
+     "frame": 816,
+     "msec": 2343,
+     "event": "hover",
+     "phase": "start",
+     "preset": "overshoot",
+     "target": "HUD"
+    },
+    {
+     "pf": 846,
+     "frame": 847,
+     "msec": 2602,
+     "event": "hover",
+     "phase": "end",
+     "preset": "overshoot",
+     "target": "HUD"
+    }
+   ]
+  },
+  {
+   "id": "lantern_lit",
+   "frame": 952,
+   "press_frame": 950,
+   "latency_frames": 1,
+   "channels": {
+    "kick": [
+     {
+      "onset_pf": 950,
+      "onset_frame": 951,
+      "frames": 44,
+      "msec": 428,
+      "peak": 0.6819,
+      "frames_to_half": 17,
+      "zero_crossings": 1,
+      "samples": [
+       [
+        950,
+        0.6819
+       ],
+       [
+        951,
+        0.6802
+       ],
+       [
+        954,
+        0.6785
+       ],
+       [
+        958,
+        0.6767
+       ],
+       [
+        962,
+        0.6369
+       ],
+       [
+        963,
+        0.5849
+       ],
+       [
+        964,
+        0.5246
+       ],
+       [
+        965,
+        0.4647
+       ],
+       [
+        966,
+        0.3975
+       ],
+       [
+        967,
+        0.3304
+       ],
+       [
+        968,
+        0.2703
+       ],
+       [
+        969,
+        0.1957
+       ],
+       [
+        970,
+        0.1363
+       ],
+       [
+        971,
+        0.087
+       ],
+       [
+        972,
+        0.0441
+       ],
+       [
+        973,
+        0.0076
+       ],
+       [
+        974,
+        -0.0225
+       ],
+       [
+        975,
+        -0.045
+       ],
+       [
+        976,
+        -0.0635
+       ],
+       [
+        977,
+        -0.0768
+       ],
+       [
+        978,
+        -0.085
+       ],
+       [
+        979,
+        -0.0897
+       ],
+       [
+        980,
+        -0.0908
+       ],
+       [
+        981,
+        -0.0893
+       ],
+       [
+        982,
+        -0.0852
+       ],
+       [
+        983,
+        -0.0793
+       ],
+       [
+        984,
+        -0.0721
+       ],
+       [
+        985,
+        -0.0646
+       ],
+       [
+        986,
+        -0.0561
+       ],
+       [
+        987,
+        -0.0481
+       ],
+       [
+        988,
+        -0.0395
+       ],
+       [
+        989,
+        -0.0313
+       ],
+       [
+        990,
+        -0.0236
+       ],
+       [
+        991,
+        -0.0166
+       ],
+       [
+        992,
+        -0.0108
+       ],
+       [
+        993,
+        -0.0053
+       ]
+      ]
+     },
+     {
+      "onset_pf": 995,
+      "onset_frame": 996,
+      "frames": 19,
+      "msec": 245,
+      "peak": 0.0116,
+      "frames_to_half": 13,
+      "zero_crossings": 0,
+      "samples": [
+       [
+        995,
+        0.0031
+       ],
+       [
+        996,
+        0.0061
+       ],
+       [
+        997,
+        0.0083
+       ],
+       [
+        998,
+        0.01
+       ],
+       [
+        999,
+        0.011
+       ],
+       [
+        1000,
+        0.0116
+       ],
+       [
+        1001,
+        0.0116
+       ],
+       [
+        1002,
+        0.0113
+       ],
+       [
+        1003,
+        0.0108
+       ],
+       [
+        1004,
+        0.01
+       ],
+       [
+        1005,
+        0.009
+       ],
+       [
+        1006,
+        0.008
+       ],
+       [
+        1007,
+        0.0068
+       ],
+       [
+        1008,
+        0.0057
+       ],
+       [
+        1009,
+        0.0046
+       ],
+       [
+        1010,
+        0.0036
+       ],
+       [
+        1011,
+        0.0027
+       ],
+       [
+        1012,
+        0.0019
+       ],
+       [
+        1013,
+        0.0011
+       ]
+      ]
+     },
+     {
+      "onset_pf": 1018,
+      "onset_frame": 1019,
+      "frames": 9,
+      "msec": 118,
+      "peak": -0.0015,
+      "frames_to_half": null,
+      "zero_crossings": 0,
+      "samples": [
+       [
+        1018,
+        -0.0012
+       ],
+       [
+        1019,
+        -0.0013
+       ],
+       [
+        1020,
+        -0.0015
+       ],
+       [
+        1021,
+        -0.0015
+       ],
+       [
+        1022,
+        -0.0015
+       ],
+       [
+        1023,
+        -0.0014
+       ],
+       [
+        1024,
+        -0.0013
+       ],
+       [
+        1025,
+        -0.0012
+       ],
+       [
+        1026,
+        -0.0011
+       ]
+      ]
+     }
+    ],
+    "watch:Main/Player:modulate": [
+     {
+      "watch": "Main/Player:modulate",
+      "onset_pf": 950,
+      "onset_frame": 951,
+      "frames": 19,
+      "msec": 108,
+      "peak_deviation": 0.63
+     }
+    ]
+   },
+   "ui_events": [
+    {
+     "pf": 976,
+     "frame": 977,
+     "msec": 2948,
+     "event": "count_up",
+     "phase": "end",
+     "preset": "ease_in",
+     "target": "ShardGauge"
+    },
+    {
+     "pf": 1034,
+     "frame": 1035,
+     "msec": 3696,
+     "event": "open",
+     "phase": "start",
+     "preset": "ease_in",
+     "target": "Clear"
+    },
+    {
+     "pf": 1060,
+     "frame": 1061,
+     "msec": 4032,
+     "event": "open",
+     "phase": "end",
+     "preset": "ease_in",
+     "target": "Clear"
+    }
+   ]
+  }
+ ],
+ "unattributed": {},
+ "ui_events": [
+  {
+   "pf": 0,
+   "frame": 1,
+   "msec": 592,
+   "event": "open",
+   "phase": "start",
+   "preset": "ease_in",
+   "target": "TitlePlaque"
+  },
+  {
+   "pf": 0,
+   "frame": 1,
+   "msec": 593,
+   "event": "open",
+   "phase": "start",
+   "preset": "ease_in",
+   "target": "Hint"
+  },
+  {
+   "pf": 3,
+   "frame": 4,
+   "msec": 1423,
+   "event": "open",
+   "phase": "start",
+   "preset": "ease_in",
+   "target": "HUD"
+  },
+  {
+   "pf": 3,
+   "frame": 4,
+   "msec": 1423,
+   "event": "open",
+   "phase": "end",
+   "preset": "ease_in",
+   "target": "HUD"
+  },
+  {
+   "pf": 153,
+   "frame": 154,
+   "msec": 1466,
+   "event": "count_up",
+   "phase": "start",
+   "preset": "ease_in",
+   "target": "ShardGauge"
+  },
+  {
+   "pf": 153,
+   "frame": 154,
+   "msec": 1466,
+   "event": "hover",
+   "phase": "start",
+   "preset": "overshoot",
+   "target": "HUD"
+  },
+  {
+   "pf": 183,
+   "frame": 184,
+   "msec": 1713,
+   "event": "hover",
+   "phase": "end",
+   "preset": "overshoot",
+   "target": "HUD"
+  },
+  {
+   "pf": 344,
+   "frame": 345,
+   "msec": 1876,
+   "event": "count_up",
+   "phase": "start",
+   "preset": "ease_in",
+   "target": "ShardGauge"
+  },
+  {
+   "pf": 344,
+   "frame": 345,
+   "msec": 1876,
+   "event": "hover",
+   "phase": "start",
+   "preset": "overshoot",
+   "target": "HUD"
+  },
+  {
+   "pf": 375,
+   "frame": 376,
+   "msec": 2133,
+   "event": "hover",
+   "phase": "end",
+   "preset": "overshoot",
+   "target": "HUD"
+  },
+  {
+   "pf": 815,
+   "frame": 816,
+   "msec": 2343,
+   "event": "count_up",
+   "phase": "start",
+   "preset": "ease_in",
+   "target": "ShardGauge"
+  },
+  {
+   "pf": 815,
+   "frame": 816,
+   "msec": 2343,
+   "event": "hover",
+   "phase": "start",
+   "preset": "overshoot",
+   "target": "HUD"
+  },
+  {
+   "pf": 846,
+   "frame": 847,
+   "msec": 2602,
+   "event": "hover",
+   "phase": "end",
+   "preset": "overshoot",
+   "target": "HUD"
+  },
+  {
+   "pf": 976,
+   "frame": 977,
+   "msec": 2948,
+   "event": "count_up",
+   "phase": "end",
+   "preset": "ease_in",
+   "target": "ShardGauge"
+  },
+  {
+   "pf": 1034,
+   "frame": 1035,
+   "msec": 3696,
+   "event": "open",
+   "phase": "start",
+   "preset": "ease_in",
+   "target": "Clear"
+  },
+  {
+   "pf": 1060,
+   "frame": 1061,
+   "msec": 4032,
+   "event": "open",
+   "phase": "end",
+   "preset": "ease_in",
+   "target": "Clear"
+  }
+ ],
+ "ui_curves": {
+  "ease_in": [
+   [
+    0.0,
+    0.0
+   ],
+   [
+    0.05,
+    0.142625
+   ],
+   [
+    0.1,
+    0.271
+   ],
+   [
+    0.15,
+    0.385875
+   ],
+   [
+    0.2,
+    0.488
+   ],
+   [
+    0.25,
+    0.578125
+   ],
+   [
+    0.3,
+    0.657
+   ],
+   [
+    0.35,
+    0.725375
+   ],
+   [
+    0.4,
+    0.784
+   ],
+   [
+    0.45,
+    0.833625
+   ],
+   [
+    0.5,
+    0.875
+   ],
+   [
+    0.55,
+    0.908875
+   ],
+   [
+    0.6,
+    0.936
+   ],
+   [
+    0.65,
+    0.957125
+   ],
+   [
+    0.7,
+    0.973
+   ],
+   [
+    0.75,
+    0.984375
+   ],
+   [
+    0.8,
+    0.992
+   ],
+   [
+    0.85,
+    0.996625
+   ],
+   [
+    0.9,
+    0.999
+   ],
+   [
+    0.95,
+    0.999875
+   ],
+   [
+    1.0,
+    1.0
+   ]
+  ],
+  "overshoot": [
+   [
+    0.0,
+    2.22044604925031e-16
+   ],
+   [
+    0.05,
+    0.2194087975
+   ],
+   [
+    0.1,
+    0.40882798
+   ],
+   [
+    0.15,
+    0.5702837325
+   ],
+   [
+    0.2,
+    0.70580224
+   ],
+   [
+    0.25,
+    0.8174096875
+   ],
+   [
+    0.3,
+    0.90713226
+   ],
+   [
+    0.35,
+    0.9769961425
+   ],
+   [
+    0.4,
+    1.02902752
+   ],
+   [
+    0.45,
+    1.0652525775
+   ],
+   [
+    0.5,
+    1.0876975
+   ],
+   [
+    0.55,
+    1.0983884725
+   ],
+   [
+    0.6,
+    1.09935168
+   ],
+   [
+    0.65,
+    1.0926133075
+   ],
+   [
+    0.7,
+    1.08019954
+   ],
+   [
+    0.75,
+    1.0641365625
+   ],
+   [
+    0.8,
+    1.04645056
+   ],
+   [
+    0.85,
+    1.0291677175
+   ],
+   [
+    0.9,
+    1.01431422
+   ],
+   [
+    0.95,
+    1.0039162525
+   ],
+   [
+    1.0,
+    1.0
+   ]
+  ]
+ },
+ "probe_samples": 211,
+ "comparison": {
+  "lantern_lit": {
+   "latency_frames": [
+    1,
+    null
+   ],
+   "channels": {
+    "kick": {
+     "segments": [
+      3,
+      0
+     ],
+     "frames": [
+      72,
+      0
+     ],
+     "peak": [
+      0.6819,
+      null
+     ]
+    },
+    "watch:Main/Player:modulate": {
+     "segments": [
+      1,
+      0
+     ],
+     "frames": [
+      19,
+      0
+     ],
+     "peak": [
+      0.63,
+      null
+     ]
+    }
+   }
+  },
+  "shard_1": {
+   "latency_frames": [
+    1,
+    1
+   ],
+   "channels": {
+    "watch:Main/Player:modulate": {
+     "segments": [
+      1,
+      0
+     ],
+     "frames": [
+      20,
+      0
+     ],
+     "peak": [
+      0.6533,
+      null
+     ]
+    },
+    "watch:find:ShardGauge:value": {
+     "segments": [
+      1,
+      1
+     ],
+     "frames": [
+      951,
+      971
+     ],
+     "peak": [
+      3.0,
+      3.0
+     ]
+    }
+   }
+  },
+  "shard_2": {
+   "latency_frames": [
+    1,
+    null
+   ],
+   "channels": {
+    "watch:Main/Player:modulate": {
+     "segments": [
+      1,
+      0
+     ],
+     "frames": [
+      21,
+      0
+     ],
+     "peak": [
+      0.6883,
+      null
+     ]
+    }
+   }
+  },
+  "shard_3": {
+   "latency_frames": [
+    1,
+    null
+   ],
+   "channels": {
+    "watch:Main/Player:modulate": {
+     "segments": [
+      1,
+      0
+     ],
+     "frames": [
+      20,
+      0
+     ],
+     "peak": [
+      0.6942,
+      null
+     ]
+    }
+   }
+  },
+  "start": {
+   "latency_frames": [
+    null,
+    null
+   ],
+   "channels": {}
+  }
+ },
+ "comparison_with": "samples/hikari/feel_report_no_juice.json"
+}

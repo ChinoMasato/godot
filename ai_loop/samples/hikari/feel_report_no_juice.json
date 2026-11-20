@@ -1,0 +1,186 @@
+{
+ "format": "uzu-feel-report/1",
+ "mode": "playthrough",
+ "game": "hikari",
+ "conditions": {
+  "seed": 7,
+  "juice": false,
+  "watch": [
+   "Main/Player:modulate",
+   "find:ShardGauge:value"
+  ]
+ },
+ "cleared": true,
+ "final_shards": 3,
+ "checkpoints": [
+  "start",
+  "shard_1",
+  "shard_2",
+  "shard_3",
+  "lantern_lit"
+ ],
+ "events": [
+  {
+   "id": "start",
+   "frame": 32,
+   "press_frame": 2,
+   "latency_frames": null,
+   "channels": {},
+   "ui_events": []
+  },
+  {
+   "id": "shard_1",
+   "frame": 155,
+   "press_frame": 153,
+   "latency_frames": 1,
+   "channels": {
+    "watch:find:ShardGauge:value": [
+     {
+      "watch": "find:ShardGauge:value",
+      "onset_pf": 153,
+      "onset_frame": 154,
+      "frames": 971,
+      "msec": 3364,
+      "peak_deviation": 3.0,
+      "open": true
+     }
+    ]
+   },
+   "ui_events": []
+  },
+  {
+   "id": "shard_2",
+   "frame": 346,
+   "press_frame": 344,
+   "latency_frames": null,
+   "channels": {},
+   "ui_events": []
+  },
+  {
+   "id": "shard_3",
+   "frame": 817,
+   "press_frame": 815,
+   "latency_frames": null,
+   "channels": {},
+   "ui_events": []
+  },
+  {
+   "id": "lantern_lit",
+   "frame": 952,
+   "press_frame": 950,
+   "latency_frames": null,
+   "channels": {},
+   "ui_events": []
+  }
+ ],
+ "unattributed": {},
+ "ui_events": [
+  {
+   "pf": 0,
+   "frame": 1,
+   "msec": 529,
+   "event": "open",
+   "phase": "start",
+   "preset": "ease_in",
+   "target": "TitlePlaque"
+  },
+  {
+   "pf": 0,
+   "frame": 1,
+   "msec": 529,
+   "event": "open",
+   "phase": "start",
+   "preset": "ease_in",
+   "target": "Hint"
+  }
+ ],
+ "ui_curves": {
+  "ease_in": [
+   [
+    0.0,
+    0.0
+   ],
+   [
+    0.05,
+    0.142625
+   ],
+   [
+    0.1,
+    0.271
+   ],
+   [
+    0.15,
+    0.385875
+   ],
+   [
+    0.2,
+    0.488
+   ],
+   [
+    0.25,
+    0.578125
+   ],
+   [
+    0.3,
+    0.657
+   ],
+   [
+    0.35,
+    0.725375
+   ],
+   [
+    0.4,
+    0.784
+   ],
+   [
+    0.45,
+    0.833625
+   ],
+   [
+    0.5,
+    0.875
+   ],
+   [
+    0.55,
+    0.908875
+   ],
+   [
+    0.6,
+    0.936
+   ],
+   [
+    0.65,
+    0.957125
+   ],
+   [
+    0.7,
+    0.973
+   ],
+   [
+    0.75,
+    0.984375
+   ],
+   [
+    0.8,
+    0.992
+   ],
+   [
+    0.85,
+    0.996625
+   ],
+   [
+    0.9,
+    0.999
+   ],
+   [
+    0.95,
+    0.999875
+   ],
+   [
+    1.0,
+    1.0
+   ]
+  ]
+ },
+ "probe_samples": 6
+}
