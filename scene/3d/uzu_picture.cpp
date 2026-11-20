@@ -33,6 +33,7 @@
 #include "core/config/project_settings.h"
 #include "core/io/file_access.h"
 #include "core/io/json.h"
+#include "core/io/resource_loader.h"
 #include "core/math/random_number_generator.h"
 #include "core/object/class_db.h"
 #include "core/os/os.h"
@@ -274,6 +275,28 @@ Ref<Image> UZUPicture::load_image(const String &p_path) {
 	if (p_path.is_empty()) {
 		return Ref<Image>();
 	}
+	// Prefer the resource pipeline: in an exported game the project's files
+	// live inside the PCK, where only ResourceLoader can reach them — opening
+	// the globalized path as a plain file misses them and the picture fails
+	// to build (seen in the shipped sample: 'title/art.png' not found).
+	// Imported images load as Texture2D; get_image() hands back the pixels.
+	if (ResourceLoader::exists(p_path)) {
+		Ref<Texture2D> texture = ResourceLoader::load(p_path);
+		if (texture.is_valid()) {
+			Ref<Image> image = texture->get_image();
+			if (image.is_valid()) {
+				if (image->is_compressed()) {
+					image->decompress();
+				}
+				if (image->has_mipmaps()) {
+					image->clear_mipmaps(); // Match the plain-file route below.
+				}
+				return image;
+			}
+		}
+	}
+	// Fall back to a plain file (user:// files, absolute paths, loose files
+	// next to the project while editing).
 	Ref<Image> image = Image::load_from_file(ProjectSettings::get_singleton()->globalize_path(p_path));
 	if (image.is_valid() && image->is_compressed()) {
 		image->decompress();

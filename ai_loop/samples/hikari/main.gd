@@ -657,7 +657,14 @@ func _touch_lantern() -> void:
 	await get_tree().create_timer(1.4).timeout
 	clear_text.text = "村に灯りが戻った！\nクリア時間 %d 分 %d 秒\n\n遊んでくれてありがとう。" % [int(play_seconds) / 60, int(play_seconds) % 60]
 	_fit(clear_panel)
-	clear_panel.position = -clear_panel.size / 2.0
+	# Centre on the PRESET_CENTER anchor point via offsets. position is a
+	# parent-space coordinate, so position = -size / 2 parked the panel in
+	# the top-left corner with half of it off-screen (owner playtest,
+	# 2026-11-20; reproduced in captures before this fix).
+	clear_panel.offset_left = -clear_panel.size.x / 2.0
+	clear_panel.offset_top = -clear_panel.size.y / 2.0
+	clear_panel.offset_right = clear_panel.size.x / 2.0
+	clear_panel.offset_bottom = clear_panel.size.y / 2.0
 	_juice_motion(clear_panel, true)
 
 func _set_objective(text: String) -> void:

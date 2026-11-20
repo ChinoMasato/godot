@@ -11,6 +11,11 @@ extends Node3D
 
 const InputSetup := preload("res://input_setup.gd")
 const FONT := preload("res://art/game_font.ttf")
+const MAIN_SCENE := "res://main.tscn"
+
+var _hint: Control # The start prompt plaque; it pulses quietly until pressed.
+var _loading_label: Label
+var _loading := false
 
 func _ready() -> void:
 	InputSetup.setup()
@@ -33,6 +38,7 @@ func _ready() -> void:
 		ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		for c in ui.find_children("*", "Control", true, false):
 			(c as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_hint = ui.get_node_or_null("Hint") as Control
 	else:
 		# The generated scene is committed next to its spec; this is only a
 		# guard so the title never comes up blank.
@@ -45,16 +51,69 @@ func _ready() -> void:
 		title.size = Vector2(320, 80)
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		layer.add_child(title)
+	# Shown the moment a start input lands, while the village loads on a
+	# loader thread: without it the title just sits still for seconds and
+	# reads as a freeze (owner playtest, 2026-11-20).
+	_loading_label = Label.new()
+	_loading_label.text = "読み込み中…"
+	_loading_label.add_theme_font_override("font", FONT)
+	_loading_label.add_theme_font_size_override("font_size", 30)
+	_loading_label.add_theme_color_override("font_color", Color(0.98, 0.94, 0.85))
+	_loading_label.add_theme_color_override("font_shadow_color", Color(0.05, 0.04, 0.03, 0.9))
+	_loading_label.add_theme_constant_override("shadow_offset_x", 2)
+	_loading_label.add_theme_constant_override("shadow_offset_y", 2)
+	_loading_label.set_anchors_preset(Control.PRESET_CENTER)
+	_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Offsets are relative to the centre anchor point; position would be a
+	# parent-space coordinate and park the label half off-screen (the same
+	# mistake the clear panel had).
+	_loading_label.offset_left = -160
+	_loading_label.offset_top = 150
+	_loading_label.offset_right = 160
+	_loading_label.offset_bottom = 194
+	_loading_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_loading_label.visible = false
+	layer.add_child(_loading_label)
+
+func _process(_delta: float) -> void:
+	if _loading:
+		# Poll the threaded load; the title keeps drawing (and this label
+		# keeps showing) until the main scene is ready to take over.
+		match ResourceLoader.load_threaded_get_status(MAIN_SCENE):
+			ResourceLoader.THREAD_LOAD_LOADED:
+				var packed := ResourceLoader.load_threaded_get(MAIN_SCENE) as PackedScene
+				_loading = false
+				if packed:
+					get_tree().change_scene_to_packed(packed)
+				else:
+					get_tree().change_scene_to_file(MAIN_SCENE)
+			ResourceLoader.THREAD_LOAD_FAILED, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+				_loading = false
+				get_tree().change_scene_to_file(MAIN_SCENE)
+	elif _hint:
+		# The start prompt breathes quietly so it reads as "press me",
+		# not as another line of help text.
+		var pulse := 0.62 + 0.38 * sin(Time.get_ticks_msec() / 420.0)
+		_hint.modulate.a = pulse
 
 func _input(event: InputEvent) -> void:
 	# Keys, taps and clicks all start the game (phones have no keyboard).
 	# _input, not _unhandled_input: it runs before GUI consumption, so a
 	# click starts the game even if an overlay Control would swallow it
 	# before _unhandled_input (seen in the Web build: clicks did nothing).
+	if _loading:
+		return
 	var start := event.is_action_pressed("interact")
 	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
 		start = true
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
 		start = true
 	if start:
-		get_tree().change_scene_to_file("res://main.tscn")
+		_loading = true
+		if _hint:
+			_hint.modulate.a = 1.0
+			_hint.visible = false
+		_loading_label.visible = true
+		if ResourceLoader.load_threaded_request(MAIN_SCENE) != OK:
+			_loading = false
+			get_tree().change_scene_to_file(MAIN_SCENE)
