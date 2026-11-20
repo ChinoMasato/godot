@@ -136,3 +136,4 @@
 | B-1221 イメージ先行フロー | Muse (lead branch) | agent/b-1221-lead | ai_loop/image_scene.py, ai_loop/build_tool.gd, ai_loop/uzu.py, ai_loop/selfplay/image_walk.gd, ai_loop/samples/image_scene/, ai_loop/tests/test_image_scene.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。Python テスト全件 pass、歩行 5/5） | 2026-11-20 |
 
 | B-1220 | Codex | agent/b-1220-codex | ai_loop/animation_tool.gd, ai_loop/animation/, ai_loop/uzu.py・ai_loop/mcp_server.py（anim の入口）, ai_loop/catalog.json（再生成）, ai_loop/tests/test_animation.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。Python 89件・エンジン 1576 pass、CI green） | 2026-11-20 |
+| B-1112 手触りの代理指標 | Muse (lead branch) | agent/b-1112-lead | ai_loop/selfplay/feel_probe.gd（新規）, ai_loop/feel_report.py（新規）, ai_loop/aiplayer.py（後方互換の拡張）, ai_loop/uzu.py（feel-report の入口）, ai_loop/samples/hikari/main.gd（--uzu-no-juice の最小フック）, ai_loop/tests/test_feel_report.py（新規）, ai_loop/catalog.json（再生成）, ai_loop/iterations/ | 作業中 | 2026-11-20 |
