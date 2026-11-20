@@ -74,6 +74,11 @@ func _ready() -> void:
 	_loading_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_loading_label.visible = false
 	layer.add_child(_loading_label)
+	# Warm the loader while the title is on screen: the main scene's bytes
+	# are read in the background here, so a start press only pays for the
+	# (frame-split) build, not the read as well. _process picks the load
+	# up when the press lands, whatever state it is in by then.
+	ResourceLoader.load_threaded_request(MAIN_SCENE)
 
 func _process(_delta: float) -> void:
 	if _loading:
@@ -114,6 +119,9 @@ func _input(event: InputEvent) -> void:
 			_hint.modulate.a = 1.0
 			_hint.visible = false
 		_loading_label.visible = true
-		if ResourceLoader.load_threaded_request(MAIN_SCENE) != OK:
-			_loading = false
-			get_tree().change_scene_to_file(MAIN_SCENE)
+		# The load was already requested in _ready (the warm-up above); only
+		# request here when that never got going.
+		if ResourceLoader.load_threaded_get_status(MAIN_SCENE) == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			if ResourceLoader.load_threaded_request(MAIN_SCENE) != OK:
+				_loading = false
+				get_tree().change_scene_to_file(MAIN_SCENE)

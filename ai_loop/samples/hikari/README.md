@@ -28,3 +28,8 @@ U.ZU Engine の全機能を1本で実証する5分級の HD-2D ミニゲーム�
 - キャラのドット絵は ai_loop/look_samples/hd2d/hero.png の色替え（自作）。
 - タイトル絵は PIL で描いた自作イラスト＋深度マップ。
 - game_font.ttf は Noto Sans CJK のサブセット（OFL 1.1、art/FONT_LICENSE.txt）。
+  再生成は make_game_font.py、ゲーム内文字列との突合チェックは
+  check_font_coverage.py（欠けがあれば fail する）。
+- baked_village.scn は生成済みの村（地形・池・市街・ベイク済みナビメッシュ）を
+  開発時に焼いた同梱データ。起動時はスペックの指紋が一致すればこれを読み、
+  不一致・欠落時は実行時生成にフォールバックする。再生成は bake_world.gd。

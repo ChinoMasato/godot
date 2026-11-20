@@ -277,7 +277,10 @@ Ref<Theme> UZUUI::create_theme(const Dictionary &p_options) {
 
 namespace {
 
-const int FRAME_TILE = 32; // The repeating middle of a frame image.
+const int FRAME_TILE = 128; // The repeating middle of a frame image. Wide, so the
+// repeat period across a panel is long: at 32 the same small pattern printed
+// itself dozens of times across a wide talk window and read as a cheap print
+// (owner playtest, 2026-11-21).
 
 // Value noise that repeats every FRAME_TILE pixels (cells of p_cell px), so tiled frames have no seams.
 float tile_noise(float p_x, float p_y, int p_cell, uint32_t p_seed) {
@@ -325,7 +328,15 @@ Color material_color(const String &p_material, const Color &p_base, float x, flo
 		const float streak = tile_noise(x * 0.25f, y * 4.0f, 8, seed + 3);
 		c = c.lightened(0.12f * streak).darkened(0.08f * fine);
 	} else if (p_material == "parchment") {
-		c = c.darkened(0.12f * n + 0.05f * fine);
+		// Calm, like real paper: broad soft swells (lattice cells of 64 and
+		// 32 px over the tile) and a whisper of fine grain, all at low
+		// contrast. The old recipe (8 px cells, up to ~0.17 darkening) had
+		// a small busy pattern that the tile repeat made obvious. Every
+		// component still wraps with the tile, so the repeat is seamless;
+		// only its scale and contrast changed.
+		const float swell = tile_noise(x, y, 64, seed + 11);
+		const float drift = tile_noise(x, y, 32, seed + 23);
+		c = c.darkened(0.05f * swell + 0.035f * drift + 0.015f * fine);
 		c = c.darkened(0.35f * CLAMP(1.0f + d / 10.0f, 0.0f, 1.0f)); // Burnt edges.
 	} else if (p_material == "stone") {
 		c = c.darkened(0.25f * n).lightened(0.08f * fine);

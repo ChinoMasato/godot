@@ -70,6 +70,7 @@
 | Muse（リード） | 統合／台帳 | ai-native | PR #3 相当（Phase 4・Phase 7・A-1・A-3）を ai-native へ統合済み。A-2（標準ビルドを editor に変更）もリードが実施 | Codex の B-101 完了申告待ち。B-703b の取り込みは申告後 | 2026-11-17 |
 | Claude Code | Phase 4・Phase 7 | claude/uzu-engine-briefing-rrno7b | B-401／B-402、B-701〜B-713（B-703b を除く）まで完了し ai-native へ統合済み。全テスト 1476 pass | 残りは B-703b（UZUPostEffect、縁の強調と周辺減光） | 2026-11-17 |
 | Codex | B-005（オーナー依頼: 公式ロゴ＋動くロゴ） | agent/b-005-codex | 検証完了。公式素材でアイコン・スプラッシュ・About を更新、円形マークが2.4秒で1周。最新 e4ff456a31 上で editor ビルド＋全1476件 pass、6 SVG/3 PNG 読込成功、実GUIの暗色・明色で回転／停止／再開を確認 | Muse が ai-native へ統合・BACKLOG/LEDGER 反映。記録: iterations/2026-11-17-B-005-codex.md、見本: misc/logo/uzu/preview.gif。B-101 は別ブランチのドラフトを維持 | 2026-11-17 JST |
+| Muse (subagent) | 『灯りの欠片』実プレイ不具合修正 第2弾（問題1〜3＋世界ベイク同梱） | agent/hikari-fix2-20261121 | 完了: 開始は段階生成（最長フレーム 704→302ms）に加え、生成世界を bake_world.gd で .scn 同梱し指紋一致時のみ採用（押下→start 758→191ms、最長 98ms、フォールバックは段階生成）。フォントは 614 グリフに再生成＋ coverage チェック新設。羊皮紙はタイル 128px＋低コントラスト合成に（全テスト 1576/1578、残 fail は既知 UDP 2件）。verify はベイク／フォールバックとも pass | リードがレビュー・統合。記録は iterations/2026-11-21-hikari-fix2.md、撮影は ~/workspace/hikari-fix2-captures/ | 2026-11-21 |
 
 ## 質問・相談
 

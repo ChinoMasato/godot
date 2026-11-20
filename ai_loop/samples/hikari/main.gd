@@ -31,6 +31,14 @@ const CITY_EDGE := 26.5 # Half the city size plus half a road width.
 const LAND_SEED := 172
 const POND_SEED := 61
 const CITY_SEED := 1
+## The generated village is deterministic, so it is also baked ahead of
+## time into a binary scene (bake_world.gd -> res://baked_village.scn)
+## and adopted at start when its fingerprint matches the specs below;
+## generation at runtime is the fallback, not the normal path. Bump
+## WORLD_BUILD_VERSION whenever the build steps change shape (levelling,
+## trims, the foundation), so a stale bake can never be served.
+const WORLD_BUILD_VERSION := 1
+const BAKED_WORLD_PATH := "res://baked_village.scn"
 const POND_POS := Vector3(5.5, -0.37, 1.0)
 const POND_CENTRE := Vector2(9.5, 4.5)
 const POND_WATER_Y := -0.139 # POND_POS.y + the pond spec's water_level * height.
@@ -111,21 +119,63 @@ var stages: Array = [
 var stage_current := {}
 var stage_target := {}
 
+## Set when the phased start-up build has finished; _process, physics
+## and input stay out of the half-built world until then.
+var _built := false
+var _loading_layer: CanvasLayer
+var _loading_text: Label
+
 func _ready() -> void:
 	add_to_group("uzu_state")
 	juice_enabled = not OS.get_cmdline_user_args().has("--uzu-no-juice")
 	InputSetup.setup()
-	_build_world()
+	# The build is spread over frames behind a progress note instead of
+	# one synchronous block: measured on the dev VM, the old _ready did
+	# ~1 s of work (village generation ~740 ms, the UI ~210 ms) before
+	# the first frame could draw, which reads as a freeze — worst on the
+	# single-threaded Web build (owner playtest, 2026-11-21). The steps
+	# run the same calls in the same order, so the village, the state
+	# hash and the playthrough are unchanged.
+	_build_loading()
+	await get_tree().process_frame # The loading note draws before the first step.
+	await _build_world_phased()
 	var report := UZULook.apply_hd2d(self, UZULook.ATMOSPHERE_GOLDEN_HOUR, false)
 	print("UZU_SAMPLE look report: ", JSON.stringify(report))
 	_find_sun_and_env()
 	_web_perf_tuning()
+	await get_tree().process_frame
 	_build_ui()
 	stage_current = stages[0].duplicate()
 	stage_target = stages[0].duplicate()
 	_apply_stage(stage_current, 1.0)
+	_built = true
+	_loading_layer.queue_free()
 	UZUTelemetry.checkpoint("start")
 	_set_objective("村に落ちた灯りの欠片を集めよう（0/3）")
+
+## A plain progress note shown while the village builds in steps. Built
+## before anything heavy, updated between steps, freed once the HUD is
+## up. (The title screen's own "読み込み中…" covers the scene load that
+## happens before this.)
+func _build_loading() -> void:
+	_loading_layer = CanvasLayer.new()
+	_loading_layer.name = "Loading"
+	add_child(_loading_layer)
+	_loading_text = Label.new()
+	_loading_text.add_theme_font_override("font", FONT)
+	_loading_text.add_theme_font_size_override("font_size", 26)
+	_loading_text.add_theme_color_override("font_color", Color(0.98, 0.94, 0.85))
+	_loading_text.add_theme_color_override("font_shadow_color", Color(0.05, 0.04, 0.03, 0.9))
+	_loading_text.add_theme_constant_override("shadow_offset_x", 2)
+	_loading_text.add_theme_constant_override("shadow_offset_y", 2)
+	_loading_text.set_anchors_preset(Control.PRESET_CENTER)
+	_loading_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading_text.offset_left = -280
+	_loading_text.offset_top = -20
+	_loading_text.offset_right = 280
+	_loading_text.offset_bottom = 24
+	_loading_text.text = "読み込み中…"
+	_loading_layer.add_child(_loading_text)
 
 ## Declared state for the engine's state hash (B-307): what "the same game
 ## state" means for this game. The AI player / self-play tooling hashes this
@@ -137,6 +187,8 @@ func uzu_state() -> Dictionary:
 	return {"shards": shards, "cleared": cleared, "player": p}
 
 func _process(delta: float) -> void:
+	if not _built:
+		return
 	_update_camera(delta)
 	_update_stage(delta)
 	_update_interactable()
@@ -147,6 +199,8 @@ func _process(delta: float) -> void:
 # the AI player / self-play tooling steps physics frames in lockstep, and a
 # fixed step keeps movement (and the state hash) deterministic.
 func _physics_process(delta: float) -> void:
+	if not _built:
+		return # Play time must not run while the world is still building.
 	if not cleared:
 		play_seconds += delta
 	_update_player(delta)
@@ -179,9 +233,31 @@ func _sprite(texture_path: String, pos: Vector3) -> Sprite3D:
 	add_child(s)
 	return s
 
-func _build_world() -> void:
-	_build_generated_world()
+## Builds the generated village in steps over frames (the progress note
+## names the step that runs next), then derives the game's obstacle
+## circles from what was generated: building and bench footprints from
+## the city's collision shapes, street trees from its multimesh, the
+## fountain from the plaza place, and the pond from the water's edge on
+## the combined nature fields. Finishes with the hand-placed set.
+func _build_world_phased() -> void:
+	# The baked village first: one scene load instead of the generator
+	# steps. Only a missing or stale bake falls through to generating.
+	var built: Dictionary = _try_adopt_baked_world()
+	if built.is_empty():
+		var state := {}
+		_loading_text.text = "読み込み中… 地形を作っています"
+		while not build_generated_world_step(self, state):
+			_loading_text.text = "読み込み中… " + String(state.get("label", ""))
+			await get_tree().process_frame
+		built = state["result"]
+	land_map = built["land"]
+	pond_map = built["pond"]
+	city_map = built["city"]
+	_derive_city_obstacles(built["city_result"])
+	_derive_pond_obstacle()
+	_build_hand_placed()
 
+func _build_hand_placed() -> void:
 	# Shrine at the north edge: two pillars, a beam, and the lantern.
 	_box("ShrinePillarL", Vector3(-1.3, 1.5, -9.6), Vector3(0.4, 3.0, 0.4), Color(0.45, 0.25, 0.2), 0.45)
 	_box("ShrinePillarR", Vector3(1.3, 1.5, -9.6), Vector3(0.4, 3.0, 0.4), Color(0.45, 0.25, 0.2), 0.45)
@@ -234,75 +310,144 @@ func _build_world() -> void:
 ## Builds the generated village (B-1508) under parent and returns the
 ## three map holders with the city's generate result. Shared by the game
 ## and compose_village.gd, so both build the very same village.
+##
+## The build runs as steps (build_generated_world_step): the game spreads
+## them over frames so starting is a short progress note instead of one
+## long freeze (owner playtest, 2026-11-21), while compose_village.gd
+## runs the same steps back to back. Step boundaries sit between the
+## three generator calls — the expensive parts, measured at roughly
+## 300 / 240 / 160 ms on the dev VM — and every step runs the same calls
+## in the same order, so the village (fixed seeds) is identical either
+## way. state["label"] names the step that runs next, for the progress
+## note; state["result"] holds the return value once a step reports done.
+static func build_generated_world_step(parent: Node, state: Dictionary) -> bool:
+	var step := int(state.get("step", 0))
+	if step == 0:
+		state["label"] = "池を掘っています"
+		var rl := UZUWorldGen.generate_nature(parent, land_spec())
+		var land := parent.get_node(NodePath(String(rl["node"]))) as Node3D
+		# Level the village by the land itself: the highest terrain under the
+		# city tiling becomes y = 0, the city's level, and the land falls away
+		# from the streets on every side.
+		var peak := -1.0e9
+		var gx := CITY_CENTRE.x - CITY_EDGE
+		while gx <= CITY_CENTRE.x + CITY_EDGE:
+			var gz := CITY_CENTRE.y - CITY_EDGE
+			while gz <= CITY_CENTRE.y + CITY_EDGE:
+				peak = maxf(peak, UZUWorldGen.height_at(land, gx, gz))
+				gz += 1.0
+			gx += 1.0
+		land.position.y = -peak - 0.05
+		# The land's own woods and rocks stay scenery: clear them out of the
+		# ground the game is played on (the player's clamp, with a margin).
+		_trim_scatter(land, Rect2(-WORLD_X - 2.0, -WORLD_Z - 2.0, 2.0 * WORLD_X + 4.0, 2.0 * WORLD_Z + 4.0))
+		state["land"] = land
+	if step == 1:
+		state["label"] = "村を建てています"
+		var rp := UZUWorldGen.generate_nature(parent, pond_spec())
+		var pond := parent.get_node(NodePath(String(rp["node"]))) as Node3D
+		# The pond map reaches west under the city; cut its terrain at the
+		# city's east border, where the land map continues underneath. (The
+		# cut is visual only: height_at is analytic and unaffected.)
+		_trim_terrain(pond, CITY_CENTRE.x + CITY_EDGE)
+		state["pond"] = pond
+	if step >= 2:
+		var rc := UZUWorldGen.generate_city(parent, city_spec())
+		var city := parent.get_node(NodePath(String(rc["node"]))) as Node3D
+
+		# A foundation slab under the tiling, its top just below street
+		# level: with ground=false the streets have no floor of their own, so
+		# physics walkers (the walking check, any future body) stand on this.
+		# It ends where the tiling ends; beyond it, the land is the ground.
+		var foundation := MeshInstance3D.new()
+		foundation.name = "CityFoundation"
+		var fmesh := BoxMesh.new()
+		fmesh.size = Vector3(2.0 * CITY_EDGE, 0.5, 2.0 * CITY_EDGE)
+		foundation.mesh = fmesh
+		var fmat := StandardMaterial3D.new()
+		fmat.albedo_color = Color(0.4, 0.34, 0.24)
+		foundation.set_surface_override_material(0, fmat)
+		foundation.position = Vector3(CITY_CENTRE.x, -0.28, CITY_CENTRE.y)
+		parent.add_child(foundation)
+		foundation.owner = parent
+		var fbody := StaticBody3D.new()
+		fbody.name = "CityFoundationBody"
+		fbody.position = foundation.position
+		var fcs := CollisionShape3D.new()
+		var fshape := BoxShape3D.new()
+		fshape.size = fmesh.size
+		fcs.shape = fshape
+		fbody.add_child(fcs)
+		parent.add_child(fbody)
+		fbody.owner = parent
+		fcs.owner = parent
+		state["result"] = {"land": state["land"], "pond": state["pond"], "city": city, "city_result": rc}
+		return true
+	state["step"] = step + 1
+	return false
+
+## The synchronous build (compose_village.gd and the checks): the same
+## steps run back to back, so the village is the very same.
 static func build_generated_world(parent: Node) -> Dictionary:
-	var rl := UZUWorldGen.generate_nature(parent, land_spec())
-	var land := parent.get_node(NodePath(String(rl["node"]))) as Node3D
-	# Level the village by the land itself: the highest terrain under the
-	# city tiling becomes y = 0, the city's level, and the land falls away
-	# from the streets on every side.
-	var peak := -1.0e9
-	var gx := CITY_CENTRE.x - CITY_EDGE
-	while gx <= CITY_CENTRE.x + CITY_EDGE:
-		var gz := CITY_CENTRE.y - CITY_EDGE
-		while gz <= CITY_CENTRE.y + CITY_EDGE:
-			peak = maxf(peak, UZUWorldGen.height_at(land, gx, gz))
-			gz += 1.0
-		gx += 1.0
-	land.position.y = -peak - 0.05
-	# The land's own woods and rocks stay scenery: clear them out of the
-	# ground the game is played on (the player's clamp, with a margin).
-	_trim_scatter(land, Rect2(-WORLD_X - 2.0, -WORLD_Z - 2.0, 2.0 * WORLD_X + 4.0, 2.0 * WORLD_Z + 4.0))
+	var state := {}
+	while not build_generated_world_step(parent, state):
+		pass
+	return state["result"]
 
-	var rp := UZUWorldGen.generate_nature(parent, pond_spec())
-	var pond := parent.get_node(NodePath(String(rp["node"]))) as Node3D
-	# The pond map reaches west under the city; cut its terrain at the
-	# city's east border, where the land map continues underneath. (The
-	# cut is visual only: height_at is analytic and unaffected.)
-	_trim_terrain(pond, CITY_CENTRE.x + CITY_EDGE)
+## Fingerprint of everything that decides the generated village: the
+## three specs plus the build version of the steps themselves.
+## bake_world.gd stamps it on the baked scene; the game adopts the
+## scene only when the stamp matches, so a spec or build change can
+## never silently serve a stale village.
+static func world_fingerprint() -> String:
+	var payload := {
+		"build": WORLD_BUILD_VERSION,
+		"land": land_spec(),
+		"pond": pond_spec(),
+		"city": city_spec(),
+	}
+	return JSON.stringify(payload).md5_text()
 
-	var rc := UZUWorldGen.generate_city(parent, city_spec())
-	var city := parent.get_node(NodePath(String(rc["node"]))) as Node3D
-
-	# A foundation slab under the tiling, its top just below street
-	# level: with ground=false the streets have no floor of their own, so
-	# physics walkers (the walking check, any future body) stand on this.
-	# It ends where the tiling ends; beyond it, the land is the ground.
-	var foundation := MeshInstance3D.new()
-	foundation.name = "CityFoundation"
-	var fmesh := BoxMesh.new()
-	fmesh.size = Vector3(2.0 * CITY_EDGE, 0.5, 2.0 * CITY_EDGE)
-	foundation.mesh = fmesh
-	var fmat := StandardMaterial3D.new()
-	fmat.albedo_color = Color(0.4, 0.34, 0.24)
-	foundation.set_surface_override_material(0, fmat)
-	foundation.position = Vector3(CITY_CENTRE.x, -0.28, CITY_CENTRE.y)
-	parent.add_child(foundation)
-	foundation.owner = parent
-	var fbody := StaticBody3D.new()
-	fbody.name = "CityFoundationBody"
-	fbody.position = foundation.position
-	var fcs := CollisionShape3D.new()
-	var fshape := BoxShape3D.new()
-	fshape.size = fmesh.size
-	fcs.shape = fshape
-	fbody.add_child(fcs)
-	parent.add_child(fbody)
-	fbody.owner = parent
-	fcs.owner = parent
-	return {"land": land, "pond": pond, "city": city, "city_result": rc}
-
-## Builds the generated village and derives the game's obstacle circles
-## from what was generated: building and bench footprints from the
-## city's collision shapes, street trees from its multimesh, the
-## fountain from the plaza place, and the pond from the water's edge on
-## the combined nature fields.
-func _build_generated_world() -> void:
-	var built := build_generated_world(self)
-	land_map = built["land"]
-	pond_map = built["pond"]
-	city_map = built["city"]
-	_derive_city_obstacles(built["city_result"])
-	_derive_pond_obstacle()
+## Adopts the pre-baked village (bake_world.gd) when one is shipped and
+## its fingerprint matches the current specs: the whole generated world
+## — terrain, pond, city and its baked navigation mesh — then costs one
+## scene load (~10 ms measured on the dev VM) instead of ~700 ms of
+## generator calls. Any doubt (no file, stale stamp, broken scene)
+## returns {} and the caller generates in steps as before. The returned
+## dictionary has the same shape as the build steps' result; the city
+## result is reduced to the places, which is all the game reads from it
+## (the rest is derived from the city node tree itself).
+func _try_adopt_baked_world() -> Dictionary:
+	if not ResourceLoader.exists(BAKED_WORLD_PATH):
+		return {}
+	var packed := load(BAKED_WORLD_PATH) as PackedScene
+	if packed == null:
+		return {}
+	var holder := packed.instantiate() as Node3D
+	if holder == null:
+		return {}
+	if String(holder.get_meta("uzu_baked_fingerprint", "")) != world_fingerprint():
+		holder.free()
+		return {}
+	var land := holder.get_node_or_null(NodePath(String(land_spec()["name"]))) as Node3D
+	var pond := holder.get_node_or_null(NodePath(String(pond_spec()["name"]))) as Node3D
+	var city := holder.get_node_or_null(NodePath(String(city_spec()["name"]))) as Node3D
+	if land == null or pond == null or city == null:
+		holder.free()
+		return {}
+	# Move the generated nodes under the game root, in build order.
+	var ordered: Array = []
+	for child in holder.get_children():
+		ordered.append(child)
+	for child in ordered:
+		holder.remove_child(child)
+		add_child(child)
+		child.owner = self
+	holder.free()
+	var places: Dictionary = {}
+	if city.has_meta("uzu_places"):
+		places = city.get_meta("uzu_places")
+	return {"land": land, "pond": pond, "city": city, "city_result": {"places": places, "baked": true}}
 
 func _derive_city_obstacles(rc: Dictionary) -> void:
 	var body := city_map.get_node_or_null(NodePath("CityBody")) as StaticBody3D
@@ -568,6 +713,8 @@ func _update_interactable() -> void:
 		touch_controls.set_interact_text(label.trim_prefix("E： "))
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not _built:
+		return
 	if event.is_action_pressed("interact"):
 		_do_interact()
 
