@@ -968,7 +968,7 @@
         },
         {
           "name": "navigation.bake_ms",
-          "value": 62.1,
+          "value": 49.0,
           "evidence": "generator result navigation.bake_ms"
         },
         {
@@ -1003,7 +1003,7 @@
         },
         {
           "name": "triangles",
-          "value": 6746,
+          "value": 12272,
           "evidence": "generator result triangles"
         },
         {

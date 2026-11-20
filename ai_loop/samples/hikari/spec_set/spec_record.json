@@ -299,7 +299,7 @@
 				"hints": [],
 				"kind": "city",
 				"navigation": {
-					"bake_ms": 62.1,
+					"bake_ms": 49.0,
 					"islands": 1,
 					"places_connected": true,
 					"polygons": 652,
@@ -405,7 +405,7 @@
 				"size": 48.0,
 				"streets_m": 385.7,
 				"tallest_m": 6.4,
-				"triangles": 6746
+				"triangles": 12272
 			},
 			"scene": "res://village.tscn",
 			"spec_source": "main.gd city_spec()"

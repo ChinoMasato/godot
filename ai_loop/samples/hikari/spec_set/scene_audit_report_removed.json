@@ -230,7 +230,7 @@
       "id": "Village/meshes",
       "kind": "registry",
       "status": "difference",
-      "expected": 6746,
+      "expected": 12272,
       "actual": 9584,
       "note": "mesh nodes plus MultiMesh triangles, scatter MultiMeshes excluded (they are counted as instances)"
     },

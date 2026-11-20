@@ -14,13 +14,14 @@ it against the committed spec set, then delete one node block from the
 .tscn copy and audit again. The reports are written next to the spec
 set they verify.
 
-The baseline is NOT all-match, and the three kinds of difference are
-the point of the audit (each is documented in
+The baseline is NOT all-match, and the remaining kinds of difference
+are the point of the audit (each is documented in
 ai_loop/iterations/2026-11-20-B-1511-lead.md):
-  * Village/meshes: the generator's reported triangle total undercounts
-    the window frames (its formula divides the frame face count by 3 a
-    second time) -- the artifact holds 12272 comparable triangles, the
-    registry says 6746.
+  * Village/meshes MATCHES since B-1512: the generator's reported
+    triangle total used to undercount the window frames (its formula
+    divided the frame face count by 3 a second time; the registry said
+    6746 against the artifact's 12272). The formula is fixed, the spec
+    set regenerated, and the recount now agrees at 12272.
   * Pond/terrain_mesh: main.gd cuts the pond terrain at the city border
     after generation (2048 -> 1024); the spec record's own context says
     the game's adjustments are not part of the record.
@@ -57,7 +58,6 @@ FRAME_TRIANGLES = 224
 
 BASELINE_DIFFERENCES = {
     "Pond/terrain_mesh": (2048, 1024),
-    "Village/meshes": (6746, 12272),
     "Land/load_fidelity/TreesBroadleaf": (537, 0),
     "Land/load_fidelity/TreesConifer": (433, 0),
     "Land/load_fidelity/Rocks": (78, 0),
@@ -144,7 +144,7 @@ def main():
     after_diffs = differences(after)
     want_after = dict(BASELINE_DIFFERENCES)
     want_after["Village/windows"] = (37, 37 - REMOVED_FRAMES)
-    want_after["Village/meshes"] = (6746, 12272 - REMOVED_FRAMES * FRAME_TRIANGLES)
+    want_after["Village/meshes"] = (12272, 12272 - REMOVED_FRAMES * FRAME_TRIANGLES)
     if after_diffs != want_after:
         problems.append(f"removed-run differences changed: {after_diffs} != {want_after}")
     base_status = {c["id"]: c["status"] for c in baseline["checks"]}

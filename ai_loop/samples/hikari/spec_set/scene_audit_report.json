@@ -5,8 +5,8 @@
   "spec_set_scene": "res://village.tscn",
   "ok": false,
   "summary": {
-    "match": 23,
-    "difference": 6,
+    "match": 24,
+    "difference": 5,
     "not_countable": 5
   },
   "checks": [
@@ -229,8 +229,8 @@
     {
       "id": "Village/meshes",
       "kind": "registry",
-      "status": "difference",
-      "expected": 6746,
+      "status": "match",
+      "expected": 12272,
       "actual": 12272,
       "note": "mesh nodes plus MultiMesh triangles, scatter MultiMeshes excluded (they are counted as instances)"
     },
