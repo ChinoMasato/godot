@@ -119,6 +119,7 @@ func _ready() -> void:
 	var report := UZULook.apply_hd2d(self, UZULook.ATMOSPHERE_GOLDEN_HOUR, false)
 	print("UZU_SAMPLE look report: ", JSON.stringify(report))
 	_find_sun_and_env()
+	_web_perf_tuning()
 	_build_ui()
 	stage_current = stages[0].duplicate()
 	stage_target = stages[0].duplicate()
@@ -466,6 +467,20 @@ func _shard(id: String, pos: Vector3) -> void:
 	sparkles.position = pos
 	add_child(sparkles)
 	interactables.append({"pos": pos, "kind": "shard", "id": id, "label": "E： 欠片を拾う", "node": s, "glow": glow, "sparkles": sparkles})
+
+## Web builds run on WebGL through the Compatibility renderer, where the
+## full-window resolution and the village-wide shadow map dominate the cost.
+## Trim both on web only; the desktop build keeps the full quality.
+func _web_perf_tuning() -> void:
+	# "editor" exclusion: the AI-player harness runs the editor binary,
+	# where has_feature("web") can read true; tuning must apply only to a
+	# real Web export. (A runtime directional_shadow_atlas_set_size() here
+	# also broke lockstep verification, so the atlas is left alone.)
+	if not OS.has_feature("web") or OS.has_feature("editor"):
+		return
+	get_viewport().scaling_3d_scale = 0.7
+	if sun:
+		sun.directional_shadow_max_distance = 70.0
 
 # ---------------------------------------------------------------- runtime
 

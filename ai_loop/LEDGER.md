@@ -245,3 +245,4 @@
 
 - 2026-11-20: B-1224 当たり判定の機械チェックを ai-native へ統合（agent/b-1224-lead）。静的検査で B-1510 の進入不能 finding を精密化（阻害箇所は南縁の 0.31m 段差と特定）。イメージ先行フローのチェック道具（B-1223／B-1224）が揃い、B-1005 の依存は B-1112 のみになった。
 - 2026-11-20 B-1112 手触りの代理指標を統合（リード）。feel_probe＋feel_report＋uzu.py feel-report。hikari の収集は遅延1物理フレーム・flash 実測約120ms（要求どおり）、juice 無効版では全チャネル0の数値差を確認。エンジン1574/1576（既知UDP2件）、Python 全pass、C++変更なし。カタログ238件
+- 2026-11-20 『灯りの欠片』Web 版の軽量化（リード）: Web 書き出し時のみ 3D 解像度スケール 0.7＋太陽の影距離 70m に制限（main.gd _web_perf_tuning、editor 実行では無効）。切り分けで判明: _ready での directional_shadow_atlas_set_size はロックステップ検証を壊すため不採用。完走検証 pass×2、Web 再書き出し・再配置済み（u-zu.co.jp/hikari-20261120/）
