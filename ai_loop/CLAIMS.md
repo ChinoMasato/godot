@@ -138,3 +138,4 @@
 
 | B-1220 | Codex | agent/b-1220-codex | ai_loop/animation_tool.gd, ai_loop/animation/, ai_loop/uzu.py・ai_loop/mcp_server.py（anim の入口）, ai_loop/catalog.json（再生成）, ai_loop/tests/test_animation.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。Python 89件・エンジン 1576 pass、CI green） | 2026-11-20 |
 | B-1111 音の機械チェック | Muse (lead branch) | agent/b-1111-lead | ai_loop/audio_check.py, ai_loop/uzu.py, ai_loop/tests/test_audio_check.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。Python テスト全件 pass） | 2026-11-20 |
+| B-1224 当たり判定の機械チェック支援 | Muse (lead branch) | agent/b-1224-lead | ai_loop/collision_tool.gd, ai_loop/collision_check.py, ai_loop/uzu.py, ai_loop/mcp_server.py, ai_loop/tests/test_collision_check.py, ai_loop/samples/hikari/collision_check.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。村ベースライン ok、ずらし変種を検出） | 2026-11-20 |
