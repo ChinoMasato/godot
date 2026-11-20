@@ -17,9 +17,10 @@ do not need the engine:
   * the saved hikari sample reports (spec_set/scene_audit_report.json
     and scene_audit_report_removed.json, produced by audit_check.py)
     hold the documented baseline: everything matches except the pond
-    terrain the game cut, the generator's undercounted city triangle
-    total, and the four nature MultiMeshes the loader drops; the
-    removed run adds exactly the removed part's differences.
+    terrain the game cut and the four nature MultiMeshes the loader
+    drops (the generator's undercounted city triangle total was the
+    third difference until B-1512 fixed the formula; it now matches);
+    the removed run adds exactly the removed part's differences.
 The recount itself is exercised end-to-end by audit_check.py with the
 real engine; its outputs are what the last group checks.
 """
@@ -177,10 +178,13 @@ class SampleReportsTest(unittest.TestCase):
     def test_baseline_differences_are_the_documented_ones(self):
         report = self.load("scene_audit_report.json")
         diffs = {c["id"] for c in report["checks"] if c["status"] == "difference"}
-        self.assertEqual(diffs, {"Pond/terrain_mesh", "Village/meshes",
+        self.assertEqual(diffs, {"Pond/terrain_mesh",
                                  "Land/load_fidelity/TreesBroadleaf", "Land/load_fidelity/TreesConifer",
                                  "Land/load_fidelity/Rocks", "Land/load_fidelity/Grass"})
         checks = by_id(report)
+        # B-1512: the generator's triangle total agrees with the recount.
+        self.assertEqual(checks["Village/meshes"]["status"], "match")
+        self.assertEqual((checks["Village/meshes"]["expected"], checks["Village/meshes"]["actual"]), (12272, 12272))
         self.assertEqual(checks["Village/buildings"]["actual"], 6)
         self.assertEqual(checks["Village/windows"]["actual"], 37)
         self.assertEqual(checks["Land/terrain_mesh"]["actual"], 8192)
@@ -192,7 +196,7 @@ class SampleReportsTest(unittest.TestCase):
         after = by_id(self.load("scene_audit_report_removed.json"))
         self.assertEqual(set(base), set(after))
         flipped = {cid for cid in base if base[cid]["status"] != after[cid]["status"]}
-        self.assertEqual(flipped, {"Village/windows"})
+        self.assertEqual(flipped, {"Village/windows", "Village/meshes"})
         changed = {cid for cid in base
                    if (base[cid]["expected"], base[cid]["actual"]) != (after[cid]["expected"], after[cid]["actual"])}
         self.assertEqual(changed, {"Village/windows", "Village/meshes"})

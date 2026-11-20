@@ -2829,7 +2829,7 @@ Dictionary UZUWorldGen::generate_city(Node *p_root, const Dictionary &p_spec) {
 	r["size"] = size;
 	r["streets_m"] = Math::snapped(double(road_length), 0.1);
 	r["tallest_m"] = Math::snapped(double(tallest), 0.1);
-	r["triangles"] = ground_mb.triangles() + road_mb.triangles() + block_mb.triangles() + building_mb.triangles() + window_mb.triangles() + lit_mb.triangles() + post_mb.triangles() + bulb_mb.triangles() + landmark_mb.triangles() + bench_triangles + kit_wall.triangles() + kit_brick.triangles() + kit_stone.triangles() + kit_trim.triangles() + kit_roof.triangles() + kit_flat.triangles() + (frame_mesh.is_valid() ? frames_total * frame_mesh->get_faces().size() / 3 : 0);
+	r["triangles"] = ground_mb.triangles() + road_mb.triangles() + block_mb.triangles() + building_mb.triangles() + window_mb.triangles() + lit_mb.triangles() + post_mb.triangles() + bulb_mb.triangles() + landmark_mb.triangles() + bench_triangles + kit_wall.triangles() + kit_brick.triangles() + kit_stone.triangles() + kit_trim.triangles() + kit_roof.triangles() + kit_flat.triangles() + (frame_mesh.is_valid() ? frames_total * frame_mesh->get_faces().size() : 0);
 	r["counts"] = counts;
 	Dictionary bd;
 	bd["detail"] = o["detail"];

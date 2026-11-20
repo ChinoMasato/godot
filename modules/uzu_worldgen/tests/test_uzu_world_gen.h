@@ -66,6 +66,47 @@ static PackedVector3Array mesh_vertices(Node *p_holder, const String &p_name) {
 	return Array(mi->get_mesh()->surface_get_arrays(0))[Mesh::ARRAY_VERTEX];
 }
 
+static int mesh_triangles(const Ref<Mesh> &p_mesh) {
+	if (p_mesh.is_null()) {
+		return 0;
+	}
+	int tris = 0;
+	for (int s = 0; s < p_mesh->get_surface_count(); s++) {
+		const Array arrays = p_mesh->surface_get_arrays(s);
+		const Array index = arrays[Mesh::ARRAY_INDEX];
+		if (!index.is_empty()) {
+			tris += index.size() / 3;
+		} else {
+			tris += Array(arrays[Mesh::ARRAY_VERTEX]).size() / 3;
+		}
+	}
+	return tris;
+}
+
+// Recount of a generated city's triangles from the scene itself, following the
+// re-read audit (B-1511): every mesh node plus the MultiMeshes whose instances
+// the generator's total includes (the window frames). Scatter MultiMeshes
+// (street trees) are counted as instances, not triangles, and stay out.
+static int recount_city_triangles(Node *p_city) {
+	int tris = 0;
+	TypedArray<Node> meshes = p_city->find_children("*", "MeshInstance3D", true, false);
+	for (int i = 0; i < meshes.size(); i++) {
+		tris += mesh_triangles(Object::cast_to<MeshInstance3D>(meshes[i])->get_mesh());
+	}
+	TypedArray<Node> mms = p_city->find_children("*", "MultiMeshInstance3D", true, false);
+	for (int i = 0; i < mms.size(); i++) {
+		MultiMeshInstance3D *mmi = Object::cast_to<MultiMeshInstance3D>(mms[i]);
+		if (String(mmi->get_name()).begins_with("StreetTrees")) {
+			continue;
+		}
+		const Ref<MultiMesh> mm = mmi->get_multimesh();
+		if (mm.is_valid()) {
+			tris += mm->get_instance_count() * mesh_triangles(mm->get_mesh());
+		}
+	}
+	return tris;
+}
+
 TEST_CASE("[SceneTree][UZUWorldGen] A wrong spec says what to change and builds nothing") {
 	Dictionary s;
 	s["tree"] = 1;
@@ -565,6 +606,27 @@ TEST_CASE("[SceneTree][UZUWorldGen] Buildings from parts: the same layout as pla
 	memdelete(plain_root);
 	memdelete(root);
 	memdelete(root3);
+}
+
+TEST_CASE("[SceneTree][UZUWorldGen] City: the reported triangle count matches the meshes in the scene (B-1512)") {
+	// The generator's own count is what the asset registry (B-1509) reports, so
+	// it must agree with a recount from the scene itself. The B-1511 audit found
+	// the window frames divided by 3 twice (get_faces() already counts
+	// triangles): 6746 reported against 12272 real in the sample village.
+	for (const char *detail : { "high", "simple" }) {
+		INFO(detail);
+		Dictionary s;
+		s["preset"] = "village";
+		s["size"] = 96;
+		s["seed"] = 6;
+		s["detail"] = detail;
+		Node3D *root = memnew(Node3D);
+		const Dictionary r = UZUWorldGen::generate_city(root, s);
+		REQUIRE(bool(r["ok"]));
+		Node *city = root->get_node(NodePath(String(r["node"])));
+		CHECK(int(r["triangles"]) == recount_city_triangles(city));
+		memdelete(root);
+	}
 }
 
 } // namespace TestUZUWorldGen
