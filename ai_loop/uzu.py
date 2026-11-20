@@ -31,6 +31,12 @@ or through ai_loop\\windows\\uzu.bat.
                   under physics walks every edge of a B-1509 region graph in both directions; per-edge
                   pass/fail JSON with frames, seconds and stuck points; --block-node fences one node in
                   to prove that exactly its edges fail
+  uzu.py image-scene <project> --image illustration.png [--depth depth.png] [--out image_scene]
+                  [--fov 50] [--backdrop-width 26] [--no-build] [--no-walk] [--shot out.png]
+                  [--seconds 60]   image-first scaffold (B-1221, see ai_loop/image_scene.py): the
+                  illustration becomes a B-1207 spec -- backdrop card, cut-out layer cards,
+                  candidate interact markers, the reference camera -- plus a generation report;
+                  the spec is built and a capsule walker walks its waypoints
   uzu.py audit-scene <project> --scene res://x.tscn [--spec-set DIR] [--out report.json]
                   re-read audit of a saved scene (B-1511): recounts triangles, textures (count and
                   dimensions), placed instances and collision from the artifact itself -- never from
@@ -98,6 +104,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -1027,6 +1034,92 @@ def audit_scene_cmd(project, args):
         with open(out_file, "w", encoding="utf-8") as f:
             json.dump(report, f, ensure_ascii=False, indent=2)
     return {"command": "audit-scene", **report}
+
+
+IMAGEWALK_PROBE = 'UZUImageWalk="*res://addons/uzu_selfplay/image_walk.gd"\n'
+
+
+def image_scene_cmd(project, args):
+    """Image-first scaffold (B-1221): a specification illustration becomes a
+    B-1207 build spec (backdrop card, cut-out layer cards, candidate markers,
+    the reference camera) plus a generation report, written into
+    <project>/<out>/ (default image_scene/). Unless --no-build, the spec is
+    built; unless --no-walk, a capsule walker then walks the scaffold's
+    waypoints in a copy of the project and the per-waypoint result comes
+    back. Everything derived is a candidate (basis: inferred) -- see
+    ai_loop/image_scene.py."""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import image_scene as image_scene_mod
+
+    image = opt(args, "image")
+    if not image:
+        raise ToolError("image-scene needs --image illustration.png", command="image-scene")
+    image = os.path.abspath(image)
+    if not os.path.isfile(image):
+        raise ToolError(f"no illustration at {image}", command="image-scene")
+    out_name = opt(args, "out", "image_scene").strip("/")
+    depth = opt(args, "depth")
+    try:
+        spec, report, assets = image_scene_mod.analyze(
+            image,
+            depth_path=os.path.abspath(depth) if depth else None,
+            depth_white_far="--depth-black-far" not in args,
+            fov=float(opt(args, "fov", "50")),
+            backdrop_width=float(opt(args, "backdrop-width", "26")),
+            out_res="res://" + out_name,
+            scene_name=out_name,
+        )
+    except (OSError, ValueError, zlib.error) as e:
+        raise ToolError(f"could not analyse the illustration: {e}", command="image-scene")
+    out_dir = os.path.join(project, out_name)
+    os.makedirs(out_dir, exist_ok=True)
+    for fname, data in assets.items():
+        target = os.path.join(out_dir, fname)
+        if data is None:  # The backdrop is the illustration itself.
+            shutil.copyfile(image, target)
+        else:
+            with open(target, "wb") as f:
+                f.write(data)
+    spec_path = os.path.join(out_dir, "spec.json")
+    with open(spec_path, "w", encoding="utf-8") as f:
+        json.dump(spec, f, ensure_ascii=False, indent=2)
+    with open(os.path.join(out_dir, "report.json"), "w", encoding="utf-8") as f:
+        json.dump(report, f, ensure_ascii=False, indent=2)
+    with open(os.path.join(out_dir, "walk_targets.json"), "w", encoding="utf-8") as f:
+        json.dump({"spawn": report["spawn"], "waypoints": report["waypoints"]}, f, ensure_ascii=False, indent=2)
+    result = {"ok": True, "command": "image-scene", "spec": spec["scene"],
+              "spec_file": spec_path, "report": report}
+    if "--no-build" in args:
+        return result
+    run([find_godot(), "--headless", "--path", project, "--import"], timeout=900)
+    build_args = ["--spec", spec_path, "--no-report"]
+    if opt(args, "shot"):
+        build_args += ["--shot", os.path.abspath(opt(args, "shot"))]
+    built = build(project, build_args)
+    result["built"] = {k: built.get(k) for k in ("ok", "scene", "built", "error", "problems", "shot")}
+    result["ok"] = bool(built.get("ok"))
+    if not result["ok"] or "--no-walk" in args:
+        return result
+    with tempfile.TemporaryDirectory() as tmp:
+        game = os.path.join(tmp, "game")
+        shutil.copytree(project, game)
+        install_addons(game, ["selfplay/image_walk.gd"], IMAGEWALK_PROBE)
+        run([find_godot(), "--headless", "--path", game, "--import"], timeout=1800)
+        out = os.path.join(tmp, "image_walk.json")
+        limit = opt(args, "seconds", "60")
+        targets = os.path.join(game, out_name, "walk_targets.json")
+        rc, log = run([find_godot(), "--headless", "--path", game, spec["scene"], "--fixed-fps", "60",
+                       "--quit-after", str(int(float(limit) * 60 * 8 + 600)),
+                       "--", "--uzu-image-walk", out, targets, limit], timeout=1800, cwd=game)
+        if not os.path.exists(out):
+            sys.stderr.write(log)
+            raise ToolError("the image walk did not finish (see stderr)", command="image-scene")
+        with open(out, encoding="utf-8") as f:
+            walk = json.load(f)
+    result["walk"] = walk
+    result["ok"] = bool(walk.get("ok"))
+    return result
 
 
 def map_(project, args):
@@ -2117,6 +2210,7 @@ def selftest_tools():
     commands.append(("tests/test_spec_set.py", []))
     commands.append(("tests/test_walk_graph.py", []))
     commands.append(("tests/test_audit_scene.py", []))
+    commands.append(("tests/test_image_scene.py", []))
     ok = True
     for tool, args in commands:
         rc, out = run([sys.executable, os.path.join(HERE, tool), *args], timeout=900)
@@ -2194,7 +2288,7 @@ def main(argv):
             result = {"ok": False, "error": e.message}
         print(json.dumps(result, ensure_ascii=False))
         return 0 if result.get("ok") else 1
-    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui", "map", "audit-scene") or not rest:
+    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui", "map", "audit-scene", "image-scene") or not rest:
         print(__doc__, file=sys.stderr)
         return 2
     project = os.path.abspath(rest[0])
@@ -2202,7 +2296,7 @@ def main(argv):
         print(json.dumps({"ok": False, "error": f"{rest[0]} is not a project (no project.godot)"}))
         return 2
     try:
-        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui, "map": map_, "audit-scene": audit_scene_cmd}[tool](project, rest[1:])
+        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui, "map": map_, "audit-scene": audit_scene_cmd, "image-scene": image_scene_cmd}[tool](project, rest[1:])
     except ToolError as e:
         result = {"ok": False, "error": e.message, **e.extra}
         print(json.dumps(result, ensure_ascii=False))

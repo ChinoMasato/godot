@@ -2,13 +2,13 @@
  "version": 1,
  "generated_by": "ai_loop/make_catalog.py",
  "counts": {
-  "cli": 17,
+  "cli": 18,
   "command": 72,
   "mcp": 77,
   "preset": 6,
-  "script": 30,
+  "script": 32,
   "class": 15,
-  "total": 217
+  "total": 220
  },
  "entries": [
   {
@@ -116,6 +116,19 @@
    "required_capabilities": [],
    "fallback": null,
    "usage": "uzu.py enrich <project> --preset village_rich|meadow|ruins [--scene res://x.tscn] [--surface Ground] [--seed N] [--density-scale 1] [--shot out.png] [--no-render]"
+  },
+  {
+   "name": "image-scene",
+   "kind": "cli",
+   "description": "image-first scaffold (B-1221, see ai_loop/image_scene.py): the illustration becomes a B-1207 spec -- backdrop card, cut-out layer cards, candidate interact markers, the reference camera -- plus a generation report; the spec is built and a capsule walker walks its waypoints",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "usage": "uzu.py image-scene <project> --image illustration.png [--depth depth.png] [--out image_scene] [--fov 50] [--backdrop-width 26] [--no-build] [--no-walk] [--shot out.png] [--seconds 60]"
   },
   {
    "name": "look",
@@ -2918,6 +2931,30 @@
     "script"
    ],
    "source": "ai_loop/image_diff.py",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "image_scene",
+   "kind": "script",
+   "description": "Image-first scene scaffold (BACKLOG B-1221): one specification illustration",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/image_scene.py",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "image_scene_check",
+   "kind": "script",
+   "description": "End-to-end check for B-1221 (the image-first scaffold), run by hand:",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/image_scene_check.py",
    "required_capabilities": [],
    "fallback": null
   },

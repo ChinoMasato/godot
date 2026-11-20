@@ -1,0 +1,246 @@
+{
+  "scene": "res://image_scene/image_scene.tscn",
+  "look": {
+    "quality": "standard",
+    "atmosphere": "clear"
+  },
+  "ground": {
+    "size": [
+      32.5,
+      19.68
+    ],
+    "position": [
+      0.0,
+      0.0,
+      -10.16
+    ],
+    "color": "#48482f",
+    "collision": true
+  },
+  "camera": {
+    "position": [
+      0.0,
+      1.7,
+      -4.318
+    ],
+    "look_at": [
+      0.0,
+      7.38,
+      -20.0
+    ],
+    "fov": 50.0
+  },
+  "cards": [
+    {
+      "name": "Backdrop",
+      "image": "res://image_scene/background.png",
+      "position": [
+        0.0,
+        7.312,
+        -20.0
+      ],
+      "size": [
+        26.0,
+        14.625
+      ]
+    },
+    {
+      "name": "Card_Midground_0",
+      "image": "res://image_scene/card_midground_0.png",
+      "position": [
+        3.714,
+        0.791,
+        -12.283
+      ],
+      "size": [
+        5.777,
+        1.582
+      ],
+      "collision": true
+    },
+    {
+      "name": "Card_Midground_1",
+      "image": "res://image_scene/card_midground_1.png",
+      "position": [
+        -3.791,
+        0.671,
+        -12.283
+      ],
+      "size": [
+        5.622,
+        1.341
+      ],
+      "collision": true
+    },
+    {
+      "name": "Card_Midground_2",
+      "image": "res://image_scene/card_midground_2.png",
+      "position": [
+        -0.493,
+        0.276,
+        -12.943
+      ],
+      "size": [
+        3.631,
+        0.205
+      ],
+      "collision": false
+    },
+    {
+      "name": "Card_Midground_3",
+      "image": "res://image_scene/card_midground_3.png",
+      "position": [
+        -3.675,
+        0.524,
+        -12.274
+      ],
+      "size": [
+        0.447,
+        1.048
+      ],
+      "collision": false
+    },
+    {
+      "name": "Card_Midground_4",
+      "image": "res://image_scene/card_midground_4.png",
+      "position": [
+        -5.651,
+        0.173,
+        -12.943
+      ],
+      "size": [
+        0.465,
+        0.484
+      ],
+      "collision": false
+    },
+    {
+      "name": "Card_Foreground_0",
+      "image": "res://image_scene/card_foreground_0.png",
+      "position": [
+        2.56,
+        0.134,
+        -8.318
+      ],
+      "size": [
+        0.164,
+        0.268
+      ],
+      "collision": false
+    }
+  ],
+  "lamps": [
+    [
+      -2.672,
+      1.374,
+      -12.943
+    ],
+    [
+      -5.651,
+      0.4,
+      -12.943
+    ],
+    [
+      2.048,
+      0.546,
+      -12.943
+    ],
+    [
+      3.817,
+      0.4,
+      -12.943
+    ],
+    [
+      4.264,
+      0.4,
+      -12.943
+    ],
+    [
+      4.711,
+      0.4,
+      -12.943
+    ]
+  ],
+  "markers": [
+    {
+      "name": "Candidate_Glow_0",
+      "kind": "glow",
+      "position": [
+        -2.672,
+        1.374,
+        -12.943
+      ],
+      "radius": 0.9
+    },
+    {
+      "name": "Candidate_Glow_1",
+      "kind": "glow",
+      "position": [
+        -5.651,
+        0.4,
+        -12.943
+      ],
+      "radius": 0.9
+    },
+    {
+      "name": "Candidate_Glow_2",
+      "kind": "glow",
+      "position": [
+        2.048,
+        0.546,
+        -12.943
+      ],
+      "radius": 0.9
+    },
+    {
+      "name": "Candidate_Glow_3",
+      "kind": "glow",
+      "position": [
+        3.817,
+        0.4,
+        -12.943
+      ],
+      "radius": 0.9
+    },
+    {
+      "name": "Candidate_Glow_4",
+      "kind": "glow",
+      "position": [
+        4.264,
+        0.4,
+        -12.943
+      ],
+      "radius": 0.9
+    },
+    {
+      "name": "Candidate_Glow_5",
+      "kind": "glow",
+      "position": [
+        4.711,
+        0.4,
+        -12.943
+      ],
+      "radius": 0.9
+    },
+    {
+      "name": "Candidate_Door_0",
+      "kind": "door",
+      "position": [
+        -3.985,
+        0.568,
+        -12.943
+      ],
+      "radius": 0.9
+    },
+    {
+      "name": "Candidate_Door_1",
+      "kind": "door",
+      "position": [
+        2.509,
+        0.4,
+        -8.239
+      ],
+      "radius": 0.9
+    }
+  ]
+}
