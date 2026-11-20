@@ -52,6 +52,7 @@
 
 | エージェント | 担当 | ブランチ | 状態 | 次の一手 | 最終更新 |
 |---|---|---|---|---|---|
+| Muse (lead branch) | B-1111 音の機械チェック | agent/b-1111-lead | `uzu.py audio-check` を実装（波形の levels／clipping／silence／loop seam／sprite 整合）。UZUSfx プリセット全9件＋生成スプライトで正常系 pass、クリッピング・継ぎ目ずれ・内部無音の変種検出を確認。Python テスト 13 件 pass、C++ 変更なし | リードがレビュー・統合。記録は iterations/2026-11-20-B-1111-lead.md | 2026-11-20 |
 | Codex local | B-904 試作CLI | agent/b-904-codex-cli | 共通CLI `uzu.py picture` に接続。16件の回帰試験と、Windowsの実エンジンで光源検出から指定フレーム・motion.pngの生成まで成功 | リード統合待ち。B-901のC++ノード接続後に本体と再確認 | 2026-11-18 |
 | Codex local | B-005 Windows アイコン補完 | agent/b-005-codex-windows | 通常版とconsole版のICOをU.ZUへ更新。PE資源全10サイズ・splash・runtime icon一致、全1487 pass | リードが差分を統合。ローカルに修正版exeを用意済み。B-720 GPU確認はデバイス喪失で一部保留（別ブランチ） | 2026-11-18 |
 | Codex local | B-903 試作取り込み補完 | agent/b-903-codex-map | 深度の曖昧反転・古いraw再利用・保存成功判定を修正。明示的な向き指定を追加、実エンジン14件＋既存素材2件成功 | リードが補完を統合、クラウドのC++移植へ契約と回帰試験を引き継ぐ | 2026-11-18 |

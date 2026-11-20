@@ -51,6 +51,12 @@ or through ai_loop\\windows\\uzu.bat.
                   [--packet DIR] [--expect-clear]   on failure, a diagnosis packet in DIR (B-308)
   uzu.py dialogue --spec PATH [--out PATH] [--max-chars N]   validate or build dialogue/quest data (B-406)
   uzu.py replay-compare --expected PATH --actual PATH [--snapshots]   compare JSON/JSONL logs (B-314)
+  uzu.py audio-check <file.wav> [--manifest sprite.json] [--loop] [--out report.json]
+                  [--silence-db -60] [--max-silence-ms 100] [--clip-level 0.999] [--max-clip-ratio 0.001]
+                  [--max-seam-jump 0.05] [--seam-ratio 4]   mechanical audio checks (B-1111, see
+                  ai_loop/audio_check.py): peak/RMS levels, clipping, unintended silence runs, the
+                  loop seam and audio-sprite segment/gap consistency, as numbers in one JSON report.
+                  Simultaneous-playback overlap is out of scope (it needs playback-side logs)
   uzu.py catalog  <word> [<word> ...] [--limit N] [--caps a,b] [--profile caps.json]
                   search the feature catalog (B-403): every command, MCP tool,
                   preset, tool script and UZU class, generated from their definitions by ai_loop/make_catalog.py
@@ -2326,6 +2332,7 @@ def selftest_tools():
     commands.append(("tests/test_audit_scene.py", []))
     commands.append(("tests/test_image_scene.py", []))
     commands.append(("tests/test_animation.py", []))
+    commands.append(("tests/test_audio_check.py", []))
     ok = True
     for tool, args in commands:
         rc, out = run([sys.executable, os.path.join(HERE, tool), *args], timeout=900)
@@ -2369,6 +2376,10 @@ def main(argv):
         import replay_compare
 
         return replay_compare.main(rest)
+    if tool == "audio-check":
+        import audio_check
+
+        return audio_check.main(rest)
     if tool == "catalog":
         import catalog
 

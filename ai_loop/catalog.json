@@ -2,13 +2,13 @@
  "version": 1,
  "generated_by": "ai_loop/make_catalog.py",
  "counts": {
-  "cli": 20,
+  "cli": 21,
   "command": 72,
   "mcp": 79,
   "preset": 7,
-  "script": 34,
+  "script": 35,
   "class": 15,
-  "total": 227
+  "total": 229
  },
  "entries": [
   {
@@ -23,6 +23,19 @@
    "required_capabilities": [],
    "fallback": null,
    "usage": "uzu.py anim <project> motion|align [options]"
+  },
+  {
+   "name": "audio-check",
+   "kind": "cli",
+   "description": "mechanical audio checks (B-1111, see ai_loop/audio_check.py): peak/RMS levels, clipping, unintended silence runs, the loop seam and audio-sprite segment/gap consistency, as numbers in one JSON report. Simultaneous-playback overlap is out of scope (it needs playback-side logs)",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "usage": "uzu.py audio-check <file.wav> [--manifest sprite.json] [--loop] [--out report.json] [--silence-db -60] [--max-silence-ms 100] [--clip-level 0.999] [--max-clip-ratio 0.001] [--max-seam-jump 0.05] [--seam-ratio 4]"
   },
   {
    "name": "audit-scene",
@@ -2896,6 +2909,18 @@
     "script"
    ],
    "source": "ai_loop/animation_tool.gd",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "audio_check",
+   "kind": "script",
+   "description": "Mechanical checks for game audio files (BACKLOG B-1111).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/audio_check.py",
    "required_capabilities": [],
    "fallback": null
   },
