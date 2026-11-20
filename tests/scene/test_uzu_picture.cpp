@@ -34,8 +34,11 @@ TEST_FORCE_LINK(test_uzu_picture)
 
 #ifndef _3D_DISABLED
 
+#include "core/config/project_settings.h"
 #include "core/io/dir_access.h"
 #include "core/io/json.h"
+#include "core/io/pck_packer.h"
+#include "core/io/resource_saver.h"
 #include "core/os/os.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/gpu_particles_3d.h"
@@ -43,6 +46,7 @@ TEST_FORCE_LINK(test_uzu_picture)
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/uzu_picture.h"
 #include "scene/3d/world_environment.h"
+#include "scene/resources/image_texture.h"
 #include "scene/resources/mesh.h"
 
 namespace TestUZUPicture {
@@ -151,6 +155,67 @@ TEST_CASE("[SceneTree][UZUPicture] Picture pixels and depth to space") {
 	CHECK(picture->depth_at(Vector2(160, 100)) == doctest::Approx(0.8).epsilon(0.01));
 	CHECK(picture->depth_at(Vector2(20, 0)) == doctest::Approx(0.1).epsilon(0.02));
 	CHECK(picture->point_at(Vector2(160, 100)).z > picture->point_at(Vector2(20, 100)).z); // The tower is nearer.
+	memdelete(picture);
+}
+
+TEST_CASE("[SceneTree][UZUPicture] Images served from a resource pack (the exported-game case)") {
+	// In an exported game the project's images live inside the PCK, where
+	// the globalized res:// path names no plain file — opening it as one is
+	// what broke the sample's title screen. load_image must therefore go
+	// through ResourceLoader, which serves resources out of a mounted pack.
+	//
+	// A loose PNG inside a runtime-made pack carries no import metadata,
+	// and ResourceLoader will not serve one in this (editor) binary; in an
+	// exported game the same load_image branch is reached through the PNG's
+	// .import remap and yields a CompressedTexture2D. To pin the branch
+	// itself, the pack below carries the two test images as binary
+	// ImageTexture resources, which ResourceLoader loads natively from a
+	// pack, addressed by res:// paths that exist nowhere on disk.
+	const String dir = write_files();
+	const String art_res = dir.path_join("art.res");
+	const String depth_res = dir.path_join("depth.res");
+	{
+		const Ref<Image> art_img = Image::load_from_file(dir.path_join("art.png"));
+		REQUIRE(art_img.is_valid());
+		const Ref<ImageTexture> art_tex = ImageTexture::create_from_image(art_img);
+		REQUIRE(ResourceSaver::save(art_tex, art_res) == OK);
+		const Ref<Image> depth_img = Image::load_from_file(dir.path_join("depth.png"));
+		REQUIRE(depth_img.is_valid());
+		const Ref<ImageTexture> depth_tex = ImageTexture::create_from_image(depth_img);
+		REQUIRE(ResourceSaver::save(depth_tex, depth_res) == OK);
+	}
+	const String pack_path = dir.path_join("uzu_picture_res.pck");
+	PCKPacker packer;
+	REQUIRE(packer.pck_start(pack_path) == OK);
+	REQUIRE(packer.add_file("uzu_picture_res/art.res", art_res) == OK);
+	REQUIRE(packer.add_file("uzu_picture_res/depth.res", depth_res) == OK);
+	REQUIRE(packer.flush() == OK);
+	// load_resource_pack is protected in C++; go through the bound call.
+	// replace_files = false: nothing in the test environment is shadowed,
+	// and the unique "uzu_picture_res" prefix cannot collide with files.
+	const bool pack_ok = ProjectSettings::get_singleton()->call("load_resource_pack", pack_path, false, 0);
+	REQUIRE(pack_ok);
+
+	const Ref<Image> art = UZUPicture::load_image("res://uzu_picture_res/art.res");
+	REQUIRE(art.is_valid());
+	CHECK(art->get_size() == Vector2i(W, H));
+	const Color tower = art->get_pixel(160, 100); // Inside the tower (8-bit readback).
+	CHECK(tower.r == doctest::Approx(0.8).epsilon(0.01));
+	CHECK(tower.g == doctest::Approx(0.1).epsilon(0.01));
+
+	Dictionary depth_spec;
+	depth_spec["path"] = "res://uzu_picture_res/depth.res";
+	depth_spec["kind"] = "disparity";
+	depth_spec["near"] = 4.5;
+	depth_spec["far"] = 160.0;
+	Dictionary spec;
+	spec["image"] = "res://uzu_picture_res/art.res";
+	spec["depth"] = depth_spec;
+	UZUPicture *picture = memnew(UZUPicture);
+	picture->set_spec(spec);
+	const Dictionary stats = picture->build();
+	CHECK(bool(stats["ok"]));
+	CHECK(picture->is_built());
 	memdelete(picture);
 }
 
