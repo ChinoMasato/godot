@@ -155,15 +155,21 @@ TEST_CASE("[SceneTree][UZUUI] World frames: texture that repeats, shapes, orname
 	wood["shadow"] = 8;
 	const Ref<Image> img = UZUUI::draw_frame(wood);
 	const int w = img->get_width();
-	const int m = (w - 32) / 2; // The margin the 9-slice keeps; the middle 32 px repeat.
-	// The middle repeats every 32 px: the row through the middle matches itself 32 px on.
+	// The margin the 9-slice keeps, read off the style the frame makes;
+	// the middle between the margins is the tile that repeats.
+	Ref<StyleBoxTexture> wood_sb = UZUUI::create_frame_style(wood);
+	REQUIRE(wood_sb.is_valid());
+	const int m = int(wood_sb->get_texture_margin(SIDE_LEFT));
+	const int tile = w - 2 * m;
+	REQUIRE(tile > 0);
+	// The middle repeats every tile px: the row through the middle matches itself one tile on.
 	const int y = w / 2;
 	for (int x = m; x < m + 4; x++) {
-		CHECK(close(img->get_pixel(x, y), img->get_pixel(x + 32, y)));
+		CHECK(close(img->get_pixel(x, y), img->get_pixel(x + tile, y)));
 	}
 	// The wood is not flat: the middle has some variation.
 	float lo = 1.0f, hi = 0.0f;
-	for (int x = m; x < m + 32; x++) {
+	for (int x = m; x < m + tile; x++) {
 		const float l = img->get_pixel(x, y).get_luminance();
 		lo = MIN(lo, l);
 		hi = MAX(hi, l);
@@ -206,6 +212,52 @@ TEST_CASE("[SceneTree][UZUUI] World frames: texture that repeats, shapes, orname
 	const int gm = gl->get_width() / 2;
 	CHECK(gl->get_pixel(gm, 4).b > gl->get_pixel(gm, gm).b);
 	CHECK(gl->get_pixel(0, 0).a < 0.02f); // The cut corner.
+}
+
+TEST_CASE("[SceneTree][UZUUI] Parchment: calm over a wide panel, no printed pattern") {
+	// The wafu frame is parchment. Its middle tile repeats across panels
+	// as wide as a talk window, so what matters is the tile itself: a
+	// gentle large-scale variation (not flat), at low contrast, with no
+	// busy small grain — a small, strong pattern is what read as cheap
+	// print in the owner's playtest (2026-11-21).
+	const Dictionary frame = UZUUI::get_world_options("wafu")["frame"];
+	const Ref<Image> img = UZUUI::draw_frame(frame);
+	REQUIRE(img.is_valid());
+	Ref<StyleBoxTexture> sb = UZUUI::create_frame_style(frame);
+	REQUIRE(sb.is_valid());
+	const int w = img->get_width();
+	const int m = int(sb->get_texture_margin(SIDE_LEFT));
+	const int tile = w - 2 * m;
+	REQUIRE(tile >= 96); // A wide repeat period is the point of the fix.
+	const int y = w / 2;
+	// Wrap continuity: in the tiled render the tile's last column sits
+	// next to its first column, so the two must meet without a cliff.
+	// (Comparing pixel(x) with pixel(x + tile) instead would conflate
+	// the frame's own burnt-edge darkening, which lives in the margin
+	// and is drawn once, not tiled.)
+	CHECK(Math::abs(img->get_pixel(m + tile - 1, y).get_luminance() - img->get_pixel(m, y).get_luminance()) < 0.03f);
+	CHECK(Math::abs(img->get_pixel(y, m + tile - 1).get_luminance() - img->get_pixel(y, m).get_luminance()) < 0.03f);
+	// The tile's luminance: some variation, but low contrast, and smooth
+	// from one pixel to the next (swells, not grain).
+	float lo = 1.0f, hi = 0.0f, steps = 0.0f;
+	int n_steps = 0;
+	for (int yy = y - 8; yy <= y + 8; yy += 8) {
+		float prev = -1.0f;
+		for (int x = m; x < m + tile; x++) {
+			const float l = img->get_pixel(x, yy).get_luminance();
+			lo = MIN(lo, l);
+			hi = MAX(hi, l);
+			if (yy == y && prev >= 0.0f) {
+				steps += Math::abs(l - prev);
+				n_steps++;
+			}
+			prev = l;
+		}
+	}
+	CHECK(hi - lo > 0.015f); // Not flat: the paper has a tone of its own.
+	CHECK(hi - lo < 0.12f); // Low contrast: no pattern shouts.
+	REQUIRE(n_steps > 0);
+	CHECK(steps / n_steps < 0.01f); // Smooth: neighbouring pixels barely differ.
 }
 
 TEST_CASE("[SceneTree][UZUUI] World themes and game parts") {
