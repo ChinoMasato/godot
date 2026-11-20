@@ -136,4 +136,4 @@
 | B-1221 イメージ先行フロー | Muse (lead branch) | agent/b-1221-lead | ai_loop/image_scene.py, ai_loop/build_tool.gd, ai_loop/uzu.py, ai_loop/selfplay/image_walk.gd, ai_loop/samples/image_scene/, ai_loop/tests/test_image_scene.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。Python テスト全件 pass、歩行 5/5） | 2026-11-20 |
 
 | B-1220 | Codex | agent/b-1220-codex | ai_loop/animation_tool.gd, ai_loop/animation/, ai_loop/uzu.py・ai_loop/mcp_server.py（anim の入口）, ai_loop/catalog.json（再生成）, ai_loop/tests/test_animation.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。Python 89件・エンジン 1576 pass、CI green） | 2026-11-20 |
-| B-1111 音の機械チェック | Muse (lead branch) | agent/b-1111-lead | ai_loop/audio_check.py（新規）, ai_loop/uzu.py, ai_loop/catalog.json, ai_loop/tests/test_audio_check.py, ai_loop/iterations/ | 実装・検証完了（リード統合待ち。Python テスト 13 件 pass、UZUSfx プリセット全件＋生成スプライトで正常系 pass、変種検出を確認） | 2026-11-20 |
+| B-1111 音の機械チェック | Muse (lead branch) | agent/b-1111-lead | ai_loop/audio_check.py, ai_loop/uzu.py, ai_loop/tests/test_audio_check.py, ai_loop/iterations/ | 反映済み（2026-11-20 リード統合。Python テスト全件 pass） | 2026-11-20 |
