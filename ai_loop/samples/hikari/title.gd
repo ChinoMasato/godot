@@ -46,8 +46,11 @@ func _ready() -> void:
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		layer.add_child(title)
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	# Keys, taps and clicks all start the game (phones have no keyboard).
+	# _input, not _unhandled_input: it runs before GUI consumption, so a
+	# click starts the game even if an overlay Control would swallow it
+	# before _unhandled_input (seen in the Web build: clicks did nothing).
 	var start := event.is_action_pressed("interact")
 	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
 		start = true
