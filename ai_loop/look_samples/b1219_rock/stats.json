@@ -1,0 +1,113 @@
+{
+  "rocks": [
+    {
+      "name": "boulder_big",
+      "triangles_practical": 608,
+      "triangles_high": 9600,
+      "reduction": {
+        "method": "weld only (remove doubles); no flat-dissolve -- on a rock the shallow facet edges are the form",
+        "triangles_before": 610,
+        "triangles_after": 608,
+        "sharp_edges_before": 20,
+        "sharp_edges_after": 20,
+        "sharp_edge_preservation": 1.0
+      },
+      "bake_miss_rate": 0.00392976972928253,
+      "texture_size": 1024,
+      "orm_texture": "boulder_big_orm.png",
+      "model_quality": {
+        "triangles": 608,
+        "chamfered_edges": 20,
+        "sharp_edges": 0,
+        "bevel_share": 1.0,
+        "triangles_per_m2": 27.8,
+        "pbr_coverage": 1.0,
+        "size_m": 2.98
+      },
+      "glb": "boulder_big.glb",
+      "glb_bytes": 2693392,
+      "bake_texture_size": 2048
+    },
+    {
+      "name": "boulder_wide",
+      "triangles_practical": 484,
+      "triangles_high": 7968,
+      "reduction": {
+        "method": "weld only (remove doubles); no flat-dissolve -- on a rock the shallow facet edges are the form",
+        "triangles_before": 486,
+        "triangles_after": 484,
+        "sharp_edges_before": 39,
+        "sharp_edges_after": 38,
+        "sharp_edge_preservation": 0.9744
+      },
+      "bake_miss_rate": 0.0010368066355624676,
+      "texture_size": 1024,
+      "orm_texture": "boulder_wide_orm.png",
+      "model_quality": {
+        "triangles": 484,
+        "chamfered_edges": 33,
+        "sharp_edges": 5,
+        "bevel_share": 0.868,
+        "triangles_per_m2": 55.51,
+        "pbr_coverage": 1.0,
+        "size_m": 1.97
+      },
+      "glb": "boulder_wide.glb",
+      "glb_bytes": 2283536,
+      "bake_texture_size": 2048
+    },
+    {
+      "name": "shard_rock",
+      "triangles_practical": 408,
+      "triangles_high": 6464,
+      "reduction": {
+        "method": "weld only (remove doubles); no flat-dissolve -- on a rock the shallow facet edges are the form",
+        "triangles_before": 410,
+        "triangles_after": 408,
+        "sharp_edges_before": 31,
+        "sharp_edges_after": 31,
+        "sharp_edge_preservation": 1.0
+      },
+      "bake_miss_rate": 0.00036331708498592145,
+      "texture_size": 1024,
+      "orm_texture": "shard_rock_orm.png",
+      "model_quality": {
+        "triangles": 408,
+        "chamfered_edges": 31,
+        "sharp_edges": 0,
+        "bevel_share": 1.0,
+        "triangles_per_m2": 89.25,
+        "pbr_coverage": 1.0,
+        "size_m": 1.52
+      },
+      "glb": "shard_rock.glb",
+      "glb_bytes": 1858136,
+      "bake_texture_size": 2048
+    }
+  ],
+  "renders": {
+    "a_noise_only": "render_a_noise_only.png",
+    "b_faceted_gray": "render_b_faceted_gray.png",
+    "c_baked": "render_c_baked.png"
+  },
+  "layout": [
+    {
+      "name": "boulder_big",
+      "x": -3.86,
+      "y": 0.0,
+      "flip": false
+    },
+    {
+      "name": "boulder_wide",
+      "x": 1.82,
+      "y": 0.0,
+      "flip": false
+    },
+    {
+      "name": "shard_rock",
+      "x": 6.1,
+      "y": 0.0,
+      "flip": false
+    }
+  ]
+}

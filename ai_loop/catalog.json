@@ -2,13 +2,13 @@
  "version": 1,
  "generated_by": "ai_loop/make_catalog.py",
  "counts": {
-  "cli": 19,
+  "cli": 20,
   "command": 72,
   "mcp": 79,
-  "preset": 6,
-  "script": 33,
+  "preset": 7,
+  "script": 34,
   "class": 15,
-  "total": 224
+  "total": 227
  },
  "entries": [
   {
@@ -207,6 +207,21 @@
    "required_capabilities": [],
    "fallback": null,
    "usage": "uzu.py replay-compare --expected PATH --actual PATH [--snapshots]"
+  },
+  {
+   "name": "rock",
+   "kind": "cli",
+   "description": "procedural rocks (B-1219 stage 2): faceted rocks from parameters (seed, radius, cuts, bevel) -- half-space cuts make the flat faces and ridges noise displacement cannot -- baked down to a practical GLB with a PBR texture set (albedo / normal / ORM); prints triangle counts and the bake miss rate",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "required_capabilities": [
+    "blender"
+   ],
+   "fallback": "Without Blender, place a ready-made GLB, or scatter the engine's built-in rocks instead (UZUWorldGen nature maps place rocks from the spec).",
+   "usage": "uzu.py rock --spec spec.json [--out DIR] [--check] [--blender PATH] [--timeout 1800] [--tex-size 2048] [--samples 48]"
   },
   {
    "name": "selfplay",
@@ -2758,6 +2773,19 @@
    }
   },
   {
+   "name": "biome_desert",
+   "kind": "preset",
+   "description": "A desert biome as pure data (B-1219 stage 2): a UZUWorldGen nature spec in a file -- dry plains, no water, no trees, no snow, more rocks, sand-coloured ground. Feed it as-is: uzu.py map <project> nature --spec ai_loop/presets/map/biome_desert.json (keys starting with _ are metadata and are dropped by the map tool). Regional difference lives in data like this, never in generator code.",
+   "tags": [
+    "map",
+    "preset"
+   ],
+   "source": "ai_loop/presets/map/biome_desert.json",
+   "required_capabilities": [],
+   "fallback": null,
+   "group": "map"
+  },
+  {
    "name": "fantasy",
    "kind": "preset",
    "description": "Fantasy: brown leather panels, gold borders, round corners.",
@@ -2936,7 +2964,7 @@
   {
    "name": "building_recipe",
    "kind": "script",
-   "description": "Procedural buildings with baked PBR texture sets (BACKLOG B-1219, stage 1).",
+   "description": "Procedural buildings with baked PBR texture sets (BACKLOG B-1219).",
    "tags": [
     "python",
     "script"
@@ -3138,6 +3166,20 @@
    "source": "ai_loop/rich_probe.gd",
    "required_capabilities": [],
    "fallback": null
+  },
+  {
+   "name": "rock_recipe",
+   "kind": "script",
+   "description": "Procedural rocks with baked PBR texture sets (BACKLOG B-1219, stage 2).",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/rock_recipe.py",
+   "required_capabilities": [
+    "blender"
+   ],
+   "fallback": "Without Blender, place a ready-made GLB, or scatter the engine's built-in rocks instead (UZUWorldGen nature maps place rocks from the spec)."
   },
   {
    "name": "spec_set",

@@ -58,6 +58,12 @@ func _run(args: PackedStringArray) -> Dictionary:
 		if typeof(parsed) != TYPE_DICTIONARY:
 			return _error("the spec at %s is not a JSON object" % spec_path)
 		spec = parsed
+	# Keys starting with "_" are file metadata (a preset's "_about", say),
+	# not generator options: drop them here so a preset file can be fed to
+	# map as-is. UZUWorldGen.resolve itself stays strict about real keys.
+	for key in spec.keys():
+		if String(key).begins_with("_"):
+			spec.erase(key)
 	for i in args.size():
 		if args[i] != "--set" or i + 1 >= args.size():
 			continue

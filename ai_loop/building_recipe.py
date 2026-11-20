@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Procedural buildings with baked PBR texture sets (BACKLOG B-1219, stage 1).
+"""Procedural buildings with baked PBR texture sets (BACKLOG B-1219).
 
 One command turns a short JSON spec into game-ready buildings:
 
@@ -10,6 +10,16 @@ roof: gable|hip|flat, wall: plaster|brick|wood, kind: house|shop, and a
 seed). All variation is derived here from the seed with random.Random,
 so the same spec always builds the same buildings; the Blender side
 (ai_loop/blender/building_lib.py) only constructs what it is given.
+
+Stage 2 (styles as data): what makes a building read as one regional /
+period style -- proportions, opening sizes and rhythm, roof pitch and
+eaves, tints, and the procedural-material parameters -- lives in
+ai_loop/building_styles.json, not in code. A building entry may name a
+"style" (default: "default", which reproduces the stage-1 recipe
+exactly); any other style in the file is a partial override deep-merged
+over "default", so a new style is a data edit, never a code change.
+The fully resolved style travels inside the derived spec, so the
+Blender side stays a pure constructor.
 
 The recipe builds real geometry -- segment walls with actual openings,
 window frames and mullions, a stepped foundation, eaves -- makes a
@@ -25,7 +35,8 @@ in plain grey, (c) the exported GLBs re-imported with their baked sets.
 prints the derived buildings as JSON.
 
 Usage: ai_loop/uzu.py building --spec spec.json [--out DIR] [--check]
-       [--blender PATH] [--timeout 1800] [--tex-size 2048] [--samples 48]
+       [--blender PATH] [--styles building_styles.json] [--timeout 1800]
+       [--tex-size 2048] [--samples 48]
 Prints one JSON line {"ok": bool, ...}. Standard library only.
 """
 
@@ -55,8 +66,70 @@ ROOFS = ("gable", "hip", "flat")
 KINDS = ("house", "shop")
 NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
-WALL_TINTS = {"plaster": (0.93, 0.89, 0.82), "brick": (0.62, 0.32, 0.24), "wood": (0.45, 0.33, 0.22)}
-ROOF_TINTS = {"slate": (0.32, 0.35, 0.42), "terracotta": (0.55, 0.30, 0.22), "moss": (0.36, 0.38, 0.30)}
+STYLES_PATH = os.path.join(HERE, "building_styles.json")
+_STYLE_SECTIONS = ("geometry", "materials")
+
+
+def load_styles(path=None):
+    """The style definitions (ai_loop/building_styles.json by default).
+
+    Returns the parsed document. Raises ValueError on a malformed file
+    or a document without a "default" style: the default style is the
+    base every other style is merged over, so it must be complete.
+    """
+    path = path or STYLES_PATH
+    with open(path, encoding="utf-8") as fh:
+        doc = json.load(fh)
+    if not isinstance(doc, dict) or not isinstance(doc.get("styles"), dict):
+        raise ValueError(f"{path}: expected an object with a 'styles' object")
+    if "default" not in doc["styles"]:
+        raise ValueError(f"{path}: styles must define 'default'")
+    return doc
+
+
+def _check_style_keys(style_name, override, base, where):
+    """Reject override keys the default style does not define (typos)."""
+    if not isinstance(override, dict):
+        raise ValueError(f"style {style_name!r}: {where} must be an object")
+    for key, value in override.items():
+        if key not in base:
+            raise ValueError(f"style {style_name!r}: unknown key {where}.{key} "
+                             "(styles may only override keys the default style defines)")
+        if isinstance(value, dict):
+            _check_style_keys(style_name, value, base[key], f"{where}.{key}")
+
+
+def _deep_merge(base, override):
+    out = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = _deep_merge(out[key], value)
+        else:
+            out[key] = value
+    return out
+
+
+def resolve_style(doc, name):
+    """The full style `name`: the default style with the named style's
+    overrides deep-merged over it. Raises ValueError for unknown names
+    and unknown override keys."""
+    styles = doc["styles"]
+    if name not in styles:
+        raise ValueError(f"unknown style {name!r}; defined styles: {sorted(styles)}")
+    base = styles["default"]
+    override = styles[name]
+    if not isinstance(override, dict):
+        raise ValueError(f"style {name!r} must be an object")
+    for key in override:
+        if key != "about" and key not in _STYLE_SECTIONS:
+            raise ValueError(f"style {name!r}: unknown section {key!r} "
+                             f"(expected one of {_STYLE_SECTIONS})")
+    resolved = {}
+    for section in _STYLE_SECTIONS:
+        over = override.get(section, {})
+        _check_style_keys(name, over, base[section], section)
+        resolved[section] = _deep_merge(base[section], over)
+    return resolved
 
 
 def _num(raw, key, default, lo, hi):
@@ -73,12 +146,13 @@ def _tint(base, rng, spread=0.06):
     return [round(max(0.0, min(1.0, c * rng.uniform(1.0 - spread, 1.0 + spread))), 4) for c in base]
 
 
-def _slots(length, rng, margin=1.05, spacing=1.9):
+def _slots(length, rng, geo):
     """Window centres along a wall, spread between the corner margins."""
-    usable = length - 2 * margin
+    win = geo["window"]
+    usable = length - 2 * win["slot_margin"]
     if usable < 0.8:
         return [0.0]
-    n = max(1, round(usable / spacing))
+    n = max(1, round(usable / win["slot_spacing"]))
     if n == 1:
         return [0.0]
     jitter = min(0.12, usable / n * 0.15)
@@ -86,20 +160,21 @@ def _slots(length, rng, margin=1.05, spacing=1.9):
             for i in range(n)]
 
 
-def _windows(length, floors, fh, base, rng, skip=()):
+def _windows(length, floors, fh, base, rng, geo, skip=()):
     """Window openings for one wall: one row per floor. skip holds
     (floor, centre) pairs to leave out (e.g. where the door is)."""
+    win = geo["window"]
     out = []
     for fl in range(floors):
-        for x in _slots(length, rng):
-            if any(fl == f and abs(x - c) < 0.95 for f, c in skip):
+        for x in _slots(length, rng, geo):
+            if any(fl == f and abs(x - c) < win["skip_distance"] for f, c in skip):
                 continue
-            out.append({"x": x, "z": round(base + fl * fh + 0.9, 3),
-                        "w": 0.9, "h": 1.3, "type": "window"})
+            out.append({"x": x, "z": round(base + fl * fh + win["sill_offset"], 3),
+                        "w": win["w"], "h": win["h"], "type": "window"})
     return out
 
 
-def derive_building(raw, index):
+def derive_building(raw, index, styles_doc=None):
     """Validate one user building entry and derive the full build spec."""
     if not isinstance(raw, dict):
         raise ValueError(f"buildings[{index}] must be an object")
@@ -115,9 +190,14 @@ def derive_building(raw, index):
     roof = raw.get("roof", "gable")
     if roof not in ROOFS:
         raise ValueError(f"{name}.roof must be one of {ROOFS}, got {roof!r}")
+    style_name = raw.get("style", "default")
+    if not isinstance(style_name, str):
+        raise ValueError(f"{name}.style must be a string, got {style_name!r}")
+    style = resolve_style(styles_doc or load_styles(), style_name)
+    geo = style["geometry"]
     width = _num(raw, "width", 6.5, 3.0, 24.0)
     depth = _num(raw, "depth", 5.5, 3.0, 24.0)
-    fh = _num(raw, "floor_height", 2.8, 2.4, 3.6)
+    fh = _num(raw, "floor_height", geo["floor_height"], 2.4, 3.6)
     floors_raw = raw.get("floors", 2)
     if isinstance(floors_raw, bool) or not isinstance(floors_raw, int) or not 1 <= floors_raw <= 6:
         raise ValueError(f"{name}.floors must be an integer within [1, 6], got {floors_raw!r}")
@@ -127,42 +207,47 @@ def derive_building(raw, index):
         raise ValueError(f"{name}.seed must be an integer, got {seed!r}")
     rng = random.Random(seed)
 
-    base = 0.55            # foundation height
-    wall_t = 0.18          # wall thickness
-    wall_tint = _tint(WALL_TINTS[wall], rng)
+    base = geo["foundation_height"]
+    wall_t = geo["wall_thickness"]
+    tints = geo["tints"]
+    wall_tint = _tint(tints["wall"][wall], rng, tints["spread"])
     if roof == "flat":
-        roof_tint = _tint((0.25, 0.25, 0.26), rng, 0.04)
+        roof_tint = _tint(tints["flat_roof"], rng, tints["flat_spread"])
         roof_rise = 0.0
-        eaves = 0.13
+        eaves = geo["roof"]["eaves_flat"]
     else:
-        roof_tint = _tint(ROOF_TINTS[rng.choice(sorted(ROOF_TINTS))], rng)
-        roof_rise = round(min(width, depth) * rng.uniform(0.34, 0.42), 3)
-        eaves = 0.45
-    chimney = roof != "flat" and rng.random() < 0.65
+        roof_tint = _tint(tints["roof"][rng.choice(sorted(tints["roof"]))], rng, tints["spread"])
+        roof_rise = round(min(width, depth) * rng.uniform(geo["roof"]["rise_ratio_min"],
+                                                          geo["roof"]["rise_ratio_max"]), 3)
+        eaves = geo["roof"]["eaves_sloped"]
+    chimney = roof != "flat" and rng.random() < geo["chimney"]["probability"]
     chimney_x = round(rng.uniform(-0.25, 0.25) * max(width, depth), 3)
 
+    door_w, door_h = geo["door"]["w"], geo["door"]["h"]
     openings = {"front": [], "back": [], "left": [], "right": []}
-    front_slots = _slots(width, rng)
+    front_slots = _slots(width, rng, geo)
     if kind == "shop":
-        glass_w = round(min(width * 0.56, width - 2.4), 3)
-        glass_x = round(-width * 0.14, 3)
-        door_x = round(width / 2 - 0.95, 3)
-        openings["front"].append({"x": glass_x, "z": base + 0.08, "w": glass_w,
-                                  "h": 2.25, "type": "shop_glass"})
-        openings["front"].append({"x": door_x, "z": base, "w": 0.95, "h": 2.1, "type": "door"})
+        sg = geo["shop"]
+        glass_w = round(min(width * sg["glass_width_ratio"], width - sg["glass_min_margin"]), 3)
+        glass_x = round(width * sg["glass_x_ratio"], 3)
+        door_x = round(width / 2 - door_w, 3)
+        openings["front"].append({"x": glass_x, "z": base + sg["glass_z_offset"],
+                                  "w": glass_w, "h": sg["glass_h"], "type": "shop_glass"})
+        openings["front"].append({"x": door_x, "z": base, "w": door_w, "h": door_h, "type": "door"})
         for fl in range(1, floors):
             for x in front_slots:
-                openings["front"].append({"x": x, "z": round(base + fl * fh + 0.9, 3),
-                                          "w": 0.9, "h": 1.3, "type": "window"})
+                openings["front"].append({"x": x, "z": round(base + fl * fh + geo["window"]["sill_offset"], 3),
+                                          "w": geo["window"]["w"], "h": geo["window"]["h"],
+                                          "type": "window"})
     else:
         door_slot = min(range(len(front_slots)),
                         key=lambda i: abs(front_slots[i] - rng.uniform(-width / 4, width / 4)))
         door_x = front_slots[door_slot]
-        openings["front"].append({"x": door_x, "z": base, "w": 0.95, "h": 2.1, "type": "door"})
-        openings["front"].extend(_windows(width, floors, fh, base, rng, skip=((0, door_x),)))
-    openings["back"].extend(_windows(width, floors, fh, base, rng))
-    openings["left"].extend(_windows(depth, floors, fh, base, rng))
-    openings["right"].extend(_windows(depth, floors, fh, base, rng))
+        openings["front"].append({"x": door_x, "z": base, "w": door_w, "h": door_h, "type": "door"})
+        openings["front"].extend(_windows(width, floors, fh, base, rng, geo, skip=((0, door_x),)))
+    openings["back"].extend(_windows(width, floors, fh, base, rng, geo))
+    openings["left"].extend(_windows(depth, floors, fh, base, rng, geo))
+    openings["right"].extend(_windows(depth, floors, fh, base, rng, geo))
 
     return {
         "name": name, "kind": kind, "wall": wall, "roof": roof,
@@ -172,21 +257,23 @@ def derive_building(raw, index):
         "eaves": eaves, "chimney": chimney, "chimney_x": chimney_x,
         "noise_offset": [round(rng.uniform(0, 50), 3) for _ in range(3)],
         "openings": openings,
+        "style_name": style_name, "style": style,
     }
 
 
-def derive_spec(raw):
+def derive_spec(raw, styles_doc=None):
     if not isinstance(raw, dict) or not isinstance(raw.get("buildings"), list) or not raw["buildings"]:
         raise ValueError("spec must be an object with a non-empty 'buildings' list")
-    buildings = [derive_building(b, i) for i, b in enumerate(raw["buildings"])]
+    doc = styles_doc or load_styles()
+    buildings = [derive_building(b, i, doc) for i, b in enumerate(raw["buildings"])]
     names = [b["name"] for b in buildings]
     if len(set(names)) != len(names):
         raise ValueError(f"building names must be unique, got {names}")
     return {"buildings": buildings}
 
 
-def run_building(spec, outdir, blender, timeout, tex_size, samples):
-    derived = derive_spec(spec)
+def run_building(spec, outdir, blender, timeout, tex_size, samples, styles_doc=None):
+    derived = derive_spec(spec, styles_doc)
     derived["texture_size"] = tex_size
     derived["render_samples"] = samples
     os.makedirs(outdir, exist_ok=True)
@@ -221,6 +308,8 @@ def main(argv):
     parser.add_argument("--check", action="store_true",
                         help="validate and derive the spec, print it, do not run Blender")
     parser.add_argument("--blender", default=os.environ.get("BLENDER", "blender"))
+    parser.add_argument("--styles", help="style definitions JSON "
+                        "(default: ai_loop/building_styles.json)")
     parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--tex-size", type=int, default=2048,
                         help="bake resolution (exported textures are capped at 1024)")
@@ -229,16 +318,18 @@ def main(argv):
     try:
         with open(args.spec, encoding="utf-8") as fh:
             spec = json.load(fh)
+        styles_doc = load_styles(args.styles)
         if args.check:
             result = {"ok": True, "command": "building", "check": True,
-                      "buildings": derive_spec(spec)["buildings"]}
+                      "buildings": derive_spec(spec, styles_doc)["buildings"]}
         else:
             if not args.out:
                 parser.error("--out is required unless --check")
             blender = shutil.which(args.blender)
             if not blender:
                 raise ValueError(f"Blender executable not found: {args.blender} (use --blender or $BLENDER)")
-            result = run_building(spec, args.out, blender, args.timeout, args.tex_size, args.samples)
+            result = run_building(spec, args.out, blender, args.timeout, args.tex_size,
+                                  args.samples, styles_doc)
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
         result = {"ok": False, "command": "building", "error": str(error)}
     print(json.dumps(result, ensure_ascii=False))

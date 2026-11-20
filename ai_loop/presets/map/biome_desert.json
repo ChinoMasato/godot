@@ -1,0 +1,17 @@
+{
+  "_about": "A desert biome as pure data (B-1219 stage 2): a UZUWorldGen nature spec in a file -- dry plains, no water, no trees, no snow, more rocks, sand-coloured ground. Feed it as-is: uzu.py map <project> nature --spec ai_loop/presets/map/biome_desert.json (keys starting with _ are metadata and are dropped by the map tool). Regional difference lives in data like this, never in generator code.",
+  "preset": "plains",
+  "seed": 7,
+  "size": 256,
+  "height": 14,
+  "roughness": 0.35,
+  "water": false,
+  "snow_line": 2.0,
+  "trees": 0.0,
+  "rocks": 1.4,
+  "grass": 0.0,
+  "grass_color": "#b8a05e",
+  "dirt_color": "#a8845c",
+  "rock_color": "#8a6f52",
+  "sand_color": "#d9c08a"
+}

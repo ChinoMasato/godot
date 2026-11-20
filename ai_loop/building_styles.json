@@ -1,0 +1,250 @@
+{
+ "about": "Building style definitions for the B-1219 procedural building recipe (stage 2: styles as data). The engine side owns the generation mechanism; everything that makes a building read as one regional / period style lives here as data. A building spec names a style (\"style\": \"alpine\"); styles other than \"default\" are partial overrides, deep-merged over \"default\" at derive time (ai_loop/building_recipe.py), and unknown keys are rejected so typos surface. \"default\" reproduces the stage-1 recipe exactly (same constants, same seed derivation). Adding a style must never need a code change. Two sections: \"geometry\" is consumed by the CLI derivation (proportions, openings, roof, tints), \"materials\" by the Blender side (procedural material parameters). Tint-relative ramp shading factors inside the materials stay in code: they shade whatever tint the style picks, they do not define the style.",
+ "styles": {
+  "alpine": {
+   "about": "Steep-roof mountain style, added in stage 2 as the proof that a style is data only: taller floors, smaller and denser windows, a much steeper roof with deep eaves (snow country), an almost-certain chimney, darker wood and slate. No code was changed to add it.",
+   "geometry": {
+    "chimney": {
+     "probability": 0.9
+    },
+    "floor_height": 3.0,
+    "roof": {
+     "eaves_sloped": 0.7,
+     "rise_ratio_max": 0.65,
+     "rise_ratio_min": 0.55
+    },
+    "tints": {
+     "roof": {
+      "slate": [
+       0.25,
+       0.27,
+       0.33
+      ],
+      "terracotta": [
+       0.48,
+       0.27,
+       0.2
+      ]
+     },
+     "wall": {
+      "plaster": [
+       0.88,
+       0.85,
+       0.78
+      ],
+      "wood": [
+       0.36,
+       0.26,
+       0.17
+      ]
+     }
+    },
+    "window": {
+     "h": 1.1,
+     "slot_spacing": 1.6,
+     "w": 0.8
+    }
+   },
+   "materials": {
+    "roof_tile": {
+     "roughness": 0.93
+    },
+    "stone": {
+     "roughness": 1.0
+    },
+    "wood": {
+     "board_scale": 3.4,
+     "roughness": 0.84
+    }
+   }
+  },
+  "default": {
+   "geometry": {
+    "chimney": {
+     "probability": 0.65
+    },
+    "door": {
+     "h": 2.1,
+     "w": 0.95
+    },
+    "floor_height": 2.8,
+    "foundation_height": 0.55,
+    "roof": {
+     "eaves_flat": 0.13,
+     "eaves_sloped": 0.45,
+     "rise_ratio_max": 0.42,
+     "rise_ratio_min": 0.34
+    },
+    "roof_tiles": {
+     "arc_degrees": 130.0,
+     "column_spacing": 0.27,
+     "enabled": true,
+     "length": 0.42,
+     "lift": 0.008,
+     "radius": 0.16,
+     "row_spacing": 0.34
+    },
+    "shop": {
+     "glass_h": 2.25,
+     "glass_min_margin": 2.4,
+     "glass_width_ratio": 0.56,
+     "glass_x_ratio": -0.14,
+     "glass_z_offset": 0.08
+    },
+    "tints": {
+     "flat_roof": [
+      0.25,
+      0.25,
+      0.26
+     ],
+     "flat_spread": 0.04,
+     "roof": {
+      "moss": [
+       0.36,
+       0.38,
+       0.3
+      ],
+      "slate": [
+       0.32,
+       0.35,
+       0.42
+      ],
+      "terracotta": [
+       0.55,
+       0.3,
+       0.22
+      ]
+     },
+     "spread": 0.06,
+     "wall": {
+      "brick": [
+       0.62,
+       0.32,
+       0.24
+      ],
+      "plaster": [
+       0.93,
+       0.89,
+       0.82
+      ],
+      "wood": [
+       0.45,
+       0.33,
+       0.22
+      ]
+     }
+    },
+    "wall_thickness": 0.18,
+    "window": {
+     "h": 1.3,
+     "sill_offset": 0.9,
+     "skip_distance": 0.95,
+     "slot_margin": 1.05,
+     "slot_spacing": 1.9,
+     "w": 0.9
+    }
+   },
+   "materials": {
+    "brick": {
+     "bias": -0.25,
+     "brick_width": 0.44,
+     "bump_distance": 0.02,
+     "bump_strength": 0.5,
+     "mortar_color": [
+      0.62,
+      0.58,
+      0.52
+     ],
+     "mortar_size": 0.04,
+     "mortar_smooth": 0.004,
+     "roughness": 0.86,
+     "row_height": 0.105
+    },
+    "chimney_brick": {
+     "brick_width": 0.44,
+     "color1": [
+      0.52,
+      0.27,
+      0.2
+     ],
+     "color2": [
+      0.42,
+      0.21,
+      0.16
+     ],
+     "mortar_color": [
+      0.6,
+      0.56,
+      0.5
+     ],
+     "mortar_size": 0.012,
+     "roughness": 0.88,
+     "row_height": 0.105
+    },
+    "door": {
+     "roughness": 0.58,
+     "shade": 0.8
+    },
+    "flat_roof": {
+     "noise_scale": 5.0,
+     "roughness": 0.96
+    },
+    "glass": {
+     "color": [
+      0.05,
+      0.08,
+      0.11
+     ],
+     "roughness": 0.07
+    },
+    "plaster": {
+     "bump_distance": 0.03,
+     "bump_strength": 0.12,
+     "fine_noise_scale": 30.0,
+     "noise_scale": 3.5,
+     "roughness": 0.92
+    },
+    "roof_tile": {
+     "bias": -0.2,
+     "brick_width": 0.3,
+     "bump_distance": 0.03,
+     "bump_strength": 0.7,
+     "mortar_size": 0.02,
+     "mortar_smooth": 0.003,
+     "roughness": 0.88,
+     "row_height": 0.15
+    },
+    "stone": {
+     "bump_distance": 0.04,
+     "bump_strength": 0.5,
+     "noise_scale": 4.0,
+     "roughness": 0.98,
+     "voronoi_scale": 3.0
+    },
+    "trim": {
+     "bump_strength": 0.15,
+     "color_dark": [
+      0.16,
+      0.1,
+      0.06
+     ],
+     "color_light": [
+      0.88,
+      0.84,
+      0.76
+     ],
+     "roughness": 0.62
+    },
+    "wood": {
+     "board_scale": 4.4,
+     "bump_distance": 0.02,
+     "bump_strength": 0.35,
+     "detail": 3.0,
+     "distortion": 1.2,
+     "roughness": 0.78
+    }
+   }
+  }
+ },
+ "version": 1
+}
