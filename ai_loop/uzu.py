@@ -9,6 +9,7 @@ or through ai_loop\\windows\\uzu.bat.
 
   uzu.py engine   <project> <command> [options]   scene, class and project operations (B-401, B-201..B-203, B-304)
   uzu.py look     <project> <command> [options]   the U.ZU look (B-7xx), shot / check / panorama
+  uzu.py anim     <project> motion|align [options]   rigged character clips and sprite alignment (B-1220)
   uzu.py build    <project> --spec spec.json [--shot out.png] [--budget JSON] [--no-render] [--no-report]
                   [--spec-set [dir]]   a whole scene from one JSON spec (B-1207, see ai_loop/build_tool.gd),
                   with its richness report; --spec-set also writes the generation spec set (B-1509)
@@ -1037,6 +1038,92 @@ def audit_scene_cmd(project, args):
 
 
 IMAGEWALK_PROBE = 'UZUImageWalk="*res://addons/uzu_selfplay/image_walk.gd"\n'
+
+
+def animation_cmd(project, args):
+    """Generate reusable clips for an imported rig or align a sprite sequence."""
+    import argparse
+    import tempfile
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(prog="uzu.py anim <project>")
+    commands = parser.add_subparsers(dest="command", required=True)
+    motion = commands.add_parser("motion")
+    motion.add_argument("--model", required=True)
+    motion.add_argument("--out", required=True)
+    motion.add_argument("--bones", type=Path, help="JSON file of bone name overrides")
+    motion.add_argument("--speed", type=float, default=1.0)
+    motion.add_argument("--stride", type=float, default=1.0)
+    motion.add_argument("--weight", type=float, default=0.5)
+    align = commands.add_parser("align")
+    align.add_argument("--frames-dir", required=True)
+    align.add_argument("--out", required=True)
+    options = vars(parser.parse_args(args))
+    root = Path(project).resolve()
+
+    def local_path(raw):
+        path = (root / (raw[6:] if raw.startswith("res://") else raw)).resolve()
+        relative = path.relative_to(root)
+        if not relative.parts:
+            raise ValueError("Expected a path inside the project.")
+        return path, "res://" + relative.as_posix()
+
+    try:
+        output, options["out"] = local_path(options["out"])
+        if output.exists():
+            raise ValueError(f"Output already exists: {options['out']}")
+        if not output.parent.is_dir():
+            raise ValueError("Output parent directory must exist.")
+        if options["command"] == "motion":
+            if output.suffix != ".tscn":
+                raise ValueError("Motion output must have a .tscn extension.")
+            model, options["model"] = local_path(options["model"])
+            if not model.is_file():
+                raise ValueError(f"Model does not exist: {options['model']}")
+            for name, minimum, maximum in (("speed", 0.25, 4), ("stride", 0.25, 2), ("weight", 0, 1)):
+                if not minimum <= options[name] <= maximum:
+                    raise ValueError(f"--{name} must be between {minimum} and {maximum}.")
+            bones_file = options.pop("bones")
+            if bones_file is not None:
+                bones = json.loads(bones_file.read_text(encoding="utf-8-sig"))
+                if not isinstance(bones, dict) or not all(isinstance(name, str) and name.strip() for name in bones.values()):
+                    raise ValueError("Bone overrides must map roles to nonempty names.")
+                options["bones"] = bones
+        else:
+            _, options["frames_dir"] = local_path(options["frames_dir"])
+    except (OSError, ValueError) as error:
+        return {"ok": False, "error": str(error)}
+
+    def generate():
+        status, output_log = run([
+            find_godot(), "--headless", "--path", project, "--script", os.path.join(HERE, "animation_tool.gd"),
+            "--", json.dumps(options),
+        ])
+        result = result_line(output_log, "UZU_ANIMATION ")
+        if result is None or (status and result.get("ok")):
+            raise ToolError("Animation tool failed: " + tail(output_log, 15))
+        return result
+
+    if options["command"] == "align":
+        return generate()
+    try:
+        with tempfile.TemporaryDirectory(prefix="uzu-motion-", dir=output.parent) as staging:
+            staged = Path(staging) / output.name
+            _, options["out"] = local_path(str(staged))
+            result = generate()
+            if result["ok"]:
+                payload = staged.read_bytes()
+                with output.open("xb") as target:
+                    try:
+                        target.write(payload)
+                    except OSError:
+                        target.close()
+                        output.unlink()
+                        raise
+                result["scene"] = "res://" + output.relative_to(root).as_posix()
+            return result
+    except OSError as error:
+        return {"ok": False, "error": str(error)}
 
 
 def image_scene_cmd(project, args):
@@ -2211,6 +2298,7 @@ def selftest_tools():
     commands.append(("tests/test_walk_graph.py", []))
     commands.append(("tests/test_audit_scene.py", []))
     commands.append(("tests/test_image_scene.py", []))
+    commands.append(("tests/test_animation.py", []))
     ok = True
     for tool, args in commands:
         rc, out = run([sys.executable, os.path.join(HERE, tool), *args], timeout=900)
@@ -2288,7 +2376,7 @@ def main(argv):
             result = {"ok": False, "error": e.message}
         print(json.dumps(result, ensure_ascii=False))
         return 0 if result.get("ok") else 1
-    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui", "map", "audit-scene", "image-scene") or not rest:
+    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui", "map", "audit-scene", "image-scene", "anim") or not rest:
         print(__doc__, file=sys.stderr)
         return 2
     project = os.path.abspath(rest[0])
@@ -2296,7 +2384,7 @@ def main(argv):
         print(json.dumps({"ok": False, "error": f"{rest[0]} is not a project (no project.godot)"}))
         return 2
     try:
-        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui, "map": map_, "audit-scene": audit_scene_cmd, "image-scene": image_scene_cmd}[tool](project, rest[1:])
+        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui, "map": map_, "audit-scene": audit_scene_cmd, "image-scene": image_scene_cmd, "anim": animation_cmd}[tool](project, rest[1:])
     except ToolError as e:
         result = {"ok": False, "error": e.message, **e.extra}
         print(json.dumps(result, ensure_ascii=False))

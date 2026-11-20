@@ -32,6 +32,16 @@ NODE = _str('Node path relative to the scene root ("." is the root)')
 
 # name: (script, command, description, properties, required)
 TOOLS = {
+    "animation_motion": (
+        "anim", "motion", "Generate looping idle, walk and run clips for a rigged model and report clip lengths and loop seams.",
+        {"model": _str("Imported rigged model path"), "out": _str("New .tscn path"), "bones": _str("Optional JSON file of bone overrides"),
+         "speed": _str("Playback rate multiplier"), "stride": _str("Limb swing multiplier"), "weight": _str("0 to 1 body weight feel")},
+        ["model", "out"],
+    ),
+    "animation_align": (
+        "anim", "align", "Align transparent PNG sprite frames to a common canvas and bottom-center anchor without resampling.",
+        {"frames-dir": _str("Input PNG directory"), "out": _str("New output directory")}, ["frames-dir", "out"],
+    ),
     "dialogue_validate": (
         "dialogue",
         "",
