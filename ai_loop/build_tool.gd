@@ -12,8 +12,15 @@ extends SceneTree
 ##    "base": "res://existing.tscn"   (add to an existing scene instead of starting empty; "scene"
 ##                                    defaults to it; re-applying replaces nodes of the same name),
 ##    "look": {"quality": "standard", "atmosphere": "golden_hour", "clouds": true, "rig": true},
-##    "ground": {"size": [60, 60], "color": "#5a6b3a"},
+##    "ground": {"size": [60, 60], "color": "#5a6b3a", "position": [0, 0, 0], "collision": false},
 ##    "camera": {"position": [0, 8, 20], "look_at": [0, 0, 0], "lens": "standard"},
+##    "cards": [{"name": "Tree", "image": "res://tree.png", "position": [...], "size": [4, 6],
+##               "rotation_y": 0, "collision": false, "unshaded": true}]   (textured quads, alpha
+##               scissor; the layered-picture primitive of B-1216 / the image-first scaffold of
+##               B-1221; "collision" adds a thin static body so walkers bump into the card),
+##    "markers": [{"name": "Candidate_door", "kind": "door", "position": [...], "radius": 0.9}]
+##               (invisible Area3D placeholders with "uzu_candidate" metadata: points an agent
+##               later wires game logic to),
 ##    "models": [{"mesh": "box" | "sphere" | "cylinder" | "capsule" | "prism" | "res://house.glb",
 ##                "name": "House", "position": [...], "rotation_y": 30, "scale": 2 | [x, y, z],
 ##                "color": "#...", "material": "res://m.tres" | "foliage" | "skin" | ...}],
@@ -35,9 +42,11 @@ const MATERIALS := {"skin": UZULook.MATERIAL_SKIN, "foliage": UZULook.MATERIAL_F
 const LENSES := {"wide": UZULook.LENS_WIDE, "standard": UZULook.LENS_STANDARD, "telephoto": UZULook.LENS_TELEPHOTO}
 const PARTICLES := {"dust": UZULook.PARTICLES_DUST, "fireflies": UZULook.PARTICLES_FIREFLIES, "snow": UZULook.PARTICLES_SNOW, "embers": UZULook.PARTICLES_EMBERS}
 const KEYS := {
-	"": ["scene", "base", "main", "look", "ground", "camera", "models", "scatter", "lamps", "particles", "water", "godrays"],
+	"": ["scene", "base", "main", "look", "ground", "camera", "models", "scatter", "lamps", "particles", "water", "godrays", "cards", "markers"],
 	"look": ["quality", "atmosphere", "clouds", "rig"],
-	"ground": ["size", "color", "material"],
+	"ground": ["size", "color", "material", "position", "collision"],
+	"cards": ["name", "image", "position", "size", "rotation_y", "collision", "unshaded"],
+	"markers": ["name", "kind", "position", "radius"],
 	"camera": ["position", "look_at", "lens", "fov"],
 	"models": ["mesh", "name", "position", "rotation_y", "scale", "color", "material"],
 	"scatter": ["mesh", "on", "density", "seed", "scale", "color", "material", "min_distance", "max_slope", "align", "sink", "max_count", "exclude", "name", "random_yaw", "avoid", "near_camera", "shadows"],
@@ -244,6 +253,21 @@ func _build(spec_path: String) -> Dictionary:
 		ground.material_override = _material("ground", g) if (g.has("color") or g.has("material")) else null
 		root.add_child(ground)
 		ground.owner = root
+		if g.has("position"):
+			ground.position = _vec3("ground.position", g.position)
+		if g.get("collision", false):
+			var body := StaticBody3D.new()
+			body.name = "GroundBody"
+			var shape := CollisionShape3D.new()
+			var box := BoxShape3D.new()
+			box.size = Vector3(size[0], 1.0, size[1])
+			shape.shape = box
+			shape.position = Vector3(0, -0.5, 0)  # Top face exactly at the plane's height.
+			ground.add_child(body, true)
+			body.owner = root
+			body.add_child(shape, true)
+			shape.owner = root
+			built["ground_collision"] = true
 		built["ground"] = {"size": size}
 
 	var models := _list(spec, "models")
@@ -277,6 +301,85 @@ func _build(spec_path: String) -> Dictionary:
 			c.owner = root if c.owner == null else c.owner
 	if not models.is_empty():
 		built["models"] = models.size()
+
+	# Textured cards (B-1216 layered pictures / B-1221 image-first scaffold):
+	# alpha-scissored quads, double-sided so they read from behind too.
+	var cards := _list(spec, "cards")
+	var card_count := 0
+	for k in cards.size():
+		var where := "cards[%d]" % k
+		var d = cards[k]
+		if not _check_keys(where, "cards", d):
+			continue
+		var img_path := str(d.get("image", ""))
+		if not ResourceLoader.exists(img_path) or not (load(img_path) is Texture2D):
+			_err(where + ".image", "needs a res:// texture (imported PNG)")
+			continue
+		var csize: Array = d.get("size", [2, 2])
+		var quad := QuadMesh.new()
+		quad.size = Vector2(csize[0], csize[1])
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = load(img_path)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		mat.alpha_scissor_threshold = 0.5
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		if d.get("unshaded", true):
+			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		quad.material = mat
+		var card := MeshInstance3D.new()
+		card.mesh = quad
+		card.name = str(d.get("name", "Card%d" % k))
+		var old_card := root.get_node_or_null(NodePath(card.name))
+		if old_card:  # Re-applying replaces, like scatter and particles.
+			root.remove_child(old_card)
+			old_card.free()
+		card.position = _vec3(where + ".position", d.get("position"))
+		card.rotation_degrees.y = float(d.get("rotation_y", 0.0))
+		root.add_child(card, true)
+		card.owner = root
+		if d.get("collision", false):
+			var cbody := StaticBody3D.new()
+			cbody.name = "Body"
+			var cshape := CollisionShape3D.new()
+			var cbox := BoxShape3D.new()
+			cbox.size = Vector3(csize[0], csize[1], 0.2)
+			cshape.shape = cbox
+			card.add_child(cbody, true)
+			cbody.owner = root
+			cbody.add_child(cshape, true)
+			cshape.owner = root
+		card_count += 1
+	if card_count > 0:
+		built["cards"] = card_count
+
+	# Invisible candidate markers (B-1221): Area3D placeholders carrying
+	# "uzu_candidate" metadata for an agent to wire logic to later.
+	var markers := _list(spec, "markers")
+	var marker_count := 0
+	for k in markers.size():
+		var where := "markers[%d]" % k
+		var d = markers[k]
+		if not _check_keys(where, "markers", d):
+			continue
+		var area := Area3D.new()
+		area.name = str(d.get("name", "Marker%d" % k))
+		var old_marker := root.get_node_or_null(NodePath(area.name))
+		if old_marker:
+			root.remove_child(old_marker)
+			old_marker.free()
+		area.position = _vec3(where + ".position", d.get("position"))
+		var mshape := CollisionShape3D.new()
+		var sphere := SphereShape3D.new()
+		sphere.radius = float(d.get("radius", 0.9))
+		mshape.shape = sphere
+		root.add_child(area, true)
+		area.owner = root
+		area.add_child(mshape, true)
+		mshape.owner = root
+		area.set_meta("uzu_candidate", {"kind": str(d.get("kind", "")), "basis": "inferred"})
+		marker_count += 1
+	if marker_count > 0:
+		built["markers"] = marker_count
 
 	if spec.has("camera") and _check_keys("camera", "camera", spec.camera):
 		var c: Dictionary = spec.camera

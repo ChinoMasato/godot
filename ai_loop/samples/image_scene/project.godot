@@ -1,0 +1,10 @@
+config_version=5
+
+[application]
+
+config/name="U.ZU image-first sample: dusk village"
+run/main_scene="res://image_scene/image_scene.tscn"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"

@@ -1,0 +1,452 @@
+{
+  "format": "uzu-image-scene/1",
+  "image": {
+    "width": 960,
+    "height": 540,
+    "basis": "observed",
+    "working_size": [
+      768,
+      432
+    ]
+  },
+  "depth": {
+    "source": "heuristic",
+    "basis": "inferred",
+    "reason": "no depth map supplied: vertical-position heuristic with a local-detail term"
+  },
+  "horizon": {
+    "y_px": 214,
+    "fraction": 0.495,
+    "basis": "inferred"
+  },
+  "ground_color": {
+    "value": "#48482f",
+    "basis": "observed",
+    "reason": "mean colour of the illustration's bottom rows"
+  },
+  "atmosphere": {
+    "value": "clear",
+    "basis": "inferred",
+    "reason": "from the top third's mean luminance and warmth"
+  },
+  "layers": {
+    "backdrop": {
+      "file": "background.png",
+      "size_m": [
+        26.0,
+        14.62
+      ]
+    },
+    "cards": [
+      {
+        "name": "Card_Midground_0",
+        "image": "res://image_scene/card_midground_0.png",
+        "position": [
+          3.714,
+          0.791,
+          -12.283
+        ],
+        "size": [
+          5.777,
+          1.582
+        ],
+        "collision": true,
+        "band": "midground",
+        "basis": "inferred",
+        "image_bbox": [
+          432,
+          268,
+          768,
+          360
+        ],
+        "mean_color": "#2e2e24"
+      },
+      {
+        "name": "Card_Midground_1",
+        "image": "res://image_scene/card_midground_1.png",
+        "position": [
+          -3.791,
+          0.671,
+          -12.283
+        ],
+        "size": [
+          5.622,
+          1.341
+        ],
+        "collision": true,
+        "band": "midground",
+        "basis": "inferred",
+        "image_bbox": [
+          0,
+          282,
+          327,
+          360
+        ],
+        "mean_color": "#2b2624"
+      },
+      {
+        "name": "Card_Midground_2",
+        "image": "res://image_scene/card_midground_2.png",
+        "position": [
+          -0.493,
+          0.276,
+          -12.943
+        ],
+        "size": [
+          3.631,
+          0.205
+        ],
+        "collision": false,
+        "band": "midground",
+        "basis": "inferred",
+        "image_bbox": [
+          260,
+          287,
+          455,
+          298
+        ],
+        "mean_color": "#383157"
+      },
+      {
+        "name": "Card_Midground_3",
+        "image": "res://image_scene/card_midground_3.png",
+        "position": [
+          -3.675,
+          0.524,
+          -12.274
+        ],
+        "size": [
+          0.447,
+          1.048
+        ],
+        "collision": false,
+        "band": "midground",
+        "basis": "inferred",
+        "image_bbox": [
+          157,
+          298,
+          183,
+          359
+        ],
+        "mean_color": "#62422a"
+      },
+      {
+        "name": "Card_Midground_4",
+        "image": "res://image_scene/card_midground_4.png",
+        "position": [
+          -5.651,
+          0.173,
+          -12.943
+        ],
+        "size": [
+          0.465,
+          0.484
+        ],
+        "collision": false,
+        "band": "midground",
+        "basis": "inferred",
+        "image_bbox": [
+          68,
+          285,
+          93,
+          311
+        ],
+        "mean_color": "#ffce6e"
+      },
+      {
+        "name": "Card_Foreground_0",
+        "image": "res://image_scene/card_foreground_0.png",
+        "position": [
+          2.56,
+          0.134,
+          -8.318
+        ],
+        "size": [
+          0.164,
+          0.268
+        ],
+        "collision": false,
+        "band": "foreground",
+        "basis": "inferred",
+        "image_bbox": [
+          671,
+          358,
+          690,
+          389
+        ],
+        "mean_color": "#221a16"
+      }
+    ],
+    "skipped": [
+      {
+        "reason": "ground surface: a region reaching the bottom edge, or in the ground's own colour below the horizon, is floor (grass, a path), not a card; a foreground object cropped by the frame's bottom edge would be lost here",
+        "bbox": [
+          469,
+          358,
+          768,
+          432
+        ],
+        "area": 19427
+      },
+      {
+        "reason": "ground surface: a region reaching the bottom edge, or in the ground's own colour below the horizon, is floor (grass, a path), not a card; a foreground object cropped by the frame's bottom edge would be lost here",
+        "bbox": [
+          0,
+          358,
+          287,
+          432
+        ],
+        "area": 18962
+      },
+      {
+        "reason": "ground surface: a region reaching the bottom edge, or in the ground's own colour below the horizon, is floor (grass, a path), not a card; a foreground object cropped by the frame's bottom edge would be lost here",
+        "bbox": [
+          240,
+          358,
+          512,
+          432
+        ],
+        "area": 16353
+      },
+      {
+        "reason": "ground surface: a region reaching the bottom edge, or in the ground's own colour below the horizon, is floor (grass, a path), not a card; a foreground object cropped by the frame's bottom edge would be lost here",
+        "bbox": [
+          289,
+          298,
+          468,
+          360
+        ],
+        "area": 8742
+      }
+    ]
+  },
+  "walk_area": {
+    "x": [
+      -7.8,
+      7.8
+    ],
+    "z": [
+      -17.0,
+      -6.32
+    ],
+    "basis": "inferred",
+    "reason": "the ground strip below the horizon, narrowed to the centre lane so scaffold cards at the edges stay out of the way"
+  },
+  "spawn": [
+    0.0,
+    0.0,
+    -7.82
+  ],
+  "waypoints": [
+    [
+      0.0,
+      0.0,
+      -11.66
+    ],
+    [
+      -5.46,
+      0.0,
+      -10.96
+    ],
+    [
+      5.46,
+      0.0,
+      -10.96
+    ],
+    [
+      2.51,
+      0.0,
+      -6.84
+    ],
+    [
+      0.0,
+      0.0,
+      -7.82
+    ]
+  ],
+  "candidates": {
+    "interact": [
+      {
+        "id": "glow_0",
+        "kind": "glow",
+        "basis": "inferred",
+        "reason": "a bright blob (luminance >= 0.80): lit windows, lamps and signs read as interact points",
+        "image_bbox": [
+          216,
+          213,
+          265,
+          254
+        ],
+        "confidence": 0.93,
+        "position": [
+          -2.672,
+          1.374,
+          -12.943
+        ]
+      },
+      {
+        "id": "glow_1",
+        "kind": "glow",
+        "basis": "inferred",
+        "reason": "a bright blob (luminance >= 0.80): lit windows, lamps and signs read as interact points",
+        "image_bbox": [
+          68,
+          285,
+          93,
+          311
+        ],
+        "confidence": 0.7,
+        "position": [
+          -5.651,
+          0.4,
+          -12.943
+        ]
+      },
+      {
+        "id": "glow_2",
+        "kind": "glow",
+        "basis": "inferred",
+        "reason": "a bright blob (luminance >= 0.80): lit windows, lamps and signs read as interact points",
+        "image_bbox": [
+          487,
+          271,
+          501,
+          285
+        ],
+        "confidence": 0.56,
+        "position": [
+          2.048,
+          0.546,
+          -12.943
+        ]
+      },
+      {
+        "id": "glow_3",
+        "kind": "glow",
+        "basis": "inferred",
+        "reason": "a bright blob (luminance >= 0.80): lit windows, lamps and signs read as interact points",
+        "image_bbox": [
+          584,
+          317,
+          594,
+          330
+        ],
+        "confidence": 0.54,
+        "position": [
+          3.817,
+          0.4,
+          -12.943
+        ]
+      },
+      {
+        "id": "glow_4",
+        "kind": "glow",
+        "basis": "inferred",
+        "reason": "a bright blob (luminance >= 0.80): lit windows, lamps and signs read as interact points",
+        "image_bbox": [
+          608,
+          317,
+          618,
+          330
+        ],
+        "confidence": 0.54,
+        "position": [
+          4.264,
+          0.4,
+          -12.943
+        ]
+      },
+      {
+        "id": "glow_5",
+        "kind": "glow",
+        "basis": "inferred",
+        "reason": "a bright blob (luminance >= 0.80): lit windows, lamps and signs read as interact points",
+        "image_bbox": [
+          632,
+          317,
+          642,
+          330
+        ],
+        "confidence": 0.54,
+        "position": [
+          4.711,
+          0.4,
+          -12.943
+        ]
+      },
+      {
+        "id": "door_0",
+        "kind": "door",
+        "basis": "inferred",
+        "reason": "a tall (aspect 2.3) ground-standing shape in the midground band: a doorway-sized opening",
+        "image_bbox": [
+          157,
+          298,
+          183,
+          359
+        ],
+        "confidence": 0.78,
+        "position": [
+          -3.985,
+          0.568,
+          -12.943
+        ]
+      },
+      {
+        "id": "door_1",
+        "kind": "door",
+        "basis": "inferred",
+        "reason": "a tall (aspect 1.6) ground-standing shape in the foreground band: a doorway-sized opening",
+        "image_bbox": [
+          671,
+          358,
+          690,
+          389
+        ],
+        "confidence": 0.54,
+        "position": [
+          2.509,
+          0.4,
+          -8.239
+        ]
+      }
+    ],
+    "collision": [
+      {
+        "card": "Card_Midground_0",
+        "basis": "inferred",
+        "reason": "a ground-standing midground card 5.8 m wide: something a walker should not pass through",
+        "footprint": [
+          3.714,
+          -12.283,
+          5.777
+        ]
+      },
+      {
+        "card": "Card_Midground_1",
+        "basis": "inferred",
+        "reason": "a ground-standing midground card 5.6 m wide: something a walker should not pass through",
+        "footprint": [
+          -3.791,
+          -12.283,
+          5.622
+        ]
+      }
+    ]
+  },
+  "camera": {
+    "position": [
+      0.0,
+      1.7,
+      -4.318
+    ],
+    "look_at": [
+      0.0,
+      7.38,
+      -20.0
+    ],
+    "fov": 50.0,
+    "basis": "inferred",
+    "reason": "placed so the backdrop fills the frame at the given fov; B-1223 diffs the scene against the illustration from here"
+  }
+}
