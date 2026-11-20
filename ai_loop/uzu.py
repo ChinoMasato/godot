@@ -38,6 +38,13 @@ or through ai_loop\\windows\\uzu.bat.
                   illustration becomes a B-1207 spec -- backdrop card, cut-out layer cards,
                   candidate interact markers, the reference camera -- plus a generation report;
                   the spec is built and a capsule walker walks its waypoints
+  uzu.py spec-diff <project> --spec-image illustration.png [--report report.json] [--scene res://x.tscn]
+                  [--shot-png shot.png] [--thresholds t.json] [--frames 8] [--out verdict.json]
+                  spec-image diff verification (B-1223, see ai_loop/spec_diff.py): shoots the scene
+                  from its reference camera (or reuses --shot-png) and diffs the frame against the
+                  specification illustration -- composition (edge agreement), colour (histogram
+                  distance) and per-element presence from the B-1221 generation report -- as one
+                  pass/fail JSON with every measured number
   uzu.py audit-scene <project> --scene res://x.tscn [--spec-set DIR] [--out report.json]
                   re-read audit of a saved scene (B-1511): recounts triangles, textures (count and
                   dimensions), placed instances and collision from the artifact itself -- never from
@@ -1236,6 +1243,70 @@ def image_scene_cmd(project, args):
     return result
 
 
+def spec_diff_cmd(project, args):
+    """Spec-image diff verification (B-1223): shoot the scene from its
+    reference camera and diff the frame against the specification
+    illustration with ai_loop/spec_diff.py -- composition (edge agreement),
+    colour (histogram distance) and per-element presence, the elements
+    taken from the B-1221 generation report (--report, default
+    <project>/image_scene/report.json; the B-1222 registry will be able to
+    feed the same shape later). --shot-png reuses an existing screenshot
+    instead of rendering. Thresholds come from --thresholds (a JSON file
+    with spec_diff.DEFAULT_THRESHOLDS keys) plus per-metric flags."""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import spec_diff
+
+    spec_image = opt(args, "spec-image")
+    if not spec_image:
+        raise ToolError("spec-diff needs --spec-image illustration.png", command="spec-diff")
+    spec_image = _abs(project, spec_image) if spec_image.startswith("res://") else os.path.abspath(spec_image)
+    if not os.path.isfile(spec_image):
+        raise ToolError(f"no specification image at {spec_image}", command="spec-diff")
+    report_path = opt(args, "report")
+    if report_path:
+        report_path = _abs(project, report_path) if report_path.startswith("res://") else os.path.abspath(report_path)
+    else:
+        report_path = os.path.join(project, "image_scene", "report.json")
+    if not os.path.isfile(report_path):
+        raise ToolError(f"no generation report at {report_path} (pass --report)", command="spec-diff")
+    with open(report_path, encoding="utf-8") as f:
+        elements = spec_diff.elements_from_report(json.load(f))
+    overrides = {}
+    for flag, key in (("composition-min", "composition_min"), ("color-max", "color_max"),
+                      ("element-agreement-min", "element_agreement_min")):
+        if opt(args, flag):
+            overrides[key] = float(opt(args, flag))
+    try:
+        thresholds = spec_diff.load_thresholds(opt(args, "thresholds") or None, overrides)
+    except (OSError, ValueError) as e:
+        raise ToolError(f"bad thresholds: {e}", command="spec-diff")
+    shot = opt(args, "shot-png")
+    if shot:
+        shot = os.path.abspath(shot)
+        if not os.path.isfile(shot):
+            raise ToolError(f"no screenshot at {shot}", command="spec-diff")
+        shot_keep = None
+    else:
+        tmp = tempfile.mkdtemp(prefix="uzu-spec-diff-")
+        shot = os.path.join(tmp, "shot.png")
+        shot_keep = tmp
+        screenshot(project, shot, int(opt(args, "frames", "8")), scene=opt(args, "scene") or "")
+    try:
+        verdict = spec_diff.compare(spec_image, shot, elements, thresholds)
+    except (OSError, ValueError, zlib.error) as e:
+        raise ToolError(f"could not diff the images: {e}", command="spec-diff")
+    verdict["command"] = "spec-diff"
+    verdict["scene"] = opt(args, "scene") or _main_scene(project)
+    verdict["report"] = report_path
+    if opt(args, "out"):
+        with open(os.path.abspath(opt(args, "out")), "w", encoding="utf-8") as f:
+            json.dump(verdict, f, ensure_ascii=False, indent=2)
+    if shot_keep:
+        shutil.rmtree(shot_keep, ignore_errors=True)
+    return verdict
+
+
 def map_(project, args):
     """Map generation (UZUWorldGen, ai_loop/map_tool.gd): a natural map or a city from a short
     spec. --spec is inline JSON ({...}) or a file; --set key=value overrides one key. --look
@@ -2325,6 +2396,7 @@ def selftest_tools():
     commands.append(("tests/test_walk_graph.py", []))
     commands.append(("tests/test_audit_scene.py", []))
     commands.append(("tests/test_image_scene.py", []))
+    commands.append(("tests/test_spec_diff.py", []))
     commands.append(("tests/test_animation.py", []))
     ok = True
     for tool, args in commands:
@@ -2407,7 +2479,7 @@ def main(argv):
             result = {"ok": False, "error": e.message}
         print(json.dumps(result, ensure_ascii=False))
         return 0 if result.get("ok") else 1
-    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui", "map", "audit-scene", "image-scene", "anim") or not rest:
+    if tool not in ("engine", "look", "selfplay", "build", "enrich", "ui", "map", "audit-scene", "image-scene", "spec-diff", "anim") or not rest:
         print(__doc__, file=sys.stderr)
         return 2
     project = os.path.abspath(rest[0])
@@ -2415,7 +2487,7 @@ def main(argv):
         print(json.dumps({"ok": False, "error": f"{rest[0]} is not a project (no project.godot)"}))
         return 2
     try:
-        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui, "map": map_, "audit-scene": audit_scene_cmd, "image-scene": image_scene_cmd, "anim": animation_cmd}[tool](project, rest[1:])
+        result = {"engine": engine, "look": look, "selfplay": selfplay, "build": build, "enrich": enrich, "ui": ui, "map": map_, "audit-scene": audit_scene_cmd, "image-scene": image_scene_cmd, "spec-diff": spec_diff_cmd, "anim": animation_cmd}[tool](project, rest[1:])
     except ToolError as e:
         result = {"ok": False, "error": e.message, **e.extra}
         print(json.dumps(result, ensure_ascii=False))

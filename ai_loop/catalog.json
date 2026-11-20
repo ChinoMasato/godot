@@ -2,13 +2,13 @@
  "version": 1,
  "generated_by": "ai_loop/make_catalog.py",
  "counts": {
-  "cli": 20,
+  "cli": 21,
   "command": 72,
   "mcp": 79,
   "preset": 7,
-  "script": 34,
+  "script": 36,
   "class": 15,
-  "total": 227
+  "total": 230
  },
  "entries": [
   {
@@ -248,6 +248,19 @@
    "required_capabilities": [],
    "fallback": null,
    "usage": "uzu.py selftest [engine | selfplay | tools | all | bake]"
+  },
+  {
+   "name": "spec-diff",
+   "kind": "cli",
+   "description": "spec-image diff verification (B-1223, see ai_loop/spec_diff.py): shoots the scene from its reference camera (or reuses --shot-png) and diffs the frame against the specification illustration -- composition (edge agreement), colour (histogram distance) and per-element presence from the B-1221 generation report -- as one pass/fail JSON with every measured number",
+   "tags": [
+    "cli",
+    "uzu.py"
+   ],
+   "source": "ai_loop/uzu.py",
+   "required_capabilities": [],
+   "fallback": null,
+   "usage": "uzu.py spec-diff <project> --spec-image illustration.png [--report report.json] [--scene res://x.tscn] [--shot-png shot.png] [--thresholds t.json] [--frames 8] [--out verdict.json]"
   },
   {
    "name": "texture-route",
@@ -3180,6 +3193,30 @@
     "blender"
    ],
    "fallback": "Without Blender, place a ready-made GLB, or scatter the engine's built-in rocks instead (UZUWorldGen nature maps place rocks from the spec)."
+  },
+  {
+   "name": "spec_diff",
+   "kind": "script",
+   "description": "Spec-image diff verification (BACKLOG B-1223): how far is the built scene",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/spec_diff.py",
+   "required_capabilities": [],
+   "fallback": null
+  },
+  {
+   "name": "spec_diff_check",
+   "kind": "script",
+   "description": "End-to-end check for B-1223 (spec-image diff verification), run by hand:",
+   "tags": [
+    "python",
+    "script"
+   ],
+   "source": "ai_loop/spec_diff_check.py",
+   "required_capabilities": [],
+   "fallback": null
   },
   {
    "name": "spec_set",
